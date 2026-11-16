@@ -89,10 +89,10 @@ export async function createShow(host: HTMLElement, slug: string, opts: ShowOpti
 
 /** The capture contract for tools/motion.py: window.__show = { meta, ready, seek(t), audio() }. Call on the /show route
  *  when ?capture=1 is set; render the stage at 1:1 with no chrome. */
-export async function installCapture(host: HTMLElement, slug: string, layout: Layout, locale: string) {
+export async function installCapture(host: HTMLElement, slug: string, layout: Layout, locale: string, mode: Mode = 'light') {
   const [W, H] = SIZES[layout];
   host.style.cssText = `position:relative;width:${W}px;height:${H}px;overflow:hidden`;
-  const show = await createShow(host, slug, { layout, locale, capture: true });
+  const show = await createShow(host, slug, { layout, locale, capture: true, mode });
   const f = show.film;
   const w = window as unknown as Record<string, unknown>;
   w.__show = {

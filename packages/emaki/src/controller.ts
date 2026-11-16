@@ -27,12 +27,12 @@ export interface AttachedScene {
 
 export function attachScene(host: HTMLElement, player: ScenePlayerState, opts: AttachOptions = {}): AttachedScene {
   let m: Mounted | null = null, mountedKey = '', width = host.clientWidth, alive = true, raf = 0, last = performance.now();
-  let locale = opts.locale ?? 'en', busy: Promise<void> = Promise.resolve();
+  let locale = opts.locale ?? 'en', mode: Mode = opts.mode ?? 'auto', busy: Promise<void> = Promise.resolve();
   host.style.position ||= 'relative';
   host.style.overflow = 'hidden';
 
   const size = () => SIZES[player.ref?.layout ?? 'landscape'];
-  const keyOf = () => `${player.key}|${locale}`;
+  const keyOf = () => `${player.key}|${locale}|${mode}`;
   const scale = () => {
     const [W, H] = size();
     host.style.aspectRatio = `${W} / ${H}`;
@@ -51,7 +51,7 @@ export function attachScene(host: HTMLElement, player: ScenePlayerState, opts: A
           if (!f) return player.fail(`no film "${ref.film}"`);
           await fontsReady(f);
           if (!alive) return;
-          const next = await mountScene(host, f, ref.scene, ref.layout, { locale, src: ref.src, mode: opts.mode });
+          const next = await mountScene(host, f, ref.scene, ref.layout, { locale, src: ref.src, mode });
           if (!alive || want !== keyOf()) { next.destroy(); return; }
           m = next; mountedKey = want;
           player.markReady(m.dur);
@@ -89,7 +89,7 @@ export function attachScene(host: HTMLElement, player: ScenePlayerState, opts: A
 
   return {
     fit(w) { width = w; scale(); },
-    setMode() {},
+    setMode(md) { if (md !== mode) { mode = md; seenKey = keyOf(); sync(); } },
     setLocale(l) { if (l !== locale) { locale = l; seenKey = keyOf(); sync(); } },
     destroy() { alive = false; cancelAnimationFrame(raf); off(); io?.disconnect(); m?.destroy(); m = null; },
   };
