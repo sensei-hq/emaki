@@ -6,6 +6,7 @@ import { mkdirSync, renameSync, writeFileSync, readFileSync } from 'node:fs'
 import { connect } from 'node:net'
 import { join } from 'node:path'
 import { SIZES, SUFFIX } from './config.js'
+import { frameRange, renderOut } from './media.js'
 import { die, run } from './util.js'
 
 async function chromium() {
@@ -113,8 +114,9 @@ export async function sheet(p, slug, { locale, url, at, log = console.info } = {
 	}
 }
 
-/** Frame-by-frame capture to MP4 (the score as its audio), plus a cover JPEG per orientation. */
-export async function render(p, slug, { locale, url, o = 'both', fps = 30, log = console.info } = {}) {
+/** Frame-by-frame capture to MP4 (the score as its audio), plus a cover JPEG per orientation. `from`/`to` capture a
+ *  range of film time; `out` is a file (one layout) or a folder. */
+export async function render(p, slug, { locale, url, o = 'both', fps = 30, from = 0, to = undefined, out: target = undefined, log = console.info } = {}) {
 	p.filmDir(slug)
 	const layouts = o === 'both' ? ['landscape', 'portrait'] : [o]
 	const out = p.prod(slug, locale, 'render')
@@ -130,19 +132,20 @@ export async function render(p, slug, { locale, url, o = 'both', fps = 30, log =
 				score = b64 ? join(out, 'score.wav') : null
 				if (b64) writeFileSync(score, Buffer.from(b64, 'base64'))
 			}
-			const frames = Math.round(meta.duration * fps)
-			const dst = join(out, `${slug}-${locale}-${SUFFIX[layout]}.mp4`), tmp = dst.replace(/\.mp4$/, '.part.mp4')
+			const { t0, end, frames, seconds } = frameRange(meta.duration, fps, from, to)
+			const dst = renderOut(out, slug, locale, layout, { out: target, layouts: layouts.length }), tmp = dst.replace(/\.mp4$/i, '.part.mp4')
+			mkdirSync(join(dst, '..'), { recursive: true })
 			const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'mjpeg', '-i', '-',
-				...(score ? ['-i', score] : []), '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p',
-				...(score ? ['-c:a', 'aac', '-b:a', '192k'] : []), '-t', (frames / fps).toFixed(3), '-movflags', '+faststart', tmp],
+				...(score ? [...(t0 ? ['-ss', t0.toFixed(3)] : []), '-i', score] : []), '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p',
+				...(score ? ['-c:a', 'aac', '-b:a', '192k'] : []), '-t', seconds.toFixed(3), '-movflags', '+faststart', tmp],
 			{ stdio: ['pipe', 'inherit', 'inherit'] })
 			const done = new Promise((ok, bad) => { ff.on('close', (c) => (c ? bad(new Error('ffmpeg failed')) : ok())); ff.on('error', bad) })
-			const t0 = Date.now()
+			const began = Date.now()
 			for (let i = 0; i < frames; i++) {
-				await page.evaluate((t) => window.__show.seek(t), i / fps)
+				await page.evaluate((t) => window.__show.seek(t), t0 + i / fps)
 				const jpg = await page.screenshot({ type: 'jpeg', quality: 94 })
 				if (!ff.stdin.write(jpg)) await new Promise((r) => ff.stdin.once('drain', r))
-				if (i % (fps * 10) === 0) log(`  ${layout} ${(i / fps).toFixed(1).padStart(6)}s / ${meta.duration.toFixed(1)}s`)
+				if (i % (fps * 10) === 0) log(`  ${layout} ${(t0 + i / fps).toFixed(1).padStart(6)}s / ${end.toFixed(1)}s`)
 			}
 			ff.stdin.end()
 			await done.catch((e) => die(e.message))
@@ -151,7 +154,7 @@ export async function render(p, slug, { locale, url, o = 'both', fps = 30, log =
 			await page.evaluate((t) => window.__show.seek(t), meta.cover)
 			const cover = join(out, `${slug}-${locale}-cover-${SUFFIX[layout]}.jpg`)
 			writeFileSync(cover, await page.screenshot({ type: 'jpeg', quality: 92 }))
-			log(`  wrote ${p.rel(dst)} (${frames} frames, ${Math.round((Date.now() - t0) / 1000)}s) and ${p.rel(cover)}`)
+			log(`  wrote ${p.rel(dst)} (${frames} frames, ${Math.round((Date.now() - began) / 1000)}s) and ${p.rel(cover)}`)
 			if (layout === 'landscape' && p.cfg.coversDir) {
 				const siteCover = join(p.root, p.cfg.coversDir, locale === p.site.defaultLocale ? `${slug}.jpg` : `${slug}.${locale}.jpg`)
 				mkdirSync(join(siteCover, '..'), { recursive: true })
