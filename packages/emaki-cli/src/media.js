@@ -137,6 +137,18 @@ export function ytChapters(rows) {
 export const chaptersText = (chapters) =>
 	chapters.map(([at, name]) => `${Math.floor(at / 60)}:${String(Math.floor(at % 60)).padStart(2, '0')} ${name}\n`).join('')
 
+/** description.txt: the title, the chapter list and the story link, ready to paste into a video description. */
+export const description = ({ title, chapters, link = null }) => `${title}\n\n${chaptersText(chapters)}${link ? `\n${link}\n` : ''}`
+
+/** The story page a video links to: emaki.config.json storyUrl ({site} {locale} {slug}), by default
+ *  {site}/{locale}/stories/{slug}; null when the pattern needs the site url and site.json has none. */
+export function storyLink(site, cfg, slug, locale) {
+	const pattern = cfg?.storyUrl ?? '{site}/{locale}/stories/{slug}'
+	const base = String(site?.url ?? '').replace(/\/+$/, '')
+	if (pattern.includes('{site}') && !base) return null
+	return pattern.replaceAll('{site}', base).replaceAll('{locale}', locale).replaceAll('{slug}', slug)
+}
+
 const LOUDNORM = 'loudnorm=I=-14:TP=-1.5:LRA=11'
 
 /** ffmpeg for one final video: the rendered picture (`pic`, its own audio track the music when `music`), the voice

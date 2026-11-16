@@ -3,7 +3,7 @@
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { SUFFIX } from './config.js'
-import { buildArgs, buildPlan, chaptersText, ffmeta, planTable, ytChapters } from './media.js'
+import { buildArgs, buildPlan, chaptersText, description, ffmeta, planTable, storyLink, ytChapters } from './media.js'
 import { OFFLINE, provider, TTSError, voiceConfig } from './tts.js'
 import { die, hasAudio, load, mediaLength, pad2, run, save } from './util.js'
 
@@ -214,6 +214,9 @@ export function build(p, slug, { locale, noCaptions = false, check = false, out:
 	writeFileSync(chapters, ffmeta(plan.rows))
 	const yt = ytChapters(plan.rows)
 	writeFileSync(join(out, 'chapters.txt'), chaptersText(yt))
+	const story = join(p.content, 'stories', locale, `${slug}.json`)
+	const title = (existsSync(story) ? load(story).title : null) ?? film.title ?? slug
+	writeFileSync(join(out, 'description.txt'), description({ title, chapters: yt, link: storyLink(p.site, p.cfg, slug, locale) }))
 	const built = []
 	for (const [layout, pic] of pics) {
 		const dst = join(out, `${slug}-${locale}-${SUFFIX[layout]}.mp4`)
@@ -225,6 +228,6 @@ export function build(p, slug, { locale, noCaptions = false, check = false, out:
 		built.push(dst)
 	}
 	rmSync(chapters, { force: true })
-	log(`captions: ${p.rel(out)}/${slug}-${locale}.vtt/.srt; chapters for the description: ${p.rel(join(out, 'chapters.txt'))}`)
+	log(`captions: ${p.rel(out)}/${slug}-${locale}.vtt/.srt; chapters.txt, description.txt`)
 	return { built, duration: plan.total, plan }
 }
