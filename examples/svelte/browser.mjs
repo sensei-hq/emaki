@@ -47,6 +47,22 @@ try {
 	await page.screenshot({ path: `${out}/example-es.png`, fullPage: false })
 	ok(`Spanish article: "${h1}"`)
 
+	// Dark mode the way rokkit sets it: data-mode on <html>. Every scene follows it and repaints its board.
+	const boards = () => page.$$eval('[data-testid^="figure-"] .motion-scene > div, .ms-stage', (hs) => hs.map((h) => {
+		const st = h.shadowRoot?.querySelector('#stage')
+		return st ? [st.getAttribute('data-mode'), getComputedStyle(st).backgroundColor] : null
+	}))
+	const light = await boards()
+	await page.evaluate(() => { document.documentElement.dataset.mode = 'dark' })
+	await page.waitForFunction(() => [...document.querySelectorAll('[data-testid^="figure-"] .motion-scene > div, .ms-stage')].every((h) => h.shadowRoot?.querySelector('#stage')?.getAttribute('data-mode') === 'dark'), null, { timeout: 5000 })
+		.catch(() => {})
+	const dark = await boards()
+	dark.every((b, i) => b?.[0] === 'dark' && b[1] !== light[i]?.[1])
+		? ok(`${dark.length} scenes followed <html data-mode="dark"> (${light[0]?.[1]} → ${dark[0]?.[1]})`)
+		: fail(`scenes did not go dark: ${JSON.stringify({ light, dark })}`)
+	await page.screenshot({ path: `${out}/example-dark.png`, fullPage: false })
+	await page.evaluate(() => { document.documentElement.dataset.mode = 'light' })
+
 	const cap = await browser.newPage({ viewport: { width: 1920, height: 1080 } })
 	cap.on('pageerror', (e) => errors.push(String(e)))
 	await cap.goto(base + '/show/measure-the-right-work?capture=1&o=landscape&locale=es')
