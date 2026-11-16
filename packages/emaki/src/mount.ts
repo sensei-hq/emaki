@@ -68,6 +68,7 @@ export async function mountScene(host: HTMLElement, f: FilmMeta, sceneId: string
   const stopMode = followMode(stage, host, f, opts.mode);
   const destroy = () => { stopMode(); if (owner.__motionMount === token) { root.innerHTML = ''; owner.__motionMount = undefined; } };
   try {
+    if (!json && opts.src === 'json') throw new Error(`emaki: ${f.slug} has no JSON scene "${sceneId}"`);
     return await draw({ f, sceneId, layout, locale, stage, strings, json, meta, destroy, W, H });
   } catch (e) {
     stopMode();
@@ -106,7 +107,9 @@ async function draw({ f, sceneId, layout, locale, stage, strings, json, meta, de
     if (layout === 'portrait') portrait?.(k, s);
     else if (layout === 'figure') figureLayout(stage, W, H, s);
   };
-  new Function('kit', 'window', 'W', code.scenes[sceneId])(kit, win, helpers);
+  // Every module runs, in film order: a scene may use a helper another scene's module adds to W (the website's
+  // relay, hub and overload films do). Only the requested scene is then instantiated.
+  for (const s of f.scenes) if (code.scenes[s.id]) new Function('kit', 'window', 'W', code.scenes[s.id])(kit, win, helpers);
   const def = defs[sceneId];
   if (!def) throw new Error(`emaki: scene-${sceneId}.js did not call kit.scene('${sceneId}', ...)`);
   const inst = Object.create(def) as SceneDef;

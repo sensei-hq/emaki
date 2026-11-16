@@ -111,7 +111,7 @@ export function ShowPage({ film, layout = 'landscape', locale = 'en', mode, capt
   useEffect(() => {
     if (!capture) return;
     let s: Show | null = null;
-    installCapture(host.current!, film, layout, locale, mode ?? 'light').then((x) => { s = x; });
+    installCapture(host.current!, film, layout, locale, { mode: mode ?? 'light' }).then((x) => { s = x; });
     return () => s?.destroy();
   }, [capture, film, layout, locale, mode]);
   if (capture) return <div ref={host} />;

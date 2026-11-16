@@ -35,6 +35,18 @@ describe('init', () => {
 		expect(init({ cwd: d }).kept).toContain('src/lib/emaki-source.ts')
 		expect(readFileSync(join(d, 'src/lib/emaki-source.ts'), 'utf-8')).toBe('mine')
 	})
+	it('every capture route passes ?src= and ?mode= through (parity runs and dark renders)', () => {
+		for (const [fw, file] of [['sveltekit', 'src/routes/show/[film]/+page.ts'], ['next', 'app/show/[film]/page.tsx'], ['vanilla', 'motion.ts']]) {
+			const d = tmp()
+			init({ cwd: d, framework: fw, sample: false })
+			const text = readFileSync(join(d, file), 'utf-8')
+			expect(text, fw).toMatch(/get\('src'\)/)
+			expect(text, fw).toMatch(/get\('mode'\)/)
+		}
+		const d = tmp()
+		init({ cwd: d, framework: 'sveltekit', sample: false })
+		expect(readFileSync(join(d, 'src/routes/show/[film]/+page.svelte'), 'utf-8')).toMatch(/src=\{data\.src\}.*mode=\{data\.mode\}/)
+	})
 	it('the sample content validates', () => {
 		const d = tmp()
 		init({ cwd: d, framework: 'vanilla' })

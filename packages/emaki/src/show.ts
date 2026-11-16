@@ -34,7 +34,7 @@ export async function createShow(host: HTMLElement, slug: string, opts: ShowOpti
       const k = `${index}:${layout}`;
       if (k !== key) {
         m?.destroy();
-        const next = await mountScene(host, f!, tl.scenes[index].id, layout, { locale, mode });
+        const next = await mountScene(host, f!, tl.scenes[index].id, layout, { locale, mode, src: opts.src });
         if (dead) return next.destroy();
         m = next; key = k;
       }
@@ -91,7 +91,8 @@ export async function createShow(host: HTMLElement, slug: string, opts: ShowOpti
 
 /** The capture contract for tools/motion.py: window.__show = { meta, ready, seek(t), audio() }. Call on the /show route
  *  when ?capture=1 is set; render the stage at 1:1 with no chrome. */
-export async function installCapture(host: HTMLElement, slug: string, layout: Layout, locale: string, mode: Mode = 'light') {
+export async function installCapture(host: HTMLElement, slug: string, layout: Layout, locale: string, opts: { mode?: Mode; src?: 'json' | 'js' } = {}) {
+  const mode = opts.mode ?? 'light';
   const [W, H] = SIZES[layout];
   host.style.cssText = `position:relative;width:${W}px;height:${H}px;overflow:hidden`;
   const show = await createShow(host, slug, { layout, locale, capture: true, mode });

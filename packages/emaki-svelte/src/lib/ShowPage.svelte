@@ -8,7 +8,7 @@
   // mode: capture renders light unless asked; the interactive player follows the page (auto).
   let { film, layout = 'landscape', locale = 'en', mode, capture = false }: { film: string; layout?: Layout; locale?: string; mode?: Mode; capture?: boolean } = $props();
   let host: HTMLDivElement | undefined = $state();
-  onMount(() => { if (capture && host) installCapture(host, film, layout, locale, mode ?? 'light'); });
+  onMount(() => { if (capture && host) installCapture(host, film, layout, locale, { mode: mode ?? 'light' }); });
 </script>
 
 {#if capture}

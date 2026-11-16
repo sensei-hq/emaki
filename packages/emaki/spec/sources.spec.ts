@@ -2,7 +2,7 @@
 // (issue #1): every code module of a film runs, in film order, so one scene can use helpers another defines; a forced
 // source that does not exist throws instead of quietly drawing the other one; the player and capture take `src`.
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createShow, loadFilm, mountScene, useSource, type FilmJson, type SceneSpec } from '../src/index.js';
+import { createShow, installCapture, loadFilm, mountScene, useSource, type FilmJson, type SceneSpec } from '../src/index.js';
 
 const film: FilmJson = {
   title: 'T',
@@ -54,6 +54,16 @@ describe('scene sources', () => {
     document.body.appendChild(host);
     const show = await createShow(host, 'f', { capture: true, src: 'js', slide: 3 });
     expect(host.shadowRoot!.getElementById('stage')!.textContent).toContain('drawn by code');
+    show.destroy();
+  });
+
+  it('the capture page takes src and mode as options (the parity suite drives ?src=)', async () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const show = await installCapture(host, 'f', 'landscape', 'en', { src: 'js', mode: 'light' });
+    await show.seek(4.5);
+    expect(host.shadowRoot!.getElementById('stage')!.textContent).toContain('drawn by code');
+    expect((window as unknown as { __show?: unknown }).__show).toBeTruthy();
     show.destroy();
   });
 });
