@@ -45,6 +45,12 @@ describe('docs', () => {
 		expect(rewriteLinks('<a href="https://x.dev">x</a>')).toBe('<a href="https://x.dev">x</a>');
 	});
 
+	it('keeps <placeholder> words as text instead of swallowing them as HTML tags', () => {
+		const html = findPage('content-model')!.html;
+		expect(html).toContain('stories/&lt;locale&gt;/&lt;slug&gt;.json');
+		expect(html).not.toContain('stories//.json');
+	});
+
 	it('gives headings anchor ids', () => {
 		expect(addHeadingIds('<h2>Light and <code>dark</code></h2>')).toBe('<h2 id="light-and-dark">Light and <code>dark</code></h2>');
 		expect(addHeadingIds("<h3>Don&#39;t &lt;guess&gt;</h3>")).toBe('<h3 id="don-t-guess">Don&#39;t &lt;guess&gt;</h3>');
