@@ -6,9 +6,10 @@
   import MotionShow from './MotionShow.svelte';
 
   // mode: capture renders light unless asked; the interactive player follows the page (auto).
-  let { film, layout = 'landscape', locale = 'en', mode, capture = false }: { film: string; layout?: Layout; locale?: string; mode?: Mode; capture?: boolean } = $props();
+  let { film, layout = 'landscape', locale = 'en', mode, src, capture = false }:
+    { film: string; layout?: Layout; locale?: string; mode?: Mode; src?: 'json' | 'js'; capture?: boolean } = $props();
   let host: HTMLDivElement | undefined = $state();
-  onMount(() => { if (capture && host) installCapture(host, film, layout, locale, { mode: mode ?? 'light' }); });
+  onMount(() => { if (capture && host) installCapture(host, film, layout, locale, { mode: mode ?? 'light', src }); });
 </script>
 
 {#if capture}

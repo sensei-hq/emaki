@@ -20,7 +20,7 @@
 </script>
 
 {#if show}
-  <ShowPage film={show} capture={q.get('capture') === '1'} layout={q.get('o') === 'portrait' ? 'portrait' : 'landscape'} locale={q.get('locale') ?? 'en'} />
+  <ShowPage film={show} capture={q.get('capture') === '1'} layout={q.get('o') === 'portrait' ? 'portrait' : 'landscape'} locale={q.get('locale') ?? 'en'} src={(['json', 'js'].includes(q.get('src') ?? '') ? q.get('src') : undefined) as 'json' | 'js' | undefined} mode={mode === 'dark' ? 'dark' : undefined} />
 {:else if story}
   <main>
     <nav>

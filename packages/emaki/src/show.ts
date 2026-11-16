@@ -95,7 +95,7 @@ export async function installCapture(host: HTMLElement, slug: string, layout: La
   const mode = opts.mode ?? 'light';
   const [W, H] = SIZES[layout];
   host.style.cssText = `position:relative;width:${W}px;height:${H}px;overflow:hidden`;
-  const show = await createShow(host, slug, { layout, locale, capture: true, mode });
+  const show = await createShow(host, slug, { layout, locale, capture: true, mode, src: opts.src });
   const f = show.film;
   const w = window as unknown as Record<string, unknown>;
   w.__show = {

@@ -133,12 +133,14 @@ export const ShowPage = defineComponent({
     locale: { type: String, default: 'en' },
     /** Capture renders light unless asked; the interactive player follows the page (auto). */
     mode: { type: String as PropType<Mode>, default: undefined },
+    /** Force scenes from their JSON or their code modules (parity checks). */
+    src: { type: String as PropType<'json' | 'js'>, default: undefined },
     capture: { type: Boolean, default: false },
   },
   setup(props) {
     const host = ref<HTMLElement | null>(null);
     let s: Show | null = null;
-    onMounted(async () => { if (props.capture) s = await installCapture(host.value!, props.film, props.layout, props.locale, { mode: props.mode ?? 'light' }); });
+    onMounted(async () => { if (props.capture) s = await installCapture(host.value!, props.film, props.layout, props.locale, { mode: props.mode ?? 'light', src: props.src }); });
     onBeforeUnmount(() => s?.destroy());
     return () => props.capture
       ? h('div', { ref: host })

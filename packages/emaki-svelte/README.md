@@ -26,7 +26,7 @@ render the article text on the server and let the components hydrate.
 | `MotionScene` | `film`, `scene`, `layout` (`figure`), `locale`, `mode` (`auto`), `autoplay` (true) |
 | `MotionShow` | `film`, `locale`, `layout` (`landscape`), `mode` (`auto`), `controls` (true), `slide`, `loop`, `bind:show` (state + controller) |
 | `ScenePlayer` | `player: ScenePlayerState`, `locale`, `mode` (`auto`), `controls` |
-| `ShowPage` | `film`, `layout`, `locale`, `mode` (capture: `light`), `capture` |
+| `ShowPage` | `film`, `layout`, `locale`, `mode` (capture: `light`), `src` (`json`/`js`, forces the scene source), `capture` |
 
 `mode` is `light`, `dark` or `auto`. Auto follows the page's `data-mode` (as rokkit's `themable` sets it), else the
 OS, and the scenes redraw when it changes. A film draws dark only if it has a dark look (see @senseihq/emaki).

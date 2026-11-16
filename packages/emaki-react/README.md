@@ -23,7 +23,7 @@ Call `setupMotion({ source, site, logos })` once on the client first (`emaki ini
 | `MotionScene` | `film`, `scene`, `layout` (`figure`), `locale`, `mode` (`auto`), `autoplay` |
 | `MotionShow` | `film`, `locale`, `layout`, `mode` (`auto`), `controls`, `slide`, `loop`, `onReady(show)` |
 | `ScenePlayer` | `player`, `locale`, `mode` (`auto`), `controls` |
-| `ShowPage` | `film`, `layout`, `locale`, `mode` (capture: `light`), `capture` |
+| `ShowPage` | `film`, `layout`, `locale`, `mode` (capture: `light`), `src` (`json`/`js`, forces the scene source), `capture` |
 | `useScenePlayer(player)` | re-renders on every change of a `ScenePlayerState` (useSyncExternalStore) |
 | `usePlayerFor(ref)` | a player you own, pointed at `{ film, scene, layout }` |
 | `useShowState(show)` | `{ index, playing, sound, layout }` of a player controller |

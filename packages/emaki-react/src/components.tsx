@@ -103,17 +103,17 @@ export function MotionShow({ film, locale = 'en', layout = 'landscape', mode = '
 }
 
 /** mode: capture renders light unless asked; the interactive player follows the page (auto). */
-export interface ShowPageProps { film: string; layout?: Layout; locale?: string; mode?: Mode; capture?: boolean }
+export interface ShowPageProps { film: string; layout?: Layout; locale?: string; mode?: Mode; src?: 'json' | 'js'; capture?: boolean }
 
 /** The /show/<film> page the video pipeline drives: with `capture`, the stage at 1:1, no chrome, window.__show. */
-export function ShowPage({ film, layout = 'landscape', locale = 'en', mode, capture = false }: ShowPageProps) {
+export function ShowPage({ film, layout = 'landscape', locale = 'en', mode, src, capture = false }: ShowPageProps) {
   const host = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!capture) return;
     let s: Show | null = null;
-    installCapture(host.current!, film, layout, locale, { mode: mode ?? 'light' }).then((x) => { s = x; });
+    installCapture(host.current!, film, layout, locale, { mode: mode ?? 'light', src }).then((x) => { s = x; });
     return () => s?.destroy();
-  }, [capture, film, layout, locale, mode]);
+  }, [capture, film, layout, locale, mode, src]);
   if (capture) return <div ref={host} />;
   return <div style={{ position: 'fixed', inset: 0 }}><MotionShow film={film} layout={layout} locale={locale} mode={mode ?? 'auto'} /></div>;
 }

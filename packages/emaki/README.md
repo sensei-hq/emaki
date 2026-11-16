@@ -90,9 +90,10 @@ film without a `dark` block is always drawn light. `attachScene(...).setMode(mod
 
 ## The capture contract
 
-`installCapture(host, film, layout, locale, mode = 'light')` sets `window.__show = { meta, ready, seek(t), audio() }` on
-a page with no chrome and the stage at 1:1. Videos render light unless a mode is passed, so a render never depends
-on the machine's theme. `emaki sheet` and `emaki render` drive it; every framework wrapper's `ShowPage`
+`installCapture(host, film, layout, locale, { mode, src })` sets `window.__show = { meta, ready, seek(t), audio() }` on
+a page with no chrome and the stage at 1:1. Videos render light unless `mode: 'dark'` is passed, so a render never
+depends on the machine's theme. `src: 'json' | 'js'` forces where scenes come from (a missing forced source throws),
+for checking a converted scene against its code original; the routes `emaki init` writes read `?src=` and `?mode=`. `emaki sheet` and `emaki render` drive it; every framework wrapper's `ShowPage`
 calls it when `capture` is set.
 
 MIT © SenecaGlobal
