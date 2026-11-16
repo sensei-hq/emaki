@@ -6,10 +6,15 @@ import { existsSync, mkdirSync, renameSync, writeFileSync, readFileSync } from '
 import { connect } from 'node:net'
 import { dirname, join } from 'node:path'
 import { SIZES, SUFFIX } from './config.js'
-import { encodeArgs, frameRange, musicFor, muxArgs, renderOut, renderSteps, staleRender } from './media.js'
+import { encodeArgs, frameRange, musicFor, muxArgs, renderOut, renderSteps, retrying, staleRender } from './media.js'
 import { die, mediaLength, run } from './util.js'
 
-const evaluate = (page, fn, arg) => page.evaluate(fn, arg)
+/** page.evaluate that survives the dev server reloading the page under it (a file saved mid-render): it waits for
+ *  the show to come back and repeats the same call (render.py's call()). */
+const evaluate = (page, fn, arg) => retrying(() => page.evaluate(fn, arg), async () => {
+	await page.waitForFunction(() => window.__show, null, { timeout: 30000 })
+	await page.evaluate(() => window.__show.ready)
+})
 
 async function chromium() {
 	try {
