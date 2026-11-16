@@ -23,10 +23,13 @@ render the article text on the server and let the components hydrate.
 
 | Component | Props |
 |---|---|
-| `MotionScene` | `film`, `scene`, `layout` (`figure`), `locale`, `autoplay` (true) |
-| `MotionShow` | `film`, `locale`, `layout` (`landscape`), `controls` (true), `slide`, `loop`, `bind:show` (state + controller) |
-| `ScenePlayer` | `player: ScenePlayerState`, `locale`, `controls` |
-| `ShowPage` | `film`, `layout`, `locale`, `capture` |
+| `MotionScene` | `film`, `scene`, `layout` (`figure`), `locale`, `mode` (`auto`), `autoplay` (true) |
+| `MotionShow` | `film`, `locale`, `layout` (`landscape`), `mode` (`auto`), `controls` (true), `slide`, `loop`, `bind:show` (state + controller) |
+| `ScenePlayer` | `player: ScenePlayerState`, `locale`, `mode` (`auto`), `controls` |
+| `ShowPage` | `film`, `layout`, `locale`, `mode` (capture: `light`), `capture` |
+
+`mode` is `light`, `dark` or `auto`. Auto follows the page's `data-mode` (as rokkit's `themable` sets it), else the
+OS, and the scenes redraw when it changes. A film draws dark only if it has a dark look (see @senseihq/emaki).
 
 `reactivePlayer(() => player)` and `reactiveShow()` give Svelte-reactive reads of the core's state classes for your
 own chrome. Keys on the player: ←/→ scene, Space play/pause, M sound, O orientation.

@@ -41,7 +41,7 @@ them into sources. Paths are matched by their tail, so the content folder can be
 | Path | What |
 |---|---|
 | `@senseihq/emaki` | `setupMotion`, `useSource`, `loadFilm`, `listFilms`, `timeline`, `coverTime`, `warp`/`unwarp`; `mountScene`; `createShow` (the player controller) and `installCapture` (the video contract); `ScenePlayerState` + `attachScene` (a scene you drive); `evaluateScene`, `validateScene`, `localizeScene`, `sceneKeys`, `registerLogo`; i18n (`configureLocales`, `fallbackChain`, `negotiate`, `dirOf`, `t`, `formatDate`); content (`loadStory`, `listStories`, `today`); sound (`filmScore`, `playScore`, `collectScore`); types |
-| `@senseihq/emaki/elements` | `defineMotionElements()`: `<motion-scene film scene layout locale>` and `<motion-show film locale layout>` web components, for plain HTML, Astro, Eleventy |
+| `@senseihq/emaki/elements` | `defineMotionElements()`: `<motion-scene film scene layout locale mode>` and `<motion-show film locale layout mode>` web components, for plain HTML, Astro, Eleventy |
 | `@senseihq/emaki/loaders/vite` | `viteSource(globs)` → `{ filmSource, contentSource, logos, site }` |
 | `@senseihq/emaki/loaders/fetch` | `fetchFilmSource(base)`, `fetchContentSource(base)`: static files at runtime (`emaki manifest` writes `films/index.json`) |
 | `@senseihq/emaki/schemas/*` | JSON Schemas: film, scene, story, stories-index, site, strings, timing, voice |
@@ -53,7 +53,7 @@ content/
   site.json                    name, url, timeZone, locales, defaultLocale, rtl, brand, topics
   stories/index.json           slug, publish_date, kind, topic, tags, film, cover, social (locale-neutral)
   stories/<locale>/<slug>.json title, dek, sections[{id, title, body, points, motion}], takeaway, takeawaySub, sources
-  films/<slug>/film.json       title, background, fonts, scenes[{id, name, dur}], cover
+  films/<slug>/film.json       title, background, dark, fonts, scenes[{id, name, dur}], cover
   films/<slug>/scene-<id>.json components + tracks (pure function of time), portrait block
   films/<slug>/strings/<locale>.json   the scene text, as {{key}} → text
   films/<slug>/look.css · score.js · voice/<locale>.json · timing[.<locale>].json
@@ -69,10 +69,30 @@ and the video stay in step in every language.
 `landscape` 1920×1080 (the authoring board), `portrait` 1080×1920 (the same scene recomposed by its `portrait`
 block), `figure` 1600×1000 (the art only, for articles).
 
+## Light and dark
+
+A film opts into dark with a `dark` block in `film.json` and draws it in `look.css`, the same way rokkit themes a page:
+
+```json
+"background": "#F3F0E9",
+"dark": { "background": "#1E1B18", "palette": ["#191614", "#D8D0C7", "#F2ECE4", "#E0795C"] }
+```
+
+```css
+#stage[data-mode="dark"] { --board:#1E1B18; --tile:#26221F; --main:#D8D0C7; --second:#F2ECE4; --accent:#E0795C }
+```
+
+Every way of showing a scene takes `mode`: `'light'`, `'dark'` or `'auto'` (the default). Auto follows the nearest
+`data-mode` up the page, looking out through shadow roots, which is what rokkit's `themable` sets on `<html>` and
+`<body>`. Without one it follows `prefers-color-scheme`, and it keeps following both until the scene is destroyed. A
+film without a `dark` block is always drawn light. `attachScene(...).setMode(mode)` switches a mounted scene, and
+`emaki validate` flags a `dark` block that `look.css` never styles, or the other way round.
+
 ## The capture contract
 
-`installCapture(host, film, layout, locale)` sets `window.__show = { meta, ready, seek(t), audio() }` on a page with
-no chrome and the stage at 1:1. `emaki sheet` and `emaki render` drive it; every framework wrapper's `ShowPage`
+`installCapture(host, film, layout, locale, mode = 'light')` sets `window.__show = { meta, ready, seek(t), audio() }` on
+a page with no chrome and the stage at 1:1. Videos render light unless a mode is passed, so a render never depends
+on the machine's theme. `emaki sheet` and `emaki render` drive it; every framework wrapper's `ShowPage`
 calls it when `capture` is set.
 
 MIT © SenecaGlobal

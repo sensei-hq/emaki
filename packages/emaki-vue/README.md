@@ -20,6 +20,10 @@ import { MotionScene, MotionShow, ScenePlayer, ShowPage } from '@senseihq/emaki-
 </template>
 ```
 
+Every component takes `mode`: `light`, `dark` or `auto` (the default). Auto follows the page's `data-mode` (as rokkit's
+`themable` sets it), else the OS, and the scenes redraw when it changes. A film draws dark only if it has a dark look
+(see @senseihq/emaki); `ShowPage` captures light unless asked.
+
 Call `setupMotion({ source, site, logos })` once on the client first. Composables: `useScenePlayer(player)` (a
 reactive snapshot of a `ScenePlayerState`) and `useShowState(showRef)`.
 

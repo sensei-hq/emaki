@@ -18,6 +18,9 @@ every frame. Read the starter's `scene-*.json` before writing a new one.
   Symmetric layouts are centred on the board's art region. Repeated cards share one size.
 - The **close** scene is the punchline card: title (3–9 words) + bar + one-line sub on the paper, the brand mark on
   the right; no card behind it, no URL. Its final frame is the cover (thumbnail, og:image, poster).
+- **Colour comes from the look's tokens** (`var(--main)`, `var(--accent)`, `var(--tile)`, `var(--hair)`, …), never a
+  literal hex: the film's dark look redefines the tokens under `#stage[data-mode="dark"]`, and a literal stays put. Soft
+  shadows (`rgba(0,0,0,.07)`) are the exception; they read on both.
 
 ## The file
 

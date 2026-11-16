@@ -44,8 +44,8 @@ Rules:
 
 | File | Contents |
 |---|---|
-| `film.json` | `title`, `look` (one paragraph describing the visual language, used by builders), `background`, `palette`, `fonts`, `scenes` [`id`, `name`, `dur` (design seconds incl. a 1.5–2 s end hold), `desc`], optional `cover` {scene, at}. The last scene is `close`. |
-| `look.css` | The film's tokens and shared classes (`.card`, `.tag`, `.words`, `.line`, `.sub`, `.eyebrow`, `.ground`, `.cam`, `.art`). Scoped to each scene's shadow root. One look per site is the norm; copy it per film. |
+| `film.json` | `title`, `look` (one paragraph describing the visual language, used by builders), `background`, `palette`, `dark` (`background`, `palette`: the dark look; without it the film is always light), `fonts`, `scenes` [`id`, `name`, `dur` (design seconds incl. a 1.5–2 s end hold), `desc`], optional `cover` {scene, at}. The last scene is `close`. |
+| `look.css` | The film's tokens and shared classes (`.card`, `.tag`, `.words`, `.line`, `.sub`, `.eyebrow`, `.ground`, `.cam`, `.art`). Scoped to each scene's shadow root. Dark tokens go under `#stage[data-mode="dark"]` (only with a `dark` block in film.json). One look per site is the norm; copy it per film. |
 | `scene-<id>.json` | The scene as data (components, tracks, css, portrait, locales). See 04-scene-authoring.md. |
 | `scene-<id>.js` + `shared.js` | The escape hatch for a scene the JSON catalogue cannot express yet (procedural drawing). Same rules: pure `render(t)`. Prefer adding a component or effect to the renderer over writing JS. |
 | `score.js` | The sound: action tones timed to scene events (`T.<scene> + seconds`). |

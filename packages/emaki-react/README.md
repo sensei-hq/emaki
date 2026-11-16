@@ -20,12 +20,15 @@ Call `setupMotion({ source, site, logos })` once on the client first (`emaki ini
 
 | Export | What |
 |---|---|
-| `MotionScene` | `film`, `scene`, `layout` (`figure`), `locale`, `autoplay` |
-| `MotionShow` | `film`, `locale`, `layout`, `controls`, `slide`, `loop`, `onReady(show)` |
-| `ScenePlayer` | `player`, `locale`, `controls` |
-| `ShowPage` | `film`, `layout`, `locale`, `capture` |
+| `MotionScene` | `film`, `scene`, `layout` (`figure`), `locale`, `mode` (`auto`), `autoplay` |
+| `MotionShow` | `film`, `locale`, `layout`, `mode` (`auto`), `controls`, `slide`, `loop`, `onReady(show)` |
+| `ScenePlayer` | `player`, `locale`, `mode` (`auto`), `controls` |
+| `ShowPage` | `film`, `layout`, `locale`, `mode` (capture: `light`), `capture` |
 | `useScenePlayer(player)` | re-renders on every change of a `ScenePlayerState` (useSyncExternalStore) |
 | `usePlayerFor(ref)` | a player you own, pointed at `{ film, scene, layout }` |
 | `useShowState(show)` | `{ index, playing, sound, layout }` of a player controller |
+
+`mode` is `light`, `dark` or `auto`. Auto follows the page's `data-mode` (as rokkit's `themable` sets it), else the
+OS, and the scenes redraw when it changes. A film draws dark only if it has a dark look (see @senseihq/emaki).
 
 MIT © SenecaGlobal
