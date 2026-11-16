@@ -5,9 +5,13 @@ import { fontsReady, mountScene } from './mount.js';
 import { coverTime, loadFilm, timeline } from './registry.js';
 import { filmScore, scorePlayer } from './sound.js';
 import { renderWav } from './score.js';
-import { SIZES, type FilmMeta, type Layout, type Mounted } from './types.js';
+import { SIZES, type FilmMeta, type Layout, type Mode, type Mounted } from './types.js';
 
-export interface ShowOptions { layout?: Layout; locale?: string; capture?: boolean; slide?: number; loop?: boolean }
+export interface ShowOptions {
+  layout?: Layout; locale?: string; capture?: boolean; slide?: number; loop?: boolean;
+  /** Light, dark or 'auto' (the default; capture defaults to light so renders do not depend on the machine). */
+  mode?: Mode;
+}
 export type ShowListener = (s: { index: number; local: number; playing: boolean; sound: boolean; layout: Layout }) => void;
 
 export async function createShow(host: HTMLElement, slug: string, opts: ShowOptions = {}) {

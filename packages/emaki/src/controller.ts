@@ -4,13 +4,15 @@
 import { fontsReady, mountScene } from './mount.js';
 import { ScenePlayerState, type SceneRef } from './player.js';
 import { loadFilm } from './registry.js';
-import { SIZES, type Mounted } from './types.js';
+import { SIZES, type Mode, type Mounted } from './types.js';
 
 export interface AttachOptions {
   /** Language of the scene text (strings/<locale>.json along the fallback chain). */
   locale?: string;
   /** Play while at least 20% of the host is on screen, pause when it scrolls away (article figures). */
   autoplay?: boolean;
+  /** Light, dark or 'auto' (the default: follow the page's data-mode, else prefers-color-scheme). */
+  mode?: Mode;
 }
 
 export interface AttachedScene {

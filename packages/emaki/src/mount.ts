@@ -7,7 +7,7 @@ import { mountJsonScene } from './renderer.js';
 import { getSource, warp } from './registry.js';
 import { dirOf, fallbackChain, mergeChain } from './i18n.js';
 import type { PortraitSpec } from './scene-schema.js';
-import { SIZES, type FilmMeta, type Layout, type Mounted } from './types.js';
+import { SIZES, type FilmMeta, type Layout, type Mode, type Mounted } from './types.js';
 
 /** Fonts, as CSS variables the scenes use. Override with setFontStack() to match your brand. */
 let fontStack = "--display:'Fraunces',Georgia,serif;--sans:'Inter',system-ui,sans-serif;--serif:'Noto Serif JP','Fraunces',serif;--mono:'JetBrains Mono',ui-monospace,monospace;";
@@ -42,7 +42,7 @@ function figureLayout(stage: HTMLElement, W: number, H: number, spec: PortraitSp
 }
 
 /** Renders scene `sceneId` of film `f` into `host`. Returns a handle: render(t) draws running time t; destroy() clears. */
-export async function mountScene(host: HTMLElement, f: FilmMeta, sceneId: string, layout: Layout, opts: { locale?: string; src?: 'json' | 'js' } = {}): Promise<Mounted> {
+export async function mountScene(host: HTMLElement, f: FilmMeta, sceneId: string, layout: Layout, opts: { locale?: string; src?: 'json' | 'js'; mode?: Mode } = {}): Promise<Mounted> {
   const src = getSource(), locale = opts.locale ?? 'en';
   const [W, H] = SIZES[layout];
   // The newest mount on a host wins: one that a later mount overtook while loading comes back inert, and a destroy()
