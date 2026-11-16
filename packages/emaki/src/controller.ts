@@ -15,6 +15,8 @@ export interface AttachOptions {
   mode?: Mode;
   /** A still: never plays, shows the scene near its end. Defaults to the reader's prefers-reduced-motion. */
   still?: boolean;
+  /** The scene's slice of the score (sceneSound): cued each time the scene starts over, stopped off screen. */
+  sound?: { cue(): void; stop(): void; destroy(): void };
 }
 
 export interface AttachedScene {
@@ -72,14 +74,16 @@ export function attachScene(host: HTMLElement, player: ScenePlayerState, opts: A
   }
 
   let seenKey = '';
+  let loops = player.loops;
   const off = player.subscribe(() => {
+    if (player.loops !== loops) { loops = player.loops; opts.sound?.cue(); }
     if (keyOf() !== seenKey) { seenKey = keyOf(); sync(); }
     else if (m && mountedKey === keyOf()) m.render(Math.min(player.t, m.dur - 1e-3));
   });
 
   let visible = !opts.autoplay;
   const io = opts.autoplay && typeof IntersectionObserver !== 'undefined'
-    ? new IntersectionObserver(([e]) => { visible = e.isIntersecting; if (visible) player.play(); else player.pause(); }, { threshold: 0.2 })
+    ? new IntersectionObserver(([e]) => { visible = e.isIntersecting; if (visible) player.play(); else { player.pause(); opts.sound?.stop(); } }, { threshold: 0.2 })
     : null;
   io?.observe(host);
 
@@ -97,7 +101,7 @@ export function attachScene(host: HTMLElement, player: ScenePlayerState, opts: A
     fit(w) { width = w; scale(); },
     setMode(md) { if (md !== mode) { mode = md; seenKey = keyOf(); sync(); } },
     setLocale(l) { if (l !== locale) { locale = l; seenKey = keyOf(); sync(); } },
-    destroy() { alive = false; cancelAnimationFrame(raf); off(); io?.disconnect(); m?.destroy(); m = null; },
+    destroy() { alive = false; cancelAnimationFrame(raf); off(); io?.disconnect(); opts.sound?.destroy(); m?.destroy(); m = null; },
   };
 }
 

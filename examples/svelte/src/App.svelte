@@ -33,7 +33,7 @@
       <p class="dek">{story.dek}</p>
     </header>
     {#if story.film}
-      <div class="player" data-testid="player"><MotionShow film={story.film} {locale} {mode} /></div>
+      <div class="player" data-testid="player"><MotionShow film={story.film} {locale} {mode} poster title={story.title} fullscreenHref="/show/{story.film}" /></div>
     {/if}
     {#each story.sections as s (s.id)}
       <section>
@@ -41,7 +41,7 @@
         <h2>{s.title}</h2>
         {#each s.body as p}<p>{p}</p>{/each}
         {#if s.motion}
-          <figure data-testid="figure-{s.id}"><MotionScene film={s.motion.film} scene={s.motion.scene} {locale} {mode} /></figure>
+          <figure data-testid="figure-{s.id}"><MotionScene film={s.motion.film} scene={s.motion.scene} {locale} {mode} label={s.title} /></figure>
         {/if}
       </section>
     {/each}
