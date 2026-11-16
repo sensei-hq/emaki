@@ -99,6 +99,28 @@ describe('films', () => {
 		const r = validate(project(d), 'measure-the-right-work')
 		expect(r.lines.join('\n')).toMatch(/strings\/es\.json: missing/)
 	})
+	it('the sample film and a new film come with a dark look', () => {
+		const d = tmp()
+		init({ cwd: d, framework: 'vanilla' })
+		const p = project(d)
+		newFilm(p, 'night-shift')
+		for (const slug of ['measure-the-right-work', 'night-shift']) {
+			expect(json(join(d, `content/films/${slug}/film.json`)).dark?.background, slug).toMatch(/^#/)
+			expect(readFileSync(join(d, `content/films/${slug}/look.css`), 'utf-8'), slug).toContain('#stage[data-mode="dark"]')
+		}
+		expect(validate(p).problems).toBe(0)
+	})
+	it('flags a dark block with no dark styles, and dark styles with no dark block', () => {
+		const d = tmp()
+		init({ cwd: d, framework: 'vanilla' })
+		const dir = join(d, 'content/films/measure-the-right-work'), look = join(dir, 'look.css'), film = join(dir, 'film.json')
+		const css = readFileSync(look, 'utf-8')
+		writeFileSync(look, css.split('\n').filter((l) => !l.includes('data-mode="dark"')).join('\n'))
+		expect(validate(project(d), 'measure-the-right-work').lines.join('\n')).toMatch(/film\.json has a dark block but look\.css never styles #stage\[data-mode="dark"\]/)
+		writeFileSync(look, css)
+		const f = json(film); delete f.dark; writeFileSync(film, JSON.stringify(f))
+		expect(validate(project(d), 'measure-the-right-work').lines.join('\n')).toMatch(/look\.css styles #stage\[data-mode="dark"\] but film\.json has no dark block/)
+	})
 })
 
 describe('voice', () => {
