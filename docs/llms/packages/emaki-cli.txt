@@ -23,8 +23,8 @@ npx emaki init            # sample content, emaki.config.json, film source, /sho
 | `voices [--locale] [--provider]` | the voices a provider offers |
 | `voice <slug> [--locale] [--only 2,5] [--provider] [--opt]` | narration takes from `voice/<locale>.json` |
 | `fit <slug> [--locale] [--check]` | scene times fitted to the takes: `timing.<locale>.json` |
-| `render <slug> [--locale] [--o both] [--fps 30]` | picture + score + covers |
-| `build <slug> [--locale] [--no-captions]` | voice + ducked score, −14 LUFS, captions (.srt/.vtt, burned in) |
+| `render <slug> [--locale] [--o both] [--fps 30] [--from s] [--to s] [--out file.mp4\|dir] [--music synth\|export\|none] [--audio-only] [--cover-only]` | picture + music + covers; `--from/--to` a stretch of film time, `--out` a file (one layout) or a folder, `--music export` the audio of `production/<slug>/<locale>/<slug>.mp4`, `--audio-only` lays the music on the existing render, `--cover-only` just the covers; survives the dev server reloading mid-capture |
+| `build <slug> [--locale] [--no-captions] [--check] [--out dir]` | voice + ducked music, −14 LUFS, captions (.srt/.vtt, burned in), a chapter per scene embedded, `-web.mp4`, `chapters.txt`, `description.txt`, posters and `-thumb.jpg`; a take that outruns its scene freezes the scene's last frame until it ends (`--check` prints that table and builds nothing) |
 | `stage <slug> [--channels a,b] [--locale] [--dry-run]` | upload a finished piece's media (sha256-checked) and post text to the posting desk, one post per channel, for approval; a film's text is drafted into `content/films/<slug>/post.<locale>.json` on the first run |
 | `stage status [slug]` | report each story's script and what is produced (takes, renders, Short, carousel) to the desk's plan |
 | `stage requests`, `stage reply <id> "text" [--working \| --done]` | read the open motion requests from the desk (with their threads) and answer them |

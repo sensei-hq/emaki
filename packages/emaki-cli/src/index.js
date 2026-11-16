@@ -190,20 +190,31 @@ prog.command('render <slug>')
 	.option('--url', 'A running site (default: start the dev server)')
 	.option('--o', 'both | landscape | portrait', 'both')
 	.option('--fps', 'Frames per second', 30)
+	.option('--from', 'Start at this film time (s)', 0)
+	.option('--to', 'Stop at this film time (s; default the end)')
+	.option('--out', 'Output: a .mp4 file (one layout) or a folder (default production/<slug>/<locale>/render/)')
+	.option('--music', 'synth (the film\'s score) | export (audio of production/<slug>/<locale>/<slug>.mp4) | none', 'synth')
+	.option('--audio-only', 'Lay the music on the existing render; capture no frames', false)
+	.option('--cover-only', 'Just save the cover frames', false)
 	.action(act(async (slug, o) => {
 		const { render } = await import('./capture.js')
 		const p = P()
-		await render(p, slug, { locale: loc(o, p), url: o.url, o: o.o, fps: Number(o.fps) })
+		await render(p, slug, {
+			locale: loc(o, p), url: o.url, o: o.o, fps: Number(o.fps), from: Number(o.from), to: o.to == null ? undefined : Number(o.to),
+			out: o.out, music: o.music, audioOnly: o['audio-only'], coverOnly: o['cover-only']
+		})
 	}))
 
 prog.command('build <slug>')
 	.describe('Final videos: picture + voice + ducked score, captions (.srt/.vtt and burned in), -14 LUFS.')
 	.option('--locale', 'Locale (default: the site default)')
 	.option('--no-captions', 'Do not burn captions in')
+	.option('--check', 'Print each scene\'s take, freeze and start; build nothing', false)
+	.option('--out', 'Output folder (default production/<slug>/<locale>/out/)')
 	.action(act(async (slug, o) => {
 		const { build } = await import('./voice.js')
 		const p = P()
-		build(p, slug, { locale: loc(o, p), noCaptions: o.captions === false })
+		build(p, slug, { locale: loc(o, p), noCaptions: o.captions === false, check: o.check, out: o.out })
 	}))
 
 // After the build: stage for approval on the posting desk, or publish straight to a platform. Credentials come from

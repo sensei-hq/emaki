@@ -1,10 +1,13 @@
 // The narration: choose a voice per locale, synthesise takes, fit scene times to them, and build the final videos
 // (voice + score + captions, -14 LUFS).
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { copyFileSync, existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 import { SUFFIX } from './config.js'
+import {
+	buildArgs, buildPlan, chaptersText, description, ffmeta, planTable, posterSteps, storyLink, webArgs, webNote, ytChapters
+} from './media.js'
 import { OFFLINE, provider, TTSError, voiceConfig } from './tts.js'
-import { die, load, mediaLength, pad2, run, save } from './util.js'
+import { die, hasAudio, load, mediaLength, pad2, run, save } from './util.js'
 
 export const NO_PROVIDER = (loc) => `no voice provider is set for ${loc}. Choose one and record it with set-voice, for example:
   offline   piper (good, free)   kokoro (very natural, free)   macos (Mac drafts)   espeak (robotic drafts)
@@ -162,55 +165,82 @@ export function captions(takes, starts, lead, length = mediaLength) {
 	return { vtt: vtt.join('\n'), srt: srt.join('\n') }
 }
 
-/** Final videos per orientation: picture + voice + ducked score, captions burned in (and shipped as .srt/.vtt). */
-export function build(p, slug, { locale, noCaptions = false, log = console.info } = {}) {
+/** libass lays SRT out on a 384x288 canvas scaled to the video, so these are in 288ths of the height: landscape 16 ≈
+ *  60 px text 127 px up; portrait 9 ≈ 60 px text 333 px up (clear of the platform's buttons). */
+const burnIn = (srtPath, layout) => {
+	const size = layout === 'landscape' ? 16 : 9, margin = layout === 'landscape' ? 34 : 50
+	return `subtitles=${srtPath.replace(/([:\\'])/g, '\\$1')}:force_style='FontName=Inter,FontSize=${size},PrimaryColour=&H00FFFFFF,OutlineColour=&H66000000,BackColour=&H66000000,BorderStyle=3,Outline=5,Shadow=0,MarginV=${margin}'`
+}
+
+/** Final videos per orientation (build.py): the rendered picture with the voice laid `lead` s into each scene, the
+ *  render's music ducked under it, -14 LUFS, captions burned in (and shipped as .srt/.vtt). A take that outruns its
+ *  scene freezes the scene's last frame until it has finished (buildPlan). `check` prints the plan and builds nothing;
+ *  `out` is the output folder (default production/<slug>/<locale>/out/). */
+export function build(p, slug, { locale, noCaptions = false, check = false, out: target = undefined, log = console.info, length = mediaLength } = {}) {
 	const d = p.filmDir(slug), film = load(join(d, 'film.json'))
 	const tp = join(d, `timing.${locale}.json`)
 	const tm = existsSync(tp) ? (load(tp).scenes ?? {}) : {}
 	const takes = takesFor(p, slug, locale)
-	if (!takes.size) die(`no takes in ${p.rel(p.prod(slug, locale, 'takes'))}; run \`emaki voice\` (or record them) first`)
-	const starts = new Map()
-	let at = 0
-	for (const s of film.scenes) {
-		const holds = (tm[s.id]?.holds ?? []).reduce((n, h) => n + h[1], 0)
-		const dur = Math.max(s.dur + holds, tm[s.id]?.dur ?? 0)
-		starts.set(s.id, [at, dur])
-		at += dur
+	const plan = buildPlan(film, tm, new Map([...takes].map(([sid, [file]]) => [sid, { file, seconds: length(file) }])), p)
+	const render = p.prod(slug, locale, 'render')
+	const pics = ['landscape', 'portrait'].map((layout) => [layout, join(render, `${slug}-${locale}-${SUFFIX[layout]}.mp4`)])
+		.filter(([, f]) => existsSync(f))
+	log(`${film.title ?? slug} (${locale}): ${plan.picture.toFixed(1)} s as rendered`)
+	planTable(plan).forEach((l) => log(l))
+	if (plan.missing.length) log(`missing takes: ${plan.missing.join(', ')}`)
+	if (check) {
+		if (!pics.length) log(`MISSING: no render in ${p.rel(render)}; run \`emaki render ${slug} --locale ${locale}\``)
+		return { built: [], duration: plan.total, plan }
 	}
-	const render = p.prod(slug, locale, 'render'), out = p.prod(slug, locale, 'out')
+	if (!takes.size) die(`no takes in ${p.rel(p.prod(slug, locale, 'takes'))}; run \`emaki voice\` (or record them) first`)
+	if (!pics.length) die(`no render in ${p.rel(render)}; run \`emaki render ${slug} --locale ${locale}\` first`)
+	const out = target ? resolve(target) : p.prod(slug, locale, 'out')
 	mkdirSync(out, { recursive: true })
-	const cap = captions(takes, starts, p.lead)
+	const voiced = new Map([...takes].filter(([sid]) => plan.rows.some((r) => r.id === sid)))
+	const starts = new Map(plan.rows.map((r) => [r.id, [r.at, r.tot]]))
+	const cap = captions(voiced, starts, p.lead, length)
 	const srtPath = join(out, `${slug}-${locale}.srt`)
 	writeFileSync(join(out, `${slug}-${locale}.vtt`), cap.vtt)
 	writeFileSync(srtPath, cap.srt)
 	const inputs = [], filters = []
-	;[...takes].forEach(([sid, [f]], i) => {
+	;[...voiced].forEach(([sid, [f]], i) => {
 		inputs.push('-i', f)
 		const ms = Math.round((starts.get(sid)[0] + p.lead) * 1000)
 		filters.push(`[${i}:a]aresample=48000,adelay=${ms}|${ms},apad[v${i}]`)
 	})
 	const voicePath = join(out, 'voice.wav')
 	run('ffmpeg', ['-y', '-v', 'error', ...inputs, '-filter_complex',
-		filters.join(';') + ';' + [...takes].map((_, i) => `[v${i}]`).join('') + `amix=inputs=${takes.size}:normalize=0,atrim=0:${at.toFixed(3)}[vo]`,
+		filters.join(';') + ';' + [...voiced].map((_, i) => `[v${i}]`).join('') + `amix=inputs=${voiced.size}:normalize=0,atrim=0:${plan.total.toFixed(3)}[vo]`,
 		'-map', '[vo]', '-ac', '2', voicePath])
-	const score = join(render, 'score.wav'), hasScore = existsSync(score), built = []
-	for (const layout of ['landscape', 'portrait']) {
-		const pic = join(render, `${slug}-${locale}-${SUFFIX[layout]}.mp4`)
-		if (!existsSync(pic)) continue
+	const chapters = join(out, 'chapters.ffmeta')
+	writeFileSync(chapters, ffmeta(plan.rows))
+	const yt = ytChapters(plan.rows)
+	writeFileSync(join(out, 'chapters.txt'), chaptersText(yt))
+	const story = join(p.content, 'stories', locale, `${slug}.json`)
+	const title = (existsSync(story) ? load(story).title : null) ?? film.title ?? slug
+	writeFileSync(join(out, 'description.txt'), description({ title, chapters: yt, link: storyLink(p.site, p.cfg, slug, locale) }))
+	const built = [], videos = {}
+	for (const [layout, pic] of pics) {
 		const dst = join(out, `${slug}-${locale}-${SUFFIX[layout]}.mp4`)
-		const mix = hasScore
-			? `[1:a]volume=1[vo];[2:a]volume=${p.cfg.scoreLevel ?? 0.55}[sc];[sc][vo]sidechaincompress=threshold=0.05:ratio=6:release=400[duck];[duck][1:a]amix=inputs=2:normalize=0,loudnorm=I=-14:TP=-1.5:LRA=11[a]`
-			: '[1:a]loudnorm=I=-14:TP=-1.5:LRA=11[a]'
-		// libass lays SRT out on a 384x288 canvas scaled to the video, so these are in 288ths of the height:
-		// landscape 16 ≈ 60 px text 127 px up; portrait 9 ≈ 60 px text 333 px up (clear of the platform's buttons).
-		const size = layout === 'landscape' ? 16 : 9, margin = layout === 'landscape' ? 34 : 50
-		const burn = noCaptions ? [] : ['-vf', `subtitles=${srtPath.replace(/([:\\'])/g, '\\$1')}:force_style='FontName=Inter,FontSize=${size},PrimaryColour=&H00FFFFFF,OutlineColour=&H66000000,BackColour=&H66000000,BorderStyle=3,Outline=5,Shadow=0,MarginV=${margin}'`]
-		run('ffmpeg', ['-y', '-v', 'error', '-i', pic, '-i', voicePath, ...(hasScore ? ['-i', score] : []), '-filter_complex', mix,
-			'-map', '0:v', '-map', '[a]', ...burn, '-c:v', 'libx264', '-crf', '18', '-preset', 'medium', '-pix_fmt', 'yuv420p',
-			'-c:a', 'aac', '-b:a', '192k', '-t', at.toFixed(3), '-movflags', '+faststart', dst])
-		log(`built ${p.rel(dst)}`)
-		built.push(dst)
+		run('ffmpeg', buildArgs({
+			pic, voice: voicePath, plan, music: hasAudio(pic), subtitles: noCaptions ? null : burnIn(srtPath, layout),
+			chapters, scoreLevel: p.cfg.scoreLevel ?? 0.55, dst
+		}))
+		log(`built ${p.rel(dst)} (${plan.rows.length} chapters)`)
+		built.push((videos[layout] = dst))
 	}
-	log(`captions: ${p.rel(out)}/${slug}-${locale}.vtt/.srt`)
-	return { built, duration: at }
+	rmSync(chapters, { force: true })
+	if (videos.landscape) {
+		const web = join(out, `${slug}-${locale}-web.mp4`)
+		run('ffmpeg', webArgs(videos.landscape, web))
+		log(`built ${p.rel(web)} (${webNote(statSync(web).size)})`)
+		built.push(web)
+	}
+	for (const step of posterSteps({ render, out, slug, locale, built: videos, last: plan.rows.at(-1), exists: existsSync })) {
+		if (step.copy) copyFileSync(...step.copy)
+		else run('ffmpeg', step.ffmpeg)
+		log(`  ${p.rel((step.copy ?? step.ffmpeg).at(-1))}`)
+	}
+	log(`captions: ${p.rel(out)}/${slug}-${locale}.vtt/.srt; chapters.txt, description.txt`)
+	return { built, duration: plan.total, plan }
 }

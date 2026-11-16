@@ -2,11 +2,19 @@
 // window.__show = { meta, ready, seek(t), audio() } (installCapture in @senseihq/emaki; ShowPage in each wrapper).
 // Playwright is an optional dependency: `npm i -D playwright && npx playwright install chromium`.
 import { spawn } from 'node:child_process'
-import { mkdirSync, renameSync, writeFileSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, renameSync, writeFileSync, readFileSync } from 'node:fs'
 import { connect } from 'node:net'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { SIZES, SUFFIX } from './config.js'
-import { die, run } from './util.js'
+import { encodeArgs, frameRange, musicFor, muxArgs, renderOut, renderSteps, retrying, staleRender } from './media.js'
+import { die, mediaLength, run } from './util.js'
+
+/** page.evaluate that survives the dev server reloading the page under it (a file saved mid-render): it waits for
+ *  the show to come back and repeats the same call (render.py's call()). */
+const evaluate = (page, fn, arg) => retrying(() => page.evaluate(fn, arg), async () => {
+	await page.waitForFunction(() => window.__show, null, { timeout: 30000 })
+	await page.evaluate(() => window.__show.ready)
+})
 
 export async function chromium() {
 	try {
@@ -113,52 +121,80 @@ export async function sheet(p, slug, { locale, url, at, log = console.info } = {
 	}
 }
 
-/** Frame-by-frame capture to MP4 (the score as its audio), plus a cover JPEG per orientation. */
-export async function render(p, slug, { locale, url, o = 'both', fps = 30, log = console.info } = {}) {
+/** Frame-by-frame capture to MP4 with its music, plus a cover JPEG per orientation (render.py).
+ *  `from`/`to` capture a range of film time; `out` is a file (one layout) or a folder. `music`: synth (the page's
+ *  score, saved as score.wav), export (the audio of production/<slug>/<locale>/<slug>.mp4) or none. `audioOnly` lays
+ *  the music on the existing render without capturing frames; `coverOnly` saves just the covers. */
+export async function render(p, slug, {
+	locale, url, o = 'both', fps = 30, from = 0, to = undefined, out: target = undefined, music: mode = 'synth',
+	audioOnly = false, coverOnly = false, log = console.info
+} = {}) {
 	p.filmDir(slug)
+	const steps = renderSteps({ audioOnly, coverOnly })
 	const layouts = o === 'both' ? ['landscape', 'portrait'] : [o]
 	const out = p.prod(slug, locale, 'render')
 	mkdirSync(out, { recursive: true })
+	const music = musicFor(mode, { exportFile: p.prod(slug, locale, `${slug}.mp4`), exists: existsSync })
+	if (steps.music && music.note) log(`  ${music.note}`)
 	const site = await openSite(p, url), made = []
 	const browser = await (await chromium()).launch()
 	try {
-		let score
+		let audio
 		for (const layout of layouts) {
 			const { page, meta, errors } = await openShow(browser, site, slug, layout, locale)
-			if (score === undefined) {
-				const b64 = await page.evaluate(() => window.__show.audio())
-				score = b64 ? join(out, 'score.wav') : null
-				if (b64) writeFileSync(score, Buffer.from(b64, 'base64'))
+			const call = (fn, arg) => evaluate(page, fn, arg)
+			const dst = renderOut(out, slug, locale, layout, { out: target, layouts: layouts.length })
+			if (steps.music && audio === undefined) {
+				audio = music.kind === 'file' ? music.file : null
+				if (music.kind === 'synth') {
+					const b64 = await call(() => window.__show.audio())
+					if (b64) writeFileSync((audio = join(out, 'score.wav')), Buffer.from(b64, 'base64'))
+					log(b64 ? `  score: ${p.rel(audio)}` : '  the film has no score: silent picture')
+				}
 			}
-			const frames = Math.round(meta.duration * fps)
-			const dst = join(out, `${slug}-${locale}-${SUFFIX[layout]}.mp4`), tmp = dst.replace(/\.mp4$/, '.part.mp4')
-			const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'mjpeg', '-i', '-',
-				...(score ? ['-i', score] : []), '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p',
-				...(score ? ['-c:a', 'aac', '-b:a', '192k'] : []), '-t', (frames / fps).toFixed(3), '-movflags', '+faststart', tmp],
-			{ stdio: ['pipe', 'inherit', 'inherit'] })
-			const done = new Promise((ok, bad) => { ff.on('close', (c) => (c ? bad(new Error('ffmpeg failed')) : ok())); ff.on('error', bad) })
-			const t0 = Date.now()
-			for (let i = 0; i < frames; i++) {
-				await page.evaluate((t) => window.__show.seek(t), i / fps)
-				const jpg = await page.screenshot({ type: 'jpeg', quality: 94 })
-				if (!ff.stdin.write(jpg)) await new Promise((r) => ff.stdin.once('drain', r))
-				if (i % (fps * 10) === 0) log(`  ${layout} ${(i / fps).toFixed(1).padStart(6)}s / ${meta.duration.toFixed(1)}s`)
+			if (steps.frames) {
+				const { t0, end, frames, seconds } = frameRange(meta.duration, fps, from, to)
+				log(`${slug}: ${layout} at ${fps} fps, ${t0 ? `${t0.toFixed(1)}–` : ''}${end.toFixed(1)} s, ${audio ? `music: ${mode}` : 'no music'}`)
+				const tmp = dst.replace(/\.mp4$/i, '.part.mp4')
+				mkdirSync(dirname(dst), { recursive: true })
+				const ff = spawn('ffmpeg', encodeArgs({ fps, seconds, dst: tmp, audio, t0 }), { stdio: ['pipe', 'inherit', 'inherit'] })
+				const done = new Promise((ok, bad) => { ff.on('close', (c) => (c ? bad(new Error('ffmpeg failed')) : ok())); ff.on('error', bad) })
+				const began = Date.now()
+				for (let i = 0; i < frames; i++) {
+					await call((t) => window.__show.seek(t), t0 + i / fps)
+					const jpg = await page.screenshot({ type: 'jpeg', quality: 94 })
+					if (!ff.stdin.write(jpg)) await new Promise((r) => ff.stdin.once('drain', r))
+					if (i % (fps * 10) === 0) log(`  ${layout} ${(t0 + i / fps).toFixed(1).padStart(6)}s / ${end.toFixed(1)}s`)
+				}
+				ff.stdin.end()
+				await done.catch((e) => die(e.message))
+				if (errors.length) die('the page reported errors: ' + errors.slice(0, 3).join('; '))
+				renameSync(tmp, dst)
+				log(`  wrote ${p.rel(dst)} (${frames} frames, ${Math.round((Date.now() - began) / 1000)}s)`)
+				made.push(dst)
+			} else if (steps.music) {
+				if (!existsSync(dst)) die(`--audio-only needs ${p.rel(dst)}; render it first`)
+				const dur = mediaLength(dst)
+				const stale = staleRender(dur, meta.duration, Boolean(from) || to != null)
+				if (stale) log(`  warning: ${p.rel(dst)}: ${stale}`)
+				if (audio) {
+					const tmp = dst.replace(/\.mp4$/i, '.mux.mp4')
+					run('ffmpeg', muxArgs(dst, audio, Number(from) || 0, dur, tmp))
+					renameSync(tmp, dst)
+					log(`  music laid on ${p.rel(dst)}`)
+				} else log(`  no music to lay on ${p.rel(dst)}`)
+				made.push(dst)
 			}
-			ff.stdin.end()
-			await done.catch((e) => die(e.message))
-			if (errors.length) die('the page reported errors: ' + errors.slice(0, 3).join('; '))
-			renameSync(tmp, dst)
-			await page.evaluate((t) => window.__show.seek(t), meta.cover)
+			await call((t) => window.__show.seek(t), meta.cover)
 			const cover = join(out, `${slug}-${locale}-cover-${SUFFIX[layout]}.jpg`)
 			writeFileSync(cover, await page.screenshot({ type: 'jpeg', quality: 92 }))
-			log(`  wrote ${p.rel(dst)} (${frames} frames, ${Math.round((Date.now() - t0) / 1000)}s) and ${p.rel(cover)}`)
+			log(`  cover: ${p.rel(cover)} (film time ${meta.cover.toFixed(1)} s)`)
 			if (layout === 'landscape' && p.cfg.coversDir) {
 				const siteCover = join(p.root, p.cfg.coversDir, locale === p.site.defaultLocale ? `${slug}.jpg` : `${slug}.${locale}.jpg`)
-				mkdirSync(join(siteCover, '..'), { recursive: true })
+				mkdirSync(dirname(siteCover), { recursive: true })
 				run('ffmpeg', ['-y', '-loglevel', 'error', '-i', cover, '-vf', 'scale=1600:-2', '-q:v', '3', siteCover])
 				log(`  cover for the site: ${p.rel(siteCover)}`)
 			}
-			made.push(dst)
 			await page.close()
 		}
 		return made

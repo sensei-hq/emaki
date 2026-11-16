@@ -43,6 +43,19 @@ emaki render <slug> --locale en      # 16:9 + 9:16 picture with the score, cover
 emaki build  <slug> --locale en      # voice laid at each scene start, score ducked, -14 LUFS, captions
 ```
 
+Render, for the moments in between:
+
+```sh
+emaki render <slug> --o portrait --from 12 --to 20 --out preview.mp4   # one stretch of film time, to a file
+emaki render <slug> --audio-only     # lay a changed score on the existing render; no frames captured
+emaki render <slug> --cover-only     # refresh just the covers
+emaki render <slug> --music export   # the audio of production/<slug>/<locale>/<slug>.mp4 (or --music none)
+emaki build  <slug> --check          # each scene's take, freeze and start; builds nothing
+```
+
+A render survives the dev server reloading the page mid-capture (someone saving a file): it waits for the show to
+come back and repeats the frame.
+
 - **Voice script**: 150 words a minute; each line ≤ the scene's length minus 2 s (lead 0.6 s + tail 1.2 s), or the
   scene stretches. Write for the ear: short sentences, the scene's point first, numbers spoken as words where it helps.
   Put tricky pronunciations in `say` (`"Sen-say"`, `"S-Q-L"`). Same voice per locale across the site.
@@ -51,8 +64,16 @@ emaki build  <slug> --locale en      # voice laid at each scene start, score duc
   a hold `[[at, seconds]]` in `timing.<locale>.json` to pause the clock at that moment.
 - **Captions** come from the voice text (`.vtt` for the site player, `.srt` burned into social cuts). Review them in
   every locale.
+- **Freeze, the safety net**: when a take is longer than its scene in the render (a take re-recorded after the render,
+  or `fit` skipped), `build` freezes the scene's last frame until the voice has finished, loops the score under the
+  hold and moves every later scene along. `build --check` shows it in the `ext` column. A freeze is a still picture;
+  `fit` and a fresh render give the scene its ambient motion instead.
 - **Covers**: the last frame of the close scene, per orientation and locale; the 16:9 one is copied to the site's
-  covers folder (`coversDir`) as the og:image.
+  covers folder (`coversDir`) as the og:image. `build` turns them into `poster.jpg`, `poster-vertical.jpg` and
+  `<slug>-<locale>-thumb.jpg` (1280x720, YouTube's custom thumbnail).
+- **Chapters**: one per scene is embedded in each final MP4; `chapters.txt` is YouTube's list (from 0:00, every
+  chapter ≥ 10 s, short scenes folded in), and `description.txt` is title + chapters + the story link
+  (`<site url>/<locale>/stories/<slug>`, or `storyUrl` in `emaki.config.json`, e.g. `{site}/articles/{slug}`).
 - **Credentials**: every provider key lives in the environment only; never in files, never committed, never printed,
   never pasted into chat. Each take run records which provider and voice made it (`takes/provider.json`).
 
@@ -61,4 +82,5 @@ emaki build  <slug> --locale en      # voice laid at each scene start, score duc
 - Durations: film 60–90 s, short 30–60 s. Loudness -14 LUFS, true peak ≤ -1.5 dB.
 - Watch the first and last 5 s of every render; spot-check each scene change for a frozen or blank frame.
 - 9:16 safe area: nothing important in the bottom 300 px (platform UI) or top 150 px.
-- File names: `<slug>-<locale>-16x9.mp4`, `-9x16.mp4`, `.vtt`, `.srt`, `cover-16x9.jpg`.
+- File names: `<slug>-<locale>-16x9.mp4`, `-9x16.mp4`, `-web.mp4` (keep it under 25 MiB for static hosting),
+  `.vtt`, `.srt`, `cover-16x9.jpg`, `-thumb.jpg`, `poster.jpg`, `chapters.txt`, `description.txt`.
