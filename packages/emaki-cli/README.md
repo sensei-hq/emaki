@@ -16,6 +16,7 @@ npx emaki init            # sample content, emaki.config.json, film source, /sho
 | `manifest` | `content/films/index.json` (for the fetch loader) |
 | `validate [slug]` | files, scene ids, `{{keys}}` in every locale, voice lines, story bodies |
 | `new <slug> --scenes a,b,c [--title] [--date]` | scaffold a story + film in every locale |
+| `migrate <site> [--locale en]` | move a sensei-hq.com-style site (`src/lib/motion`, `src/lib/content/articles`, `films/` takes) into `content/` and `production/`; never overwrites, then validates |
 | `sheet <slug> [--locale] [--at scene:t,…]` | contact sheet, both orientations |
 | `tts-check` | each locale's voice provider and whether it's ready; offline engines on this machine |
 | `set-voice --locale x --provider p [--opt k=v]` | choose the voice; keys are refused (environment only) |

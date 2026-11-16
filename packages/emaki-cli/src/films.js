@@ -52,7 +52,7 @@ export function validateFilm(p, slug) {
 		}
 		if (!(s.dur > 0 && s.dur < 60)) issues.push(`scene ${s.id}: dur ${s.dur} looks wrong`)
 	}
-	if (film.scenes.at(-1)?.id !== 'close') issues.push('the last scene should be "close" (the punchline card is the cover)')
+	if (!film.cover && film.scenes.at(-1)?.id !== 'close') issues.push('the last scene should be "close" (the punchline card is the cover), or film.json should name its cover')
 	for (const loc of p.site.locales) {
 		const sp = join(d, 'strings', `${loc}.json`)
 		if (!exists(sp)) {
@@ -89,7 +89,7 @@ export function validateStory(p, entry) {
 		for (const k of ['title', 'dek', 'sections']) if (!b[k] || (Array.isArray(b[k]) && !b[k].length)) issues.push(`${loc}: ${k} is empty`)
 		if (film && !b.takeaway) issues.push(`${loc}: a film story needs a takeaway (the closing line)`)
 		for (const s of b.sections ?? [])
-			if (s.motion == null && film && !sceneIds.has(s.id) && !['more', 'sources'].includes(s.id))
+			if (s.motion == null && s.figure == null && film && !sceneIds.has(s.id) && !['more', 'sources'].includes(s.id))
 				issues.push(`(info) ${loc}: section ${s.id} has no figure (no scene of that id)`)
 	}
 	return issues
