@@ -7,6 +7,11 @@ const raws = import.meta.glob('./content/docs/*/*.md', { eager: true, query: '?r
 const REPO_BLOB = 'https://github.com/sensei-hq/emaki/blob/main';
 
 marked.setOptions({ gfm: true });
+// docs/llms is plain Markdown written for people and agents: it carries no HTML, but it does write placeholders like
+// `stories/<locale>/<slug>.json` outside code spans, which marked would emit as (unknown, invisible) tags. Render any
+// raw HTML as text instead.
+const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+marked.use({ renderer: { html: ({ text }) => escapeHtml(text) } });
 
 export type Section = 'Guides' | 'Packages';
 
