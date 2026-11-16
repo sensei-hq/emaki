@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   attachScene, createShow, sceneSound, showKey, ticks, ScenePlayerState, useSource, type FilmJson,
 } from '../src/index.js';
+import { defineMotionElements } from '../src/elements/index.js';
 
 const film: FilmJson = {
   title: 'T',
@@ -121,5 +122,23 @@ describe('story player', () => {
       { id: 'c', name: 'C', dur: 1, fill: 0 },
     ]);
     show.destroy();
+  });
+});
+
+describe('<motion-show>', () => {
+  it('answers the same keys (it delegates to showKey)', async () => {
+    class Watch { observe() {} disconnect() {} }
+    vi.stubGlobal('ResizeObserver', Watch);
+    defineMotionElements();
+    const el = document.createElement('motion-show') as HTMLElement & { controller: Awaited<ReturnType<typeof createShow>> | null };
+    el.setAttribute('film', 'f');
+    document.body.appendChild(el);
+    await vi.waitFor(() => expect(el.controller).toBeTruthy());
+    el.controller!.go(2);
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home' }));
+    expect(el.controller!.state.index).toBe(0);
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'r' }));
+    expect(el.controller!.state).toMatchObject({ index: 0, local: 0, playing: true });
+    el.remove();
   });
 });
