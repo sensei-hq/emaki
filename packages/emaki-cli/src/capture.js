@@ -8,11 +8,11 @@ import { join } from 'node:path'
 import { SIZES, SUFFIX } from './config.js'
 import { die, run } from './util.js'
 
-async function chromium() {
+export async function chromium() {
 	try {
 		return (await import('playwright')).chromium
 	} catch {
-		return die('sheet and render need Playwright: npm i -D playwright && npx playwright install chromium')
+		return die('sheet, render and carousel need Playwright: npm i -D playwright && npx playwright install chromium')
 	}
 }
 
