@@ -4,7 +4,9 @@
 import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { MotionError } from '../src/api.js'
-import { encodeArgs, frameRange, musicFor, muxArgs, renderOut, renderSteps, retrying, staleRender } from '../src/media.js'
+import {
+	buildArgs, buildPlan, encodeArgs, frameRange, musicFor, muxArgs, planTable, renderOut, renderSteps, retrying, staleRender
+} from '../src/media.js'
 
 describe('render: --from / --to', () => {
 	it('captures the whole film by default', () => {
@@ -120,5 +122,86 @@ describe('render: --audio-only / --cover-only', () => {
 		expect(renderSteps({ audioOnly: true })).toEqual({ frames: false, music: true, cover: true })
 		expect(renderSteps({ coverOnly: true })).toEqual({ frames: false, music: false, cover: true })
 		expect(() => renderSteps({ audioOnly: true, coverOnly: true })).toThrow(MotionError)
+	})
+})
+
+// hook: a take that fits. pair: a hold makes it 9 s, and a 9 s take needs 0.6 + 9 + 1.2 = 10.8 s, so its last frame
+// freezes for 1.8 s. close: no take, plays as is.
+const film = { title: 'Demo', scenes: [{ id: 'hook', name: 'Hook', dur: 6 }, { id: 'pair', name: 'The pair', dur: 8 }, { id: 'close', name: 'Close', dur: 5 }] }
+const timing = { pair: { holds: [[2, 1]] } }
+const takes = new Map([['hook', { file: 't/take-01.wav', seconds: 3 }], ['pair', { file: 't/take-02.wav', seconds: 9 }]])
+const LT = { lead: 0.6, tail: 1.2 }
+
+describe('build: the freeze table (a take that outruns its scene)', () => {
+	it('places each scene on the picture and on the output, freezing the last frame until the take has finished', () => {
+		const plan = buildPlan(film, timing, takes, LT)
+		const [hook, pair, close] = plan.rows
+		expect(hook).toMatchObject({ n: 1, id: 'hook', name: 'Hook', start: 0, dur: 6, L: 3, ext: 0, tot: 6, at: 0, take: 't/take-01.wav' })
+		expect(pair).toMatchObject({ n: 2, start: 6, dur: 9, L: 9, at: 6, take: 't/take-02.wav' })
+		expect(pair.ext).toBeCloseTo(1.8)
+		expect(pair.tot).toBeCloseTo(10.8)
+		expect(close).toMatchObject({ start: 15, dur: 5, L: 0, ext: 0, take: null })
+		expect(close.at).toBeCloseTo(16.8)
+		expect(plan.picture).toBe(20)
+		expect(plan.total).toBeCloseTo(21.8)
+		expect(plan.extended).toBe(true)
+		expect(plan.missing).toEqual(['close'])
+	})
+	it('a fitted film (timing dur covers the take) freezes nothing', () => {
+		const plan = buildPlan(film, { pair: { holds: [[2, 1]], dur: 10.8 } }, takes, LT)
+		expect(plan.rows.map((r) => r.ext)).toEqual([0, 0, 0])
+		expect(plan.extended).toBe(false)
+		expect(plan.total).toBeCloseTo(21.8)
+	})
+	it('prints the table build --check shows', () => {
+		const lines = planTable(buildPlan(film, timing, takes, LT))
+		expect(lines[0]).toMatch(/#\s+scene\s+dur\s+take\s+ext\s+new\s+start/)
+		expect(lines[2]).toMatch(/^ 2 {2}pair\s+9\.0\s+9\.0\s+1\.8\s+10\.8 {2}00:06$/)
+		expect(lines[3]).toMatch(/\(no take\)$/)
+		expect(lines.at(-1)).toBe('total 21.8 s (1 scene frozen to fit its take; `emaki fit` and a new render make that unnecessary)')
+	})
+})
+
+describe('build: ffmpeg arguments', () => {
+	const base = { pic: 'r/demo-en-16x9.mp4', voice: 'o/voice.wav', dst: 'o/demo-en-16x9.mp4', scoreLevel: 0.55 }
+	it('a fitted film: one picture input, the score ducked under the voice, -14 LUFS', () => {
+		const plan = buildPlan(film, { pair: { holds: [[2, 1]], dur: 10.8 } }, takes, LT)
+		const a = buildArgs({ ...base, plan, music: true, subtitles: null })
+		expect(a.filter((x) => x === '-i')).toHaveLength(2)
+		const fc = a[a.indexOf('-filter_complex') + 1]
+		expect(fc).toContain('[0:a]aresample=48000,aformat=channel_layouts=stereo[mu]')
+		expect(fc).toContain('[mu]volume=0.55[sc]')
+		expect(fc).toContain('[1:a]aresample=48000,asplit=2[vo][key]')
+		expect(fc).toContain('[sc][key]sidechaincompress')
+		expect(fc).toContain('loudnorm=I=-14:TP=-1.5:LRA=11[a]')
+		expect(fc).not.toContain('tpad')
+		expect(a.join(' ')).toContain('-map 0:v -map [a]')
+		expect(a.join(' ')).toContain('-t 21.800')
+		expect(a.at(-1)).toBe('o/demo-en-16x9.mp4')
+	})
+	it('a take that outruns its scene: each scene cut from the picture, the long one frozen, its music looped under the hold', () => {
+		const plan = buildPlan(film, timing, takes, LT)
+		const a = buildArgs({ ...base, plan, music: true, subtitles: null })
+		expect(a.join(' ')).toContain('-ss 6.000 -t 9.000 -i r/demo-en-16x9.mp4')
+		expect(a.filter((x) => x === '-i')).toHaveLength(4)
+		const fc = a[a.indexOf('-filter_complex') + 1]
+		expect(fc).toContain('[1:v]tpad=stop_mode=clone:stop_duration=1.800,setpts=PTS-STARTPTS[v1]')
+		expect(fc).toContain('[0:v]setpts=PTS-STARTPTS[v0]')
+		expect(fc).toContain('[v0][v1][v2]concat=n=3:v=1:a=0[pv]')
+		expect(fc).toContain('afade=t=out:st=8.995:d=0.005,aloop=loop=-1:size=2e9,apad,atrim=0:10.800')
+		expect(fc.match(/aloop/g)).toHaveLength(1)
+		expect(fc).toContain('[m0][m1][m2]concat=n=3:v=0:a=1[mu]')
+		expect(fc).toContain('[3:a]aresample=48000,asplit=2[vo][key]')
+		expect(a.join(' ')).toContain('-map [pv] -map [a]')
+	})
+	it('captions burn into the picture; a render without music has the voice alone', () => {
+		const plan = buildPlan(film, timing, takes, LT)
+		const a = buildArgs({ ...base, plan, music: false, subtitles: "subtitles=o/x.srt:force_style='FontSize=16'" })
+		const fc = a[a.indexOf('-filter_complex') + 1]
+		expect(fc).toContain("[pv]subtitles=o/x.srt:force_style='FontSize=16'[v]")
+		expect(fc).not.toContain('sidechaincompress')
+		expect(fc).not.toContain(':a]aresample=48000,aformat')
+		expect(fc).toContain('[3:a]loudnorm=I=-14:TP=-1.5:LRA=11[a]')
+		expect(a.join(' ')).toContain('-map [v] -map [a]')
 	})
 })
