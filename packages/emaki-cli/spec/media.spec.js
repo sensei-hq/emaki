@@ -5,8 +5,8 @@ import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { MotionError } from '../src/api.js'
 import {
-	buildArgs, buildPlan, chaptersText, description, encodeArgs, ffmeta, frameRange, musicFor, muxArgs, planTable, renderOut,
-	renderSteps, retrying, staleRender, storyLink, ytChapters
+	buildArgs, buildPlan, chaptersText, description, encodeArgs, ffmeta, frameRange, musicFor, muxArgs, planTable, posterSteps,
+	renderOut, renderSteps, retrying, staleRender, storyLink, webArgs, webNote, ytChapters
 } from '../src/media.js'
 
 describe('render: --from / --to', () => {
@@ -241,5 +241,41 @@ describe('build: description.txt', () => {
 		expect(storyLink({ url: 'https://sensei-hq.com' }, { storyUrl: '{site}/articles/{slug}' }, 'demo', 'en')).toBe('https://sensei-hq.com/articles/demo')
 		expect(storyLink({ url: '' }, {}, 'demo', 'en')).toBeNull()
 		expect(storyLink({}, { storyUrl: 'https://x.dev/{locale}/{slug}' }, 'demo', 'fr')).toBe('https://x.dev/fr/demo')
+	})
+})
+
+describe('build: posters and the thumbnail', () => {
+	const at = { render: 'r', out: 'o', slug: 'demo', locale: 'en', last: { at: 30, tot: 5 } }
+	const built = { landscape: 'o/demo-en-16x9.mp4', portrait: 'o/demo-en-9x16.mp4' }
+	it('the covers render saved become poster.jpg, poster-vertical.jpg and the 1280x720 YouTube thumbnail', () => {
+		expect(posterSteps({ ...at, built, exists: () => true })).toEqual([
+			{ copy: ['r/demo-en-cover-16x9.jpg', 'o/poster.jpg'] },
+			{ copy: ['r/demo-en-cover-9x16.jpg', 'o/poster-vertical.jpg'] },
+			{ ffmpeg: ['-y', '-v', 'error', '-i', 'r/demo-en-cover-16x9.jpg', '-vf', 'scale=1280:720', '-q:v', '3', 'o/demo-en-thumb.jpg'] }
+		])
+	})
+	it('without covers, a still from the end card of each built video (2.5 s into the last scene, or just before its end)', () => {
+		expect(posterSteps({ ...at, built, exists: () => false })).toEqual([
+			{ ffmpeg: ['-y', '-v', 'error', '-ss', '32.50', '-i', 'o/demo-en-16x9.mp4', '-frames:v', '1', '-q:v', '2', 'o/poster.jpg'] },
+			{ ffmpeg: ['-y', '-v', 'error', '-ss', '32.50', '-i', 'o/demo-en-9x16.mp4', '-frames:v', '1', '-q:v', '2', 'o/poster-vertical.jpg'] },
+			{ ffmpeg: ['-y', '-v', 'error', '-ss', '32.50', '-i', 'o/demo-en-16x9.mp4', '-vf', 'scale=1280:720', '-frames:v', '1', '-q:v', '3', 'o/demo-en-thumb.jpg'] }
+		])
+		expect(posterSteps({ ...at, last: { at: 30, tot: 1.5 }, built, exists: () => false })[0].ffmpeg).toContain('31.30')
+	})
+	it('only makes what it has a source for', () => {
+		expect(posterSteps({ ...at, built: { portrait: built.portrait }, exists: () => false })).toEqual([
+			{ ffmpeg: ['-y', '-v', 'error', '-ss', '32.50', '-i', 'o/demo-en-9x16.mp4', '-frames:v', '1', '-q:v', '2', 'o/poster-vertical.jpg'] }
+		])
+	})
+})
+
+describe('build: the -web.mp4', () => {
+	it('re-encodes the 16:9 film at 30 fps, CRF 26, AAC 128k, keeping its chapters', () => {
+		expect(webArgs('o/demo-en-16x9.mp4', 'o/demo-en-web.mp4').join(' ')).toBe(
+			'-y -v error -i o/demo-en-16x9.mp4 -r 30 -c:v libx264 -crf 26 -preset slow -pix_fmt yuv420p -c:a aac -b:a 128k -map_chapters 0 -movflags +faststart o/demo-en-web.mp4')
+	})
+	it('says when it is over the 25 MiB a static host (Cloudflare) takes', () => {
+		expect(webNote(12.4 * 1048576)).toBe('12.4 MiB')
+		expect(webNote(26 * 1048576)).toBe('26.0 MiB - OVER 25 MiB, raise -crf')
 	})
 })
