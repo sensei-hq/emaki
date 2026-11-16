@@ -25,7 +25,8 @@ function run({ published = [], failIn = '' } = {}) {
 const version = JSON.parse(readFileSync('packages/emaki/package.json', 'utf-8')).version
 const ORDER = ['emaki', 'emaki-svelte', 'emaki-react', 'emaki-vue', 'emaki-posting', 'emaki-cli']
 
-describe('publish-all.sh', () => {
+// Each run starts node once per package; under the full parallel suite that can pass vitest's 5 s default.
+describe('publish-all.sh', { timeout: 20000 }, () => {
 	it('publishes every package, core first', () => {
 		const r = run()
 		expect(r.status, r.out).toBe(0)

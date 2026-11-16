@@ -7,8 +7,8 @@
 set -e
 cd "$(dirname "$0")/.."
 for d in emaki emaki-svelte emaki-react emaki-vue emaki-posting emaki-cli; do
-	name=$(node -p "require('./packages/$d/package.json').name")
-	version=$(node -p "require('./packages/$d/package.json').version")
+	set -- $(node -p "const p = require('./packages/$d/package.json'); p.name + ' ' + p.version")
+	name=$1 version=$2
 	if [ "$(npm view "$name@$version" version 2>/dev/null)" = "$version" ]; then
 		echo "$name@$version is already on npm, skipping"
 		continue
