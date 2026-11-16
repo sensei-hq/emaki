@@ -5,8 +5,8 @@ import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { MotionError } from '../src/api.js'
 import {
-	buildArgs, buildPlan, chaptersText, encodeArgs, ffmeta, frameRange, musicFor, muxArgs, planTable, renderOut, renderSteps,
-	retrying, staleRender, ytChapters
+	buildArgs, buildPlan, chaptersText, description, encodeArgs, ffmeta, frameRange, musicFor, muxArgs, planTable, renderOut,
+	renderSteps, retrying, staleRender, storyLink, ytChapters
 } from '../src/media.js'
 
 describe('render: --from / --to', () => {
@@ -227,5 +227,19 @@ describe('build: chapters', () => {
 		const a = buildArgs({ pic: 'p.mp4', voice: 'v.wav', plan, music: true, chapters: 'o/chapters.ffmeta', dst: 'o.mp4' })
 		expect(a.join(' ')).toContain('-i v.wav -i o/chapters.ffmeta -filter_complex')
 		expect(a.join(' ')).toContain('-map_metadata 2 -map_chapters 2')
+	})
+})
+
+describe('build: description.txt', () => {
+	it('is paste-ready: the title, the chapters, the story link', () => {
+		expect(description({ title: 'Measure the Right Work', chapters: [[0, 'Alpha'], [12, 'Beta']], link: 'https://learn.example.com/en/stories/demo' }))
+			.toBe('Measure the Right Work\n\n0:00 Alpha\n0:12 Beta\n\nhttps://learn.example.com/en/stories/demo\n')
+		expect(description({ title: 'Demo', chapters: [[0, 'Alpha']], link: null })).toBe('Demo\n\n0:00 Alpha\n')
+	})
+	it('links the story page: <site url>/<locale>/stories/<slug>, or the storyUrl pattern in emaki.config.json', () => {
+		expect(storyLink({ url: 'https://learn.example.com/' }, {}, 'demo', 'es')).toBe('https://learn.example.com/es/stories/demo')
+		expect(storyLink({ url: 'https://sensei-hq.com' }, { storyUrl: '{site}/articles/{slug}' }, 'demo', 'en')).toBe('https://sensei-hq.com/articles/demo')
+		expect(storyLink({ url: '' }, {}, 'demo', 'en')).toBeNull()
+		expect(storyLink({}, { storyUrl: 'https://x.dev/{locale}/{slug}' }, 'demo', 'fr')).toBe('https://x.dev/fr/demo')
 	})
 })
