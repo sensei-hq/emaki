@@ -5,7 +5,8 @@ import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { MotionError } from '../src/api.js'
 import {
-	buildArgs, buildPlan, encodeArgs, frameRange, musicFor, muxArgs, planTable, renderOut, renderSteps, retrying, staleRender
+	buildArgs, buildPlan, chaptersText, encodeArgs, ffmeta, frameRange, musicFor, muxArgs, planTable, renderOut, renderSteps,
+	retrying, staleRender, ytChapters
 } from '../src/media.js'
 
 describe('render: --from / --to', () => {
@@ -203,5 +204,28 @@ describe('build: ffmpeg arguments', () => {
 		expect(fc).not.toContain(':a]aresample=48000,aformat')
 		expect(fc).toContain('[3:a]loudnorm=I=-14:TP=-1.5:LRA=11[a]')
 		expect(a.join(' ')).toContain('-map [v] -map [a]')
+	})
+})
+
+describe('build: chapters', () => {
+	const rows = [['a', 'Alpha', 12], ['b', 'Beta', 4], ['c', 'Gamma', 8], ['d', 'Delta', 3]]
+		.reduce((acc, [id, name, tot]) => [...acc, { id, name, tot, at: acc.reduce((n, r) => n + r.tot, 0) }], [])
+	it('one chapter per scene embedded in the MP4, on the exact scene boundaries', () => {
+		expect(ffmeta([{ name: 'Hook', at: 0, tot: 6.25 }, { name: 'a=b; #1 \\ x\ny', at: 6.25, tot: 4 }])).toBe(
+			';FFMETADATA1\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=0\nEND=6250\ntitle=Hook\n' +
+			'[CHAPTER]\nTIMEBASE=1/1000\nSTART=6250\nEND=10250\ntitle=a\\=b\\; \\#1 \\\\ x y\n')
+	})
+	it('YouTube\'s list starts at 0:00 with every chapter at least 10 s: short scenes fold into the chapter they start', () => {
+		expect(ytChapters(rows)).toEqual([[0, 'Alpha'], [12, 'Beta + Gamma + Delta']])
+		expect(ytChapters(rows.slice(1, 2).map((r) => ({ ...r, at: 0 })))).toEqual([[0, 'Beta']])
+	})
+	it('chapters.txt is m:ss and the title, one per line', () => {
+		expect(chaptersText([[0, 'Alpha'], [72.5, 'Beta'], [605, 'Late']])).toBe('0:00 Alpha\n1:12 Beta\n10:05 Late\n')
+	})
+	it('the final video takes its chapters from the metadata file in the same pass', () => {
+		const plan = buildPlan(film, { pair: { holds: [[2, 1]], dur: 10.8 } }, takes, LT)
+		const a = buildArgs({ pic: 'p.mp4', voice: 'v.wav', plan, music: true, chapters: 'o/chapters.ffmeta', dst: 'o.mp4' })
+		expect(a.join(' ')).toContain('-i v.wav -i o/chapters.ffmeta -filter_complex')
+		expect(a.join(' ')).toContain('-map_metadata 2 -map_chapters 2')
 	})
 })
