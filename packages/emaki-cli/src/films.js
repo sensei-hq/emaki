@@ -31,6 +31,12 @@ const list = (xs) => xs.slice(0, 8).join(', ') + (xs.length > 8 ? ' …' : '')
 export function validateFilm(p, slug) {
 	const issues = [], d = p.filmDir(slug), film = load(join(d, 'film.json')), used = new Set()
 	if (!exists(join(d, 'look.css'))) issues.push('look.css is missing')
+	else {
+		// Dark is opt-in: film.json's dark block turns it on, look.css draws it. One without the other is a mistake.
+		const styled = readFileSync(join(d, 'look.css'), 'utf-8').includes('#stage[data-mode="dark"]')
+		if (film.dark && !styled) issues.push('film.json has a dark block but look.css never styles #stage[data-mode="dark"]')
+		if (!film.dark && styled) issues.push('look.css styles #stage[data-mode="dark"] but film.json has no dark block (those styles never apply)')
+	}
 	for (const s of film.scenes) {
 		const sj = join(d, `scene-${s.id}.json`), js = join(d, `scene-${s.id}.js`)
 		if (!exists(sj) && !exists(js)) {
@@ -109,7 +115,7 @@ export function newFilm(p, slug, { scenes, title, date } = {}) {
 	const T = join(TEMPLATES, 'film')
 	const name = (i) => i.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 	const film = {
-		title: title || name(slug), look: 'Describe the look in one paragraph.', background: '#F3F0E9',
+		title: title || name(slug), look: 'Describe the look in one paragraph.', background: '#F3F0E9', dark: { background: '#1E1B18' },
 		fonts: { display: { family: 'Fraunces', weights: [300, 400] }, sans: { family: 'Inter', weights: [400, 600] } },
 		scenes: ids.map((i) => ({ id: i, name: name(i), dur: i === 'close' ? 5.5 : 10, desc: 'What this scene shows.' }))
 	}

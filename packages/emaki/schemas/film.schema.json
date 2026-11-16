@@ -24,6 +24,24 @@
         "type": "string"
       }
     },
+    "dark": {
+      "description": "The film's dark look: present when look.css styles #stage[data-mode=\"dark\"]. Without it the film is always drawn light.",
+      "type": "object",
+      "required": [
+        "background"
+      ],
+      "properties": {
+        "background": {
+          "type": "string"
+        },
+        "palette": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "fonts": {
       "type": "object",
       "additionalProperties": {
