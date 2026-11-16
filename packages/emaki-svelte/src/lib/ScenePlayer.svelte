@@ -2,20 +2,21 @@
   // A scene driven by a ScenePlayerState you own (an editor, an admin preview, a step-through): the state holds what
   // is loaded and where the playhead is; this mounts, renders and runs the clock. Remounts when player.key changes.
   import { onMount } from 'svelte';
-  import { attachScene, type ScenePlayerState } from '@senseihq/emaki';
+  import { attachScene, type Mode, type ScenePlayerState } from '@senseihq/emaki';
   import { reactivePlayer } from './player.svelte.js';
 
-  let { player, locale = 'en', controls = false }: { player: ScenePlayerState; locale?: string; controls?: boolean } = $props();
+  let { player, locale = 'en', mode = 'auto', controls = false }: { player: ScenePlayerState; locale?: string; mode?: Mode; controls?: boolean } = $props();
   const p = reactivePlayer(() => player);
   let host: HTMLDivElement;
   let width = $state(0);
   let view: ReturnType<typeof attachScene> | null = null;
 
   onMount(() => {
-    view = attachScene(host, player, { locale });
+    view = attachScene(host, player, { locale, mode });
     return () => view?.destroy();
   });
   $effect(() => { view?.setLocale(locale); });
+  $effect(() => { view?.setMode(mode); });
   $effect(() => { if (width) view?.fit(width); });
 </script>
 

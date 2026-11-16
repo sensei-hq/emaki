@@ -1,10 +1,10 @@
 <script lang="ts">
   // An article figure: one scene, looping while it is on screen. <MotionScene film="..." scene="..." />
   import { onMount, untrack } from 'svelte';
-  import { attachScene, figurePlayer, type Layout } from '@senseihq/emaki';
+  import { attachScene, figurePlayer, type Layout, type Mode } from '@senseihq/emaki';
 
-  let { film, scene, layout = 'figure', locale = 'en', autoplay = true, class: cls = '' }:
-    { film: string; scene: string; layout?: Layout; locale?: string; autoplay?: boolean; class?: string } = $props();
+  let { film, scene, layout = 'figure', locale = 'en', mode = 'auto', autoplay = true, class: cls = '' }:
+    { film: string; scene: string; layout?: Layout; locale?: string; mode?: Mode; autoplay?: boolean; class?: string } = $props();
 
   let host: HTMLDivElement;
   let width = $state(0);
@@ -13,11 +13,12 @@
 
   onMount(() => {
     player.load({ film, scene, layout });
-    view = attachScene(host, player, { locale, autoplay });
+    view = attachScene(host, player, { locale, mode, autoplay });
     return () => view?.destroy();
   });
   $effect(() => { const ref = { film, scene, layout }; untrack(() => { if (view && (ref.film !== player.ref?.film || ref.scene !== player.ref?.scene || ref.layout !== player.ref?.layout)) player.load(ref); }); });
   $effect(() => { view?.setLocale(locale); });
+  $effect(() => { view?.setMode(mode); });
   $effect(() => { if (width) view?.fit(width); });
 </script>
 
