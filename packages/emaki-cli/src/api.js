@@ -8,3 +8,6 @@ export { installPlugin, installSkills, installAgents, listSkills, listAgents, pa
 export { init, detectFramework } from './init.js'
 export { migrate } from './migrate.js'
 export { MotionError } from './util.js'
+export { stage, postsFor, pngToJpeg } from './stage.js'
+export { deskClient } from './desk-client.js'
+export { storyFor, storyUrl, filmFiles, recordLinks } from './stories.js'
