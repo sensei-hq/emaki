@@ -4,7 +4,7 @@
 import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { MotionError } from '../src/api.js'
-import { encodeArgs, frameRange, musicFor, muxArgs, renderOut, renderSteps, staleRender } from '../src/media.js'
+import { encodeArgs, frameRange, musicFor, muxArgs, renderOut, renderSteps, retrying, staleRender } from '../src/media.js'
 
 describe('render: --from / --to', () => {
 	it('captures the whole film by default', () => {
@@ -86,6 +86,29 @@ describe('render: ffmpeg arguments', () => {
 		expect(staleRender(30.1, 30)).toBeNull()
 		expect(staleRender(28, 30)).toMatch(/runs 28\.0 s but the film now runs 30\.0 s/)
 		expect(staleRender(5, 30, true)).toBeNull()
+	})
+})
+
+describe('render: the dev server reloading mid-capture', () => {
+	it('waits for the show to come back and repeats the same call', async () => {
+		let calls = 0, recovered = 0
+		const v = await retrying(async () => {
+			if (++calls < 3) throw new Error('Execution context was destroyed')
+			return 'seeked'
+		}, async () => { recovered++ })
+		expect(v).toBe('seeked')
+		expect(calls).toBe(3)
+		expect(recovered).toBe(2)
+	})
+	it('gives up after 8 attempts with the last error', async () => {
+		let calls = 0
+		await expect(retrying(async () => { calls++; throw new Error(`gone ${calls}`) }, async () => {})).rejects.toThrow('gone 8')
+		expect(calls).toBe(8)
+	})
+	it('does not retry when the call succeeds', async () => {
+		let recovered = 0
+		expect(await retrying(async () => 1, async () => { recovered++ })).toBe(1)
+		expect(recovered).toBe(0)
 	})
 })
 
