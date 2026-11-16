@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
 	captions, detectFramework, fit, init, installPlugin, listAgents, listSkills, manifest, newFilm, parseFrontmatter,
-	project, PROVIDERS, provider, setVoice, ttsCheck, validate, voiceConfig, MotionError
+	migrate, project, PROVIDERS, provider, setVoice, ttsCheck, validate, voiceConfig, MotionError
 } from '../src/api.js'
 
 const dirs = []
@@ -186,3 +186,58 @@ describe('voice', () => {
 		expect(cues[1].endsWith(' --> 00:00:04,600')).toBe(true)
 	})
 })
+
+// A miniature of the sensei-hq.com website's layout (issue #1, gap 4): films in src/lib/motion/films with base.css,
+// articles flat in src/lib/content/articles with title/dek in the index, narration and takes in films/<slug>/.
+function website() {
+	const w = tmp(), put = (rel, text) => { mkdirSync(join(w, rel, '..'), { recursive: true }); writeFileSync(join(w, rel), text) }
+	const F = 'src/lib/motion/films/demo'
+	put(`${F}/film.json`, JSON.stringify({ title: 'Demo', background: '#F3F0E9', scenes: [{ id: 'hook', name: 'Hook', dur: 6 }, { id: 'close', name: 'Close', dur: 5 }] }))
+	put(`${F}/base.css`, '#stage { --ground:#fff }')
+	put(`${F}/shared.js`, 'window.W = {};')
+	put(`${F}/scene-hook.js`, 'kit.scene("hook", { render() {} });')
+	put(`${F}/scene-close.js`, 'kit.scene("close", { render() {} });')
+	put(`${F}/score.js`, 'export default {};')
+	put(`${F}/timing.json`, JSON.stringify({ scenes: { hook: { dur: 6.5 } } }))
+	put('src/lib/motion/logos/brand.svg', '<svg/>')
+	put('src/lib/content/articles/index.json', JSON.stringify([{ slug: 'demo', title: 'Demo story', dek: 'What the reader gets.', kanji: '守', kanjiGloss: 'Mamoru · to protect', series: 'Explainer films', app: 'practice', tags: ['a'], publish_date: '2026-01-02', minutes: 4, social: { youtube: '' } }]))
+	put('src/lib/content/articles/demo.json', JSON.stringify({ sections: [{ id: 'hook', title: 'Hook', body: ['x'] }], takeaway: 'Pause.' }))
+	put('films/demo/film.json', JSON.stringify({ slug: 'demo', scenes: [{ id: 'hook', text: 'Hello.', say: null, take: 'take-01' }, { id: 'close', text: 'Bye.', say: 'Bye!', take: 'take-02' }] }))
+	put('films/demo/takes/take-01.wav', 'RIFF1')
+	put('films/demo/takes/take-02.wav', 'RIFF2')
+	return w
+}
+
+describe('migrate', () => {
+	it('moves the website layout into content/ and production/, and the result validates', () => {
+		const w = website(), d = tmp()
+		init({ cwd: d, framework: 'vanilla', sample: false })
+		const r = migrate(project(d), w)
+		const film = join(d, 'content/films/demo')
+		expect(readFileSync(join(film, 'look.css'), 'utf-8')).toBe('#stage { --ground:#fff }')
+		expect(existsSync(join(film, 'base.css'))).toBe(false)
+		for (const f of ['film.json', 'shared.js', 'scene-hook.js', 'scene-close.js', 'score.js', 'timing.json']) expect(existsSync(join(film, f)), f).toBe(true)
+		expect(existsSync(join(d, 'content/logos/brand.svg'))).toBe(true)
+		const [entry] = json(join(d, 'content/stories/index.json'))
+		expect(entry).toMatchObject({ slug: 'demo', kanji: '守', app: 'practice', publish_date: '2026-01-02', minutes: 4 })
+		for (const k of ['title', 'dek', 'kanjiGloss', 'series']) expect(entry, k).not.toHaveProperty(k)
+		expect(json(join(d, 'content/stories/en/demo.json'))).toMatchObject({ title: 'Demo story', dek: 'What the reader gets.', kanjiGloss: 'Mamoru · to protect', series: 'Explainer films', takeaway: 'Pause.' })
+		expect(json(join(film, 'voice/en.json'))).toEqual([{ scene: 'hook', text: 'Hello.', say: null }, { scene: 'close', text: 'Bye.', say: 'Bye!' }])
+		expect(readFileSync(join(d, 'production/demo/en/takes/take-02.wav'), 'utf-8')).toBe('RIFF2')
+		expect(r.wrote.length).toBeGreaterThan(5)
+		const v = validate(project(d))
+		expect(v.problems, v.lines.join('\n')).toBe(0)
+	})
+	it('never overwrites: a second run keeps what is there', () => {
+		const w = website(), d = tmp()
+		init({ cwd: d, framework: 'vanilla', sample: false })
+		migrate(project(d), w)
+		writeFileSync(join(d, 'content/films/demo/look.css'), 'mine')
+		const r = migrate(project(d), w)
+		expect(readFileSync(join(d, 'content/films/demo/look.css'), 'utf-8')).toBe('mine')
+		expect(r.kept).toContain('content/films/demo/look.css')
+		expect(r.wrote).toEqual([])
+	})
+	it('refuses a folder that is not the website', () => expect(() => migrate(project(tmp()), tmp())).toThrow(MotionError))
+})
+
