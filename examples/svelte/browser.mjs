@@ -62,6 +62,10 @@ try {
 		: fail(`scenes did not go dark: ${JSON.stringify({ light, dark })}`)
 	await page.screenshot({ path: `${out}/example-dark.png`, fullPage: false })
 	await page.evaluate(() => { document.documentElement.dataset.mode = 'light' })
+	// An explicit mode prop beats the page: /?mode=dark on a light page draws every scene dark.
+	await page.goto(base + '/?locale=en&mode=dark')
+	await page.waitForFunction(() => [...document.querySelectorAll('[data-testid^="figure-"] .motion-scene > div, .ms-stage')].every((h) => h.shadowRoot?.querySelector('#stage')?.getAttribute('data-mode') === 'dark'), null, { timeout: 10000 })
+		.then(() => ok('mode="dark" on the components overrides a light page'), () => fail('the mode prop did not reach the scenes'))
 
 	const cap = await browser.newPage({ viewport: { width: 1920, height: 1080 } })
 	cap.on('pageerror', (e) => errors.push(String(e)))
