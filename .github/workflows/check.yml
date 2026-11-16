@@ -47,3 +47,10 @@ jobs:
         run: bunx playwright install --with-deps chromium
       - name: Example app in the browser
         run: bun run test:browser
+      - name: Keep the screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-screenshots
+          path: examples/svelte/test-results/
+          if-no-files-found: ignore
