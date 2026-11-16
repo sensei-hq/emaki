@@ -6,6 +6,7 @@ import sade from 'sade'
 import pkg from '../package.json' with { type: 'json' }
 import { project } from './config.js'
 import { manifest, newFilm, validate } from './films.js'
+import { migrate } from './migrate.js'
 import { MotionError, parseOpts } from './util.js'
 
 const prog = sade('emaki')
@@ -89,6 +90,19 @@ prog.command('validate [slug]')
 		r.lines.forEach((l) => console.info(l))
 		console.info(r.problems ? `${r.problems} problem(s)` : 'ok')
 		if (r.problems) process.exitCode = 1
+	}))
+
+prog.command('migrate <from>')
+	.describe('Move a sensei-hq.com-style site (src/lib/motion, src/lib/content/articles, films/) into content/ and production/. Never overwrites.')
+	.option('--locale', 'The locale the site was written in', 'en')
+	.action(act((from, o) => {
+		const p = P(), r = migrate(p, from, { locale: o.locale })
+		r.wrote.forEach((f) => console.info(`  wrote ${f}`))
+		if (r.kept.length) console.info(`  kept ${r.kept.length} existing file(s)`)
+		const v = validate(project())
+		v.lines.forEach((l) => console.info(l))
+		console.info(v.problems ? `${v.problems} problem(s) left: fix them, then \`emaki validate\`` : 'migrated; emaki validate: ok')
+		if (v.problems) process.exitCode = 1
 	}))
 
 prog.command('new <slug>')
