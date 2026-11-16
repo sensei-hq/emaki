@@ -40,7 +40,7 @@ them into sources. Paths are matched by their tail, so the content folder can be
 
 | Path | What |
 |---|---|
-| `@senseihq/emaki` | `setupMotion`, `useSource`, `loadFilm`, `listFilms`, `timeline`, `coverTime`, `warp`/`unwarp`; `mountScene`; `createShow` (the player controller) and `installCapture` (the video contract); `ScenePlayerState` + `attachScene` (a scene you drive); `evaluateScene`, `validateScene`, `localizeScene`, `sceneKeys`, `registerLogo`; i18n (`configureLocales`, `fallbackChain`, `negotiate`, `dirOf`, `t`, `formatDate`); content (`loadStory`, `listStories`, `today`); sound (`filmScore`, `playScore`, `collectScore`); types |
+| `@senseihq/emaki` | `setupMotion`, `useSource`, `loadFilm`, `listFilms`, `timeline`, `coverTime`, `warp`/`unwarp`; `mountScene`; `createShow` (the player controller: `poster`, `start`, `replay`, `restart`), `showKey` (its keys), `ticks` (progress) and `installCapture` (the video contract); `sceneSound` (a figure's slice of the score); `ScenePlayerState` + `attachScene` (a scene you drive); `evaluateScene`, `validateScene`, `localizeScene`, `sceneKeys`, `registerLogo`; i18n (`configureLocales`, `fallbackChain`, `negotiate`, `dirOf`, `t`, `formatDate`); content (`loadStory`, `listStories`, `today`); sound (`filmScore`, `playScore`, `collectScore`); types |
 | `@senseihq/emaki/elements` | `defineMotionElements()`: `<motion-scene film scene layout locale mode>` and `<motion-show film locale layout mode>` web components, for plain HTML, Astro, Eleventy |
 | `@senseihq/emaki/loaders/vite` | `viteSource(globs)` → `{ filmSource, contentSource, logos, site }` |
 | `@senseihq/emaki/loaders/fetch` | `fetchFilmSource(base)`, `fetchContentSource(base)`: static files at runtime (`emaki manifest` writes `films/index.json`) |
