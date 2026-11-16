@@ -15,7 +15,9 @@ packages/emaki-posting  desk rules, access, store interface, createDesk (Request
 packages/emaki-cli      `emaki` (plain ESM JS, sade): src/, templates/ (film template + sample content), plugin/
                          (skills, agents, PLAYBOOK, templates, modules)
 examples/svelte          the reference app + browser.mjs (Chromium check)
-config/                  bump.config.js, check-pins.mjs, spec/ (lockfile, library manifest)
+site                     emaki.sensei-hq.com (SvelteKit + rokkit): landing, /docs from docs/llms (committed copies,
+                         spec-checked), llms.txt; vitest browser specs
+config/                  bump.config.js, check-pins.mjs, publish-all.sh, spec/ (lockfile, library manifest, order)
 docs/llms                the reference corpus named by sensei.library.json
 ```
 
@@ -25,6 +27,7 @@ docs/llms                the reference corpus named by sensei.library.json
 bun run check            # tsc per package, build all, vitest (projects: config, emaki, posting, cli)
 cd packages/emaki-svelte && bun run check   # svelte-check
 bun run test:browser     # build + run the example in Chromium
+cd site && bun run check && bun run test && bun run build   # the site (needs `bun run build:all` first)
 ```
 
 ## Rules
