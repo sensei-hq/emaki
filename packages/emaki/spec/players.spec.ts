@@ -69,7 +69,7 @@ describe('scene player', () => {
 describe('scene sound', () => {
   it('is available only when the film has a score', async () => {
     expect(await sceneSound('f', 'a').available).toBe(false);
-    score = 'export default {}';
+    score = 'kit.score(function (S, T) { S.tempo(70); });';
     expect(await sceneSound('f', 'a').available).toBe(true);
   });
 });

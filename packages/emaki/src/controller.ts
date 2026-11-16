@@ -30,6 +30,9 @@ export interface AttachedScene {
 export function attachScene(host: HTMLElement, player: ScenePlayerState, opts: AttachOptions = {}): AttachedScene {
   let m: Mounted | null = null, mountedKey = '', width = host.clientWidth, alive = true, raf = 0, last = performance.now();
   let locale = opts.locale ?? 'en', mode: Mode = opts.mode ?? 'auto', busy: Promise<void> = Promise.resolve();
+  // A still (reduced motion, or asked for) never plays; it rests near the end, where the scene has been built.
+  const still = opts.still ?? (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  player.still = still;
   host.style.position ||= 'relative';
   host.style.overflow = 'hidden';
 
@@ -57,6 +60,7 @@ export function attachScene(host: HTMLElement, player: ScenePlayerState, opts: A
           if (!alive || want !== keyOf()) { next.destroy(); return; }
           m = next; mountedKey = want;
           player.markReady(m.dur);
+          if (still) player.seek(Math.max(0, m.dur - 0.6));
           if (opts.autoplay && visible) player.play();
         } catch (e) {
           return player.fail(e instanceof Error ? e.message : String(e));

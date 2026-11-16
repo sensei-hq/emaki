@@ -28,6 +28,8 @@ export class ScenePlayerState {
   hold = 0;
   /** How many times the scene has looped (a cue for anything that restarts with it, such as its sound). */
   loops = 0;
+  /** A still never plays (reduced motion): it rests near the end of the scene. */
+  still = false;
 
   /** Changes whenever the mount must be rebuilt (film, scene, layout or source). */
   get key(): string {
@@ -77,6 +79,7 @@ export class ScenePlayerState {
   }
 
   play() {
+    if (this.still) return;
     if (this.dur > 0 && this.t >= this.dur) this.t = 0;
     this.playing = true;
     this.changed();
@@ -92,16 +95,17 @@ export class ScenePlayerState {
     else this.play();
   }
 
-  /** Advance the playhead; stops at the end unless looping. */
+  /** Advance the playhead. Looping, it rests `hold` seconds past the end (on the last frame) before starting over;
+   *  otherwise it stops at the end. */
   tick(dt: number) {
     if (!this.playing) return;
     const next = this.t + dt;
-    if (next >= this.dur) {
-      if (this.loop && this.dur > 0) this.t = 0;
-      else {
-        this.t = this.dur;
-        this.playing = false;
-      }
+    if (this.loop && this.dur > 0 && next >= this.dur + this.hold) {
+      this.t = 0;
+      this.loops++;
+    } else if (!this.loop && next >= this.dur) {
+      this.t = this.dur;
+      this.playing = false;
     } else {
       this.t = next;
     }
