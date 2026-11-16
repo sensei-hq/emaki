@@ -1,7 +1,7 @@
 # @senseihq/emaki-cli
 
-`emaki`: set a project up for motion stories, install the Claude plugin, and run the production steps per film and
-per locale.
+`emaki`: set a project up for motion stories, install the Claude plugin, run the production steps per film and per
+locale, and take finished pieces out: stage them for approval, publish them, and run a daily campaign.
 
 ```sh
 npm i -D @senseihq/emaki-cli playwright && npx playwright install chromium
@@ -25,12 +25,45 @@ npx emaki init            # sample content, emaki.config.json, film source, /sho
 | `fit <slug> [--locale] [--check]` | scene times fitted to the takes: `timing.<locale>.json` |
 | `render <slug> [--locale] [--o both] [--fps 30]` | picture + score + covers |
 | `build <slug> [--locale] [--no-captions]` | voice + ducked score, −14 LUFS, captions (.srt/.vtt, burned in) |
+| `stage <slug> [--channels a,b] [--locale] [--dry-run]` | upload a finished piece's media (sha256-checked) and post text to the posting desk, one post per channel, for approval; a film's text is drafted into `content/films/<slug>/post.<locale>.json` on the first run |
+| `stage status [slug]` | report each story's script and what is produced (takes, renders, Short, carousel) to the desk's plan |
+| `stage requests`, `stage reply <id> "text" [--working \| --done]` | read the open motion requests from the desk (with their threads) and answer them |
+| `publish youtube <slug> [--privacy unlisted] [--update id] [--force-new] [--description-mode prepend]` | upload the 16:9 film with chapters, tags, captions and the cover as thumbnail; `--update` refreshes an uploaded video in place |
+| `publish instagram <slug> [--video-url u --cover-url u]` | post the 9:16 film as a Reel; without URLs the files go to the desk and are linked (signed) for an hour |
+| `publish … --dry-run`, `publish youtube\|instagram --verify` | print exactly what would post and send nothing; check the keys read-only and name the account |
+| `carousel <slug…> \| --all` | a campaign day's Instagram carousel, 1080×1350 PNGs from its day script (needs Playwright) |
+| `campaign status [--from] [--days 14]` | what is due, and for each day: story, film, takes, render, Short, carousel, posts |
+| `campaign shortfilm <slug>` | a Short's film (one scene per beat, the voice lines) from its day script's voiceover table |
+| `campaign posted <slug> [--youtube id] [--instagram url] [--x url]` | record where a piece went: the campaign's `published.json` and the story's `social` links |
+| `campaign due [--date]`, `campaign calendar` | one day's piece as JSON (for automation); rewrite `CALENDAR.md` from `calendar.csv` |
 
 Voice providers, set per locale in `emaki.config.json` (`default` → language → locale): **offline** `piper`,
 `kokoro`, `macos` (`say`), `espeak`; **cloud** `elevenlabs`, `openai` (or Azure OpenAI), `azure`, `google`, `polly`
 (via the `aws` CLI); **a person** `manual`. Keys come from environment variables only.
 
-Needs Node 20.10+, ffmpeg, and Playwright with Chromium for `sheet` and `render`. The same steps are importable as
-functions from `@senseihq/emaki-cli` (`project`, `validate`, `voice`, `fit`, `render`, `build`, …).
+After the build. `publish` writes each new link into the story's entry in `content/stories/index.json` (`youtube`
+and `social`) and never replaces one that is there. Published files come from `production/<slug>/<locale>/`
+(`out/<slug>-<locale>-16x9.mp4`, `-9x16.mp4`, `.srt`, `out/description.txt` if you wrote one, and the covers in
+`render/`). A campaign lives in `campaign/` (`calendar.csv`, `days/day-NN-<slug>.md`, `carousels/<slug>/`,
+`published.json`); a day script gives every channel's text for `stage`. Settings in `emaki.config.json`, all
+optional: `campaign` (the folder), `storyUrl` (a story's public link, default `{url}/{locale}/stories/{slug}`), and
+`carousel` (`marks` per topic, `mark`, `footer`, `swipe`, `last`, or a `template` HTML file).
+
+Credentials come from environment variables (or CI secrets) only; nothing writes them to a file or prints them:
+
+| Variable | For |
+|---|---|
+| `ADMIN_ORIGIN` | the posting desk's site (default: `url` in `content/site.json`); `ADMIN_API` if its API is not at `/api/admin` |
+| `STAGER_CLIENT_ID`, `STAGER_CLIENT_SECRET` | the stager's Cloudflare Access service token: `stage`, and Instagram media for `publish` |
+| `MEDIA_URL_SECRET` | signs the one-hour media links Instagram fetches (the desk's secret); `MEDIA_PATH` if not `/m` |
+| `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, `YT_REFRESH_TOKEN` | YouTube Data API, scopes `youtube.upload` and `youtube.force-ssl` |
+| `IG_USER_ID`, `IG_ACCESS_TOKEN` (`IG_GRAPH_VERSION`, default `v21.0`) | Instagram Graph API, `instagram_content_publish` |
+
+Load them from a file that git ignores without writing them anywhere else, e.g. `node --env-file=.env
+node_modules/.bin/emaki stage <slug>` or `set -a; . ./.env; set +a`.
+
+Needs Node 20.10+, ffmpeg, and Playwright with Chromium for `sheet`, `render` and `carousel`. The same steps are importable as
+functions from `@senseihq/emaki-cli` (`project`, `validate`, `voice`, `fit`, `render`, `build`, `stage`, `publish`,
+`youtube`, `instagram`, `carousel`, `campaignStatus`, …); every network call takes an injectable `fetch`.
 
 MIT © SenecaGlobal

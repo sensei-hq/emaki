@@ -4,8 +4,11 @@
   live on their day in the site's time zone. Drafts are visible only in preview/admin.
 - **Posting desk** (`modules/posting-desk/`): private admin with preview, reorder ("make next"), change requests and
   approval bound to a content hash; a scheduled poster publishes approved media to YouTube, Instagram and X. Start
-  paused, dry-run, YouTube private.
+  paused, dry-run, YouTube private. The producing machine stages with `emaki stage <slug>` (and reports
+  `emaki stage status`, answers `emaki stage requests` / `emaki stage reply`).
+- **Direct**: `emaki publish youtube|instagram <slug>` (`--verify`, `--dry-run` first) posts without the desk and records
+  the link in the stories index.
 - **Campaign** (`modules/campaign/`): a calendar of daily shorts with a day script per day (voice table + channel copy),
-  built with the same per-item loop.
+  built with the same per-item loop: `emaki campaign shortfilm`, `emaki carousel`, `emaki stage`, `emaki campaign status`.
 - **Analytics**: per story and locale: views, read depth, player starts, sound-on rate, video completion; feed the
   numbers into the next batch's priorities.

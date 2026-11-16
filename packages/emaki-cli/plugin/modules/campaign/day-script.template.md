@@ -38,4 +38,5 @@ voiceover per scene; captions burned in. The voice lines below are the copy of r
 
 ## 5 · Posting
 
-After the build: stage to the posting desk; the owner approves; the scheduled job posts on the day and records the links.
+After the build: `emaki carousel <slug>`, then `emaki stage <slug>`; the owner approves on the desk; the scheduled job
+posts on the day and records the links.
