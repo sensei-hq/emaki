@@ -15,7 +15,7 @@ export interface ShowOptions {
 export type ShowListener = (s: { index: number; local: number; playing: boolean; sound: boolean; layout: Layout }) => void;
 
 export async function createShow(host: HTMLElement, slug: string, opts: ShowOptions = {}) {
-  const locale = opts.locale ?? 'en';
+  const locale = opts.locale ?? 'en', mode: Mode = opts.mode ?? (opts.capture ? 'light' : 'auto');
   const f = await loadFilm(slug, locale);
   if (!f) throw new Error(`emaki: no film "${slug}"`);
   const tl = timeline(f);
@@ -32,7 +32,7 @@ export async function createShow(host: HTMLElement, slug: string, opts: ShowOpti
       const k = `${index}:${layout}`;
       if (k !== key) {
         m?.destroy();
-        const next = await mountScene(host, f!, tl.scenes[index].id, layout, { locale });
+        const next = await mountScene(host, f!, tl.scenes[index].id, layout, { locale, mode });
         if (dead) return next.destroy();
         m = next; key = k;
       }

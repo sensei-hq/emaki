@@ -49,7 +49,7 @@ export function attachScene(host: HTMLElement, player: ScenePlayerState, opts: A
           if (!f) return player.fail(`no film "${ref.film}"`);
           await fontsReady(f);
           if (!alive) return;
-          const next = await mountScene(host, f, ref.scene, ref.layout, { locale, src: ref.src });
+          const next = await mountScene(host, f, ref.scene, ref.layout, { locale, src: ref.src, mode: opts.mode });
           if (!alive || want !== keyOf()) { next.destroy(); return; }
           m = next; mountedKey = want;
           player.markReady(m.dur);
