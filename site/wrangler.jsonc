@@ -1,0 +1,9 @@
+{
+	// Deploys the adapter-cloudflare output (set CF_PAGES=1 in the Cloudflare project so svelte.config.js picks it).
+	"name": "emaki",
+	"compatibility_date": "2026-06-13",
+	"compatibility_flags": ["nodejs_compat"],
+	"main": ".svelte-kit/cloudflare/_worker.js",
+	"assets": { "binding": "ASSETS", "directory": ".svelte-kit/cloudflare" },
+	"observability": { "enabled": true }
+}

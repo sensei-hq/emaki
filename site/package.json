@@ -1,0 +1,51 @@
+{
+	"name": "emaki-site",
+	"private": true,
+	"type": "module",
+	"description": "emaki.sensei-hq.com: the landing page, the docs (synced from docs/llms) and llms.txt.",
+	"scripts": {
+		"sync:docs": "node scripts/copy-docs.mjs",
+		"predev": "node scripts/copy-docs.mjs",
+		"dev": "vite dev",
+		"prebuild": "node scripts/copy-docs.mjs",
+		"build": "vite build",
+		"preview": "vite preview",
+		"prepare": "svelte-kit sync || echo ''",
+		"check": "node scripts/copy-docs.mjs && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"test": "vitest run",
+		"test:watch": "vitest"
+	},
+	"dependencies": {
+		"@fontsource/fraunces": "^5.2.8",
+		"@fontsource/ibm-plex-mono": "^5.2.7",
+		"@fontsource/inter": "^5.2.8",
+		"@rokkit/actions": "^1.15.7",
+		"@rokkit/app": "^1.15.7",
+		"@rokkit/core": "^1.15.7",
+		"@rokkit/icons": "^1.15.7",
+		"@rokkit/states": "^1.15.7",
+		"@rokkit/themes": "^1.15.7",
+		"@rokkit/ui": "^1.15.7",
+		"@rokkit/unocss": "^1.15.7",
+		"@senseihq/emaki": "workspace:*",
+		"@senseihq/emaki-svelte": "workspace:*",
+		"marked": "^18"
+	},
+	"devDependencies": {
+		"@sveltejs/adapter-auto": "^7.0.1",
+		"@sveltejs/adapter-cloudflare": "^7.2.8",
+		"@sveltejs/kit": "^2.57.0",
+		"@sveltejs/vite-plugin-svelte": "^7.0.0",
+		"@types/node": "^22.10.0",
+		"@vitest/browser": "^4.1.10",
+		"@vitest/browser-playwright": "^4.1.10",
+		"playwright": "1.63.0",
+		"svelte": "^5.55.2",
+		"svelte-check": "^4.4.6",
+		"typescript": "^5.6.3",
+		"unocss": "^66.7.0",
+		"vite": "^8.0.7",
+		"vitest": "^4.1.11",
+		"vitest-browser-svelte": "^3.0.0"
+	}
+}
