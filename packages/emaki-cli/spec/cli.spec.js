@@ -239,5 +239,21 @@ describe('migrate', () => {
 		expect(r.wrote).toEqual([])
 	})
 	it('refuses a folder that is not the website', () => expect(() => migrate(project(tmp()), tmp())).toThrow(MotionError))
+	it('validate counts an explicit figure as a figure, and lets a film that names its cover end on any scene', () => {
+		const w = website(), d = tmp()
+		init({ cwd: d, framework: 'vanilla', sample: false })
+		migrate(project(d), w)
+		const body = join(d, 'content/stories/en/demo.json'), b = json(body)
+		b.sections.push({ id: 'pillars', title: 'Pillars', body: ['y'], figure: 'pillars' })
+		writeFileSync(body, JSON.stringify(b))
+		const filmPath = join(d, 'content/films/demo/film.json'), f = json(filmPath)
+		f.scenes.reverse()
+		writeFileSync(filmPath, JSON.stringify(f))
+		expect(validate(project(d)).lines.join('\n')).toMatch(/last scene should be "close"/)
+		f.cover = { scene: 'close' }
+		writeFileSync(filmPath, JSON.stringify(f))
+		const r = validate(project(d))
+		expect(r.lines.join('\n')).not.toMatch(/last scene should be "close"|section pillars/)
+	})
 })
 
