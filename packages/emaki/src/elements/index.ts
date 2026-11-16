@@ -4,7 +4,7 @@
 // Both take mode="light|dark|auto" (default auto: follow the page's data-mode, else prefers-color-scheme).
 // Call defineMotionElements() once, after useSource(...). Both elements fit their box; give them a width (and the
 // show an aspect ratio). Sound is always off until the reader turns it on.
-import { createShow, filmScore, fontsReady, loadFilm, mountScene, playScore as play, timeline, type Mounted, type Layout, type Mode, SIZES } from '../index.js';
+import { createShow, showKey, filmScore, fontsReady, loadFilm, mountScene, playScore as play, timeline, type Mounted, type Layout, type Mode, SIZES } from '../index.js';
 
 const BTN = 'position:absolute;right:10px;bottom:10px;width:36px;height:36px;border-radius:50%;border:0;background:rgba(255,255,255,.85);cursor:pointer;font:16px system-ui';
 
@@ -96,12 +96,7 @@ class MotionShow extends HTMLElement {
     this.#show.fit(this.clientWidth, this.clientHeight);
     this.#show.on((s) => this.dispatchEvent(new CustomEvent('showchange', { detail: s })));
   }
-  #key = (e: KeyboardEvent) => {
-    const s = this.#show; if (!s) return;
-    if (e.key === 'ArrowRight') s.next(); else if (e.key === 'ArrowLeft') s.prev();
-    else if (e.key === ' ') { s.toggle(); e.preventDefault(); } else if (e.key.toLowerCase() === 'm') s.setSound(!s.state.sound);
-    else if (e.key.toLowerCase() === 'o') s.setLayout(s.state.layout === 'landscape' ? 'portrait' : 'landscape');
-  };
+  #key = (e: KeyboardEvent) => { if (this.#show && showKey(this.#show, e, this)) e.preventDefault(); };
 }
 
 export function defineMotionElements() {

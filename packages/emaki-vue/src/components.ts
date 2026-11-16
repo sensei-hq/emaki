@@ -1,7 +1,7 @@
 // Vue 3 components over @senseihq/emaki, written as render functions so they need no SFC compiler.
 // Client-only (they need the DOM): in Nuxt wrap them in <ClientOnly>. Call setupMotion(...) once on the client first.
 import { defineComponent, h, onBeforeUnmount, onMounted, ref, shallowRef, watch, type PropType } from 'vue';
-import { attachScene, createShow, figurePlayer, installCapture, type AttachedScene, type Layout, type Mode, type ScenePlayerState } from '@senseihq/emaki';
+import { attachScene, createShow, figurePlayer, installCapture, showKey, type AttachedScene, type Layout, type Mode, type ScenePlayerState } from '@senseihq/emaki';
 import { useScenePlayer, useShowState, useSize, type Show } from './composables.js';
 
 function attach(player: () => ScenePlayerState, locale: () => string, mode: () => Mode, autoplay: boolean) {
@@ -96,14 +96,8 @@ export const MotionShow = defineComponent({
     watch(() => props.layout, (l) => show.value?.setLayout(l));
     watch([size, () => st.value?.layout], () => show.value?.fit(size.value.w, size.value.h));
     expose({ show });
-    const onKeydown = (e: KeyboardEvent) => {
-      const s = show.value; if (!s) return;
-      const k = e.key.toLowerCase();
-      if (k === 'arrowright') s.next(); else if (k === 'arrowleft') s.prev();
-      else if (k === ' ') { s.toggle(); e.preventDefault(); }
-      else if (k === 'm') s.setSound(!s.state.sound);
-      else if (k === 'o') s.setLayout(s.state.layout === 'landscape' ? 'portrait' : 'landscape');
-    };
+    // Every key (←/→, Space, M, O, R, Home, F) from the core, so all players answer the same way.
+    const onKeydown = (e: KeyboardEvent) => { if (show.value && showKey(show.value, e, e.currentTarget as Element)) e.preventDefault(); };
     const btn = 'min-width:34px;height:34px;border-radius:17px;border:1px solid currentColor;background:none;color:inherit;cursor:pointer;padding:0 10px';
     return () => {
       const s = show.value, x = st.value;

@@ -1,7 +1,7 @@
 // React components over @senseihq/emaki. All are client components (they need the DOM); in Next.js import them
 // from a file marked 'use client'. Call setupMotion({ source, site, logos }) once on the client first.
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { attachScene, createShow, installCapture, type AttachedScene, type Layout, type Mode, type ScenePlayerState } from '@senseihq/emaki';
+import { attachScene, createShow, installCapture, showKey, type AttachedScene, type Layout, type Mode, type ScenePlayerState } from '@senseihq/emaki';
 import { usePlayerFor, useScenePlayer, useShowState, useSize, useWidth, type Show } from './hooks.js';
 
 /** Mounts a player's scene into a div and keeps it fitted (shared by MotionScene and ScenePlayer). */
@@ -74,14 +74,8 @@ export function MotionShow({ film, locale = 'en', layout = 'landscape', mode = '
   }, [film, locale, mode]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (show && show.state.layout !== layout) show.setLayout(layout); }, [show, layout]);
   useEffect(() => { show?.fit(size.w, size.h); }, [show, size, st?.layout]);
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    if (!show) return;
-    const k = e.key.toLowerCase();
-    if (k === 'arrowright') show.next(); else if (k === 'arrowleft') show.prev();
-    else if (k === ' ') { show.toggle(); e.preventDefault(); }
-    else if (k === 'm') show.setSound(!show.state.sound);
-    else if (k === 'o') show.setLayout(show.state.layout === 'landscape' ? 'portrait' : 'landscape');
-  };
+  // Every key (←/→, Space, M, O, R, Home, F) from the core, so all players answer the same way.
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => { if (show && showKey(show, e.nativeEvent, e.currentTarget)) e.preventDefault(); };
   const btn: CSSProperties = { minWidth: 34, height: 34, borderRadius: 17, border: '1px solid currentColor', background: 'none', color: 'inherit', cursor: 'pointer', padding: '0 10px' };
   return (
     <div tabIndex={0} role="application" aria-label="Story player" onKeyDown={onKeyDown} className={className}
