@@ -103,13 +103,48 @@ export function planTable(plan) {
 	return lines
 }
 
+const escMeta = (s) => String(s).replace(/[\\=;#]/g, (c) => `\\${c}`).replace(/\n/g, ' ')
+
+/** FFMETADATA with one chapter per scene, on the exact scene boundaries (VLC, QuickTime; YouTube ignores it). */
+export function ffmeta(rows) {
+	const lines = [';FFMETADATA1']
+	for (const r of rows)
+		lines.push('[CHAPTER]', 'TIMEBASE=1/1000', `START=${Math.round(r.at * 1000)}`, `END=${Math.round((r.at + r.tot) * 1000)}`, `title=${escMeta(r.name)}`)
+	return lines.join('\n') + '\n'
+}
+
+/** YouTube's chapter list: [at, title] from 0:00, every chapter at least 10 s (YouTube shows none unless all its rules
+ *  hold). Short scenes fold into the chapter they start; a short tail joins the last one. Boundaries stay on cuts. */
+export function ytChapters(rows) {
+	const groups = []
+	let cur = [], start = 0
+	for (const r of rows) {
+		cur.push(r)
+		if (r.at + r.tot - start >= 10 - 1e-6) {
+			groups.push([start, cur])
+			cur = []
+			start = r.at + r.tot
+		}
+	}
+	if (cur.length) {
+		if (groups.length) groups.at(-1)[1].push(...cur)
+		else groups.push([start, cur])
+	}
+	return groups.map(([at, rs]) => [at, rs.map((r) => r.name).join(' + ')])
+}
+
+/** chapters.txt: "m:ss title" per line, ready for a video description. */
+export const chaptersText = (chapters) =>
+	chapters.map(([at, name]) => `${Math.floor(at / 60)}:${String(Math.floor(at % 60)).padStart(2, '0')} ${name}\n`).join('')
+
 const LOUDNORM = 'loudnorm=I=-14:TP=-1.5:LRA=11'
 
 /** ffmpeg for one final video: the rendered picture (`pic`, its own audio track the music when `music`), the voice
  *  (`voice`, already on the output timeline), the score ducked under the voice, -14 LUFS, `subtitles` (a filter) burned
  *  in. When the plan freezes a scene, each scene is cut from the picture on its own input, the frozen one padded with
- *  its last frame and its music looped under the hold (5 ms fades hide the seam), and the scenes joined again. */
-export function buildArgs({ pic, voice, plan, music, subtitles = null, scoreLevel = 0.55, dst }) {
+ *  its last frame and its music looped under the hold (5 ms fades hide the seam), and the scenes joined again.
+ *  `chapters`: an FFMETADATA file (ffmeta) whose chapters are written in the same pass. */
+export function buildArgs({ pic, voice, plan, music, subtitles = null, chapters = null, scoreLevel = 0.55, dst }) {
 	const inputs = [], fc = []
 	let vid, mu = null
 	if (plan.extended) {
@@ -136,6 +171,8 @@ export function buildArgs({ pic, voice, plan, music, subtitles = null, scoreLeve
 	}
 	const vo = inputs.filter((x) => x === '-i').length
 	inputs.push('-i', voice)
+	const meta = chapters ? ['-map_metadata', String(vo + 1), '-map_chapters', String(vo + 1)] : []
+	if (chapters) inputs.push('-i', chapters)
 	if (mu)
 		fc.push(`${mu}volume=${scoreLevel}[sc]`, `[${vo}:a]aresample=48000,asplit=2[vo][key]`,
 			'[sc][key]sidechaincompress=threshold=0.05:ratio=6:release=400[duck]', `[duck][vo]amix=inputs=2:normalize=0,${LOUDNORM}[a]`)
@@ -144,7 +181,7 @@ export function buildArgs({ pic, voice, plan, music, subtitles = null, scoreLeve
 		fc.push(`${vid.startsWith('[') ? vid : `[${vid}]`}${subtitles}[v]`)
 		vid = '[v]'
 	}
-	return ['-y', '-v', 'error', ...inputs, '-filter_complex', fc.join(';'), '-map', vid, '-map', '[a]',
+	return ['-y', '-v', 'error', ...inputs, '-filter_complex', fc.join(';'), '-map', vid, '-map', '[a]', ...meta,
 		'-c:v', 'libx264', '-crf', '18', '-preset', 'medium', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k',
 		'-t', plan.total.toFixed(3), '-movflags', '+faststart', dst]
 }

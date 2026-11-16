@@ -1,9 +1,9 @@
 // The narration: choose a voice per locale, synthesise takes, fit scene times to them, and build the final videos
 // (voice + score + captions, -14 LUFS).
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { SUFFIX } from './config.js'
-import { buildArgs, buildPlan, planTable } from './media.js'
+import { buildArgs, buildPlan, chaptersText, ffmeta, planTable, ytChapters } from './media.js'
 import { OFFLINE, provider, TTSError, voiceConfig } from './tts.js'
 import { die, hasAudio, load, mediaLength, pad2, run, save } from './util.js'
 
@@ -210,16 +210,21 @@ export function build(p, slug, { locale, noCaptions = false, check = false, out:
 	run('ffmpeg', ['-y', '-v', 'error', ...inputs, '-filter_complex',
 		filters.join(';') + ';' + [...voiced].map((_, i) => `[v${i}]`).join('') + `amix=inputs=${voiced.size}:normalize=0,atrim=0:${plan.total.toFixed(3)}[vo]`,
 		'-map', '[vo]', '-ac', '2', voicePath])
+	const chapters = join(out, 'chapters.ffmeta')
+	writeFileSync(chapters, ffmeta(plan.rows))
+	const yt = ytChapters(plan.rows)
+	writeFileSync(join(out, 'chapters.txt'), chaptersText(yt))
 	const built = []
 	for (const [layout, pic] of pics) {
 		const dst = join(out, `${slug}-${locale}-${SUFFIX[layout]}.mp4`)
 		run('ffmpeg', buildArgs({
 			pic, voice: voicePath, plan, music: hasAudio(pic), subtitles: noCaptions ? null : burnIn(srtPath, layout),
-			scoreLevel: p.cfg.scoreLevel ?? 0.55, dst
+			chapters, scoreLevel: p.cfg.scoreLevel ?? 0.55, dst
 		}))
-		log(`built ${p.rel(dst)}`)
+		log(`built ${p.rel(dst)} (${plan.rows.length} chapters)`)
 		built.push(dst)
 	}
-	log(`captions: ${p.rel(out)}/${slug}-${locale}.vtt/.srt`)
+	rmSync(chapters, { force: true })
+	log(`captions: ${p.rel(out)}/${slug}-${locale}.vtt/.srt; chapters for the description: ${p.rel(join(out, 'chapters.txt'))}`)
 	return { built, duration: plan.total, plan }
 }
