@@ -10,6 +10,11 @@ const { version } = JSON.parse(readFileSync(new URL('../package.json', import.me
 export default defineConfig({
 	define: { __APP_VERSION__: JSON.stringify(version) },
 	plugins: [UnoCSS(), sveltekit()],
+	// Pre-bundle up front: in browser tests Vite otherwise discovers these mid-run and re-optimizes, and the test that
+	// triggered it loads a second module graph (Svelte fails with "reading 'nodes'"). CI always starts cold.
+	optimizeDeps: {
+		include: ['@rokkit/ui', '@rokkit/app', '@rokkit/states', '@rokkit/actions', '@senseihq/emaki', '@senseihq/emaki-svelte', 'marked']
+	},
 	test: {
 		projects: [
 			{

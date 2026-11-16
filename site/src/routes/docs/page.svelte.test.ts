@@ -8,7 +8,7 @@ import { pages } from '$lib/docs';
 
 test('links every docs page, grouped into guides and packages', async () => {
 	const screen = await render(Docs);
-	for (const p of pages) await expect.element(screen.getByRole('link', { name: new RegExp(p.title) })).toHaveAttribute('href', `/docs/${p.slug}`);
+	for (const p of pages) expect(document.querySelector(`a[href="/docs/${p.slug}"]`)?.textContent, p.slug).toContain(p.title);
 	await expect.element(screen.getByRole('heading', { name: 'Guides' })).toBeInTheDocument();
 	await expect.element(screen.getByRole('heading', { name: 'Packages' })).toBeInTheDocument();
 });
