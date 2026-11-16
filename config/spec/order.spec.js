@@ -11,11 +11,12 @@ const siblings = (p) => Object.keys({ ...p.dependencies, ...p.devDependencies, .
 
 const loops = {
 	'build:all': scripts['build:all'].match(/for d in ([\w -]+); do/)?.[1],
-	'publish:all': scripts['publish:all'].match(/for d in ([\w -]+); do/)?.[1],
+	'publish:all': readFileSync('config/publish-all.sh', 'utf-8').match(/for d in ([\w -]+); do/)?.[1],
 	'publish.yml': workflow.match(/PACKAGES=\(([\w -]+)\)/)?.[1]
 }
 
 describe('package loops run in dependency order', () => {
+	it('publish:all runs config/publish-all.sh', () => expect(scripts['publish:all']).toBe('sh config/publish-all.sh'))
 	for (const [name, list] of Object.entries(loops)) {
 		it(`${name} names its packages explicitly`, () => expect(list, name).toBeTruthy())
 		it(`${name} covers every public package once, after its siblings`, () => {
