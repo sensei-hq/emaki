@@ -97,6 +97,21 @@ describe('stories', () => {
     expect(fr.locale).toBe('en');
     expect(fr.fallbackFrom).toBe('en');
   });
+  it('an explicit figure wins over the same-id scene (the website rule)', async () => {
+    const { contentSource } = globs();
+    const en = (await loadStory(contentSource, film, 'en'))!;
+    const id = en.sections.find((s) => s.motion)!.id;
+    const withFigure = {
+      ...contentSource,
+      body: async (l: string, slug: string) => {
+        const b = await contentSource.body(l, slug);
+        return b && { ...b, sections: b.sections.map((s) => (s.id === id ? { ...s, figure: 'top10' } : s)) };
+      },
+    };
+    const s = (await loadStory(withFigure, film, 'en'))!.sections.find((x) => x.id === id)!;
+    expect(s.figure).toBe('top10');
+    expect(s.motion).toBeUndefined();
+  });
   it('hides future-dated stories unless drafts are asked for', async () => {
     const { contentSource } = globs();
     expect((await listStories(contentSource, 'en', { timeZone: 'UTC' })).length).toBe(1);

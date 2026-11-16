@@ -11,6 +11,8 @@ export interface ShowOptions {
   layout?: Layout; locale?: string; capture?: boolean; slide?: number; loop?: boolean;
   /** Light, dark or 'auto' (the default; capture defaults to light so renders do not depend on the machine). */
   mode?: Mode;
+  /** Force where scenes come from: their JSON file or the film's code modules (parity checks; ?src= on /show). */
+  src?: 'json' | 'js';
 }
 export type ShowListener = (s: { index: number; local: number; playing: boolean; sound: boolean; layout: Layout }) => void;
 

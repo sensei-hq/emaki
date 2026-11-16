@@ -18,6 +18,8 @@ export interface StoryEntry {
 export interface Section {
   id: string; eyebrow?: string; title: string; body: string[]; points?: string[]; caption?: string;
   code?: { lang: string; text: string };
+  /** An app-drawn (HTML) figure, by name. Wins over the same-id scene: the section then gets no motion. */
+  figure?: string;
   motion?: { film: string; scene: string };
 }
 export interface StoryBody {
