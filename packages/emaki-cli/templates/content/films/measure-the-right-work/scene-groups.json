@@ -1,0 +1,99 @@
+{
+ "components": [
+  {
+   "type": "board",
+   "id": "groups-bg"
+  },
+  {
+   "type": "raw",
+   "id": "cols",
+   "html": "<div class='groups-col' style='left:880px'><h4>{{groups.1}}</h4><div class='groups-m'>{{groups.2}}</div><div class='groups-m'>{{groups.3}}</div><div class='groups-m'>{{groups.4}}</div></div><div class='groups-col' style='left:1071px'><h4>{{groups.5}}</h4><div class='groups-m'>{{groups.6}}</div><div class='groups-m'>{{groups.7}}</div><div class='groups-m'>{{groups.8}}</div></div><div class='groups-col' style='left:1262px'><h4>{{groups.9}}</h4><div class='groups-m'>{{groups.10}}</div><div class='groups-m'>{{groups.11}}</div></div><div class='groups-col' style='left:1453px'><h4>{{groups.12}}</h4><div class='groups-m'>{{groups.13}}</div><div class='groups-m'>{{groups.14}}</div></div><div class='groups-col' style='left:1644px'><h4>{{groups.15}}</h4><div class='groups-m'>{{groups.16}}</div></div>"
+  },
+  {
+   "type": "svg",
+   "id": "link",
+   "body": "<path class='groups-link' pathLength='1' d='M968 290 C968 170, 1350 170, 1350 290' style='fill:none;stroke:var(--accent);stroke-width:5;stroke-dasharray:1 1;stroke-linecap:round'/>"
+  },
+  {
+   "type": "raw",
+   "id": "pair-tag",
+   "html": "<span class='tag hot groups-pair'>{{groups.17}}</span>"
+  },
+  {
+   "type": "head",
+   "id": "groups-head",
+   "at": "ground",
+   "eyebrow": "{{groups.eyebrow}}",
+   "line": "{{groups.line}}",
+   "sub": "{{groups.sub}}",
+   "style": "left:110px;top:300px;width:680px"
+  }
+ ],
+ "tracks": [
+  {
+   "kind": "effect",
+   "effect": "push",
+   "target": ".cam",
+   "t0": 0,
+   "dur": 9,
+   "from": 1,
+   "to": 1.02
+  },
+  {
+   "kind": "effect",
+   "effect": "showHead",
+   "target": ".groups-head",
+   "t0": -0.4
+  },
+  {
+   "kind": "effect",
+   "effect": "fade",
+   "target": ".groups-col",
+   "count": 5,
+   "t0": 0.8,
+   "stagger": 0.35
+  },
+  {
+   "kind": "effect",
+   "effect": "swap",
+   "target": ".groups-m",
+   "indices": [
+    0,
+    6
+   ],
+   "at": 3.6,
+   "addClass": "on"
+  },
+  {
+   "kind": "effect",
+   "effect": "draw",
+   "target": ".groups-link",
+   "t0": 3.8,
+   "t1": 4.8
+  },
+  {
+   "kind": "effect",
+   "effect": "pop",
+   "target": ".groups-pair",
+   "t0": 4.8,
+   "base": "translate(-50%,0)"
+  }
+ ],
+ "css": ".groups-col { position:absolute; top:300px; width:176px; display:flex; flex-direction:column; gap:12px }.groups-col h4 { margin:0 0 4px; font-size:22px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--mute); text-align:center }.groups-m { box-sizing:border-box; height:96px; padding:12px 14px; border-radius:14px; background:var(--tile); border:2px solid var(--hair); font-size:22px; line-height:1.25; font-weight:500; display:flex; align-items:center; box-shadow:0 8px 18px rgba(0,0,0,.05) }.groups-m.on { border-color:var(--accent); border-width:3px; background:color-mix(in srgb, var(--accent) 8%, var(--tile)) }.groups-pair { left:1159px; top:126px }",
+ "portrait": {
+  "hoist": [
+   ".groups-head"
+  ],
+  "frame": [
+   640,
+   1000
+  ],
+  "crop": [
+   865,
+   110,
+   970,
+   720
+  ],
+  "css": ".groups-head{left:70px!important;top:150px!important;width:940px!important}"
+ }
+}

@@ -1,0 +1,67 @@
+{
+  "content": "content",
+  "production": "production",
+  "port": 5199,
+  "devCommand": "npm run dev -- --port {port} --strictPort",
+  "showPath": "/show/{slug}?capture=1&o={layout}&locale={locale}",
+  "coversDir": "public/covers",
+  "lead": 0.6,
+  "tail": 1.2,
+  "scoreLevel": 0.55,
+  "voice": {
+    "_how": "No provider is chosen yet: run `emaki tts-check`, then `emaki set-voice --locale default --provider <name> --opt key=value`. Keys go in environment variables, never here.",
+    "_examples": {
+      "piper": {
+        "provider": "piper",
+        "model": "voices/en_US-lessac-medium.onnx"
+      },
+      "kokoro": {
+        "provider": "kokoro",
+        "voice": "af_heart",
+        "speed": 1.0
+      },
+      "macos": {
+        "provider": "macos",
+        "voice": "Samantha",
+        "rate": 175
+      },
+      "espeak": {
+        "provider": "espeak",
+        "voice": "en-us",
+        "speed": 160
+      },
+      "elevenlabs": {
+        "provider": "elevenlabs",
+        "voice_id": "YOUR_VOICE_ID",
+        "model": "eleven_multilingual_v2",
+        "stability": 0.55,
+        "similarity": 0.8
+      },
+      "openai": {
+        "provider": "openai",
+        "model": "gpt-4o-mini-tts",
+        "voice": "coral",
+        "instructions": "Calm, warm, unhurried explainer."
+      },
+      "azure": {
+        "provider": "azure",
+        "voice": "en-US-AvaMultilingualNeural",
+        "rate": "0%"
+      },
+      "google": {
+        "provider": "google",
+        "voice": "en-US-Neural2-F",
+        "speed": 1.0
+      },
+      "polly": {
+        "provider": "polly",
+        "voice": "Joanna",
+        "engine": "neural",
+        "region": "us-east-1"
+      },
+      "manual": {
+        "provider": "manual"
+      }
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "@senseihq/emaki-posting",
+  "version": "0.1.0",
+  "description": "The motion stories posting desk: stage, approve exactly what was staged, post on schedule. Framework-free core with Cloudflare (D1/R2/Access) and SvelteKit adapters.",
+  "type": "module",
+  "license": "MIT",
+  "author": "SenecaGlobal",
+  "repository": { "type": "git", "url": "git+https://github.com/sensei-hq/emaki.git", "directory": "packages/emaki-posting" },
+  "keywords": ["emaki", "social", "publishing", "approval", "cloudflare", "d1", "r2", "sveltekit"],
+  "sideEffects": false,
+  "files": ["dist/**/*.js", "dist/**/*.d.ts", "src", "migrations", "poster", "README.md", "LICENSE"],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
+    "./cloudflare": { "types": "./dist/cloudflare/index.d.ts", "import": "./dist/cloudflare/index.js" },
+    "./sveltekit": { "types": "./dist/sveltekit/index.d.ts", "import": "./dist/sveltekit/index.js" },
+    "./migrations/*": "./migrations/*"
+  },
+  "scripts": {
+    "build": "rm -rf dist && bunx tsc --project tsconfig.build.json",
+    "prepublishOnly": "cp ../../LICENSE . && bun run build",
+    "postpublish": "rm -f LICENSE"
+  },
+  "publishConfig": { "access": "public" }
+}

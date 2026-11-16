@@ -1,0 +1,80 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+  # Manual re-publish (reads versions from package.json, skips already-published).
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    permissions:
+      contents: write
+      id-token: write   # npm trusted publishing (OIDC) and provenance; no NPM_TOKEN needed to publish
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: latest
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.x
+
+      - name: Install dependencies
+        # --ignore-scripts: nothing needs to run mid-install; each package builds in its own prepublishOnly.
+        run: bun install --frozen-lockfile --ignore-scripts
+
+      # Before anything is published: bun.lock must record every workspace at its package.json version, or
+      # `bun pm pack` pins siblings to the previous release; sensei.library.json must name the same release.
+      - name: Check the lockfile and the library manifest match the release
+        run: bunx vitest run --project config
+
+      - name: Publish packages
+        env:
+          NODE_NO_WARNINGS: 1
+        run: |
+          # Dependency order: the core first, so each package's dependencies are already on npm.
+          PACKAGES=(emaki emaki-svelte emaki-react emaki-vue emaki-posting emaki-cli)
+          VERSION=$(node -p "require('./package.json').version")
+          for name in "${PACKAGES[@]}"; do
+            pkg="./packages/${name}/package.json"
+            [ -f "$pkg" ] || continue
+            grep -q '"private": true' "$pkg" 2>/dev/null && continue
+            PKG_NAME=$(node -p "require('$pkg').name")
+            # Skip if already published (handles partial or retried runs).
+            if npm view "${PKG_NAME}@${VERSION}" version 2>/dev/null | grep -qF "${VERSION}"; then
+              echo "Skipping ${PKG_NAME}@${VERSION}: already published"
+              continue
+            fi
+            (
+              cd "./packages/${name}"
+              if node -e "const s=require('./package.json').scripts||{}; process.exit(s.prepublishOnly?0:1)" 2>/dev/null; then
+                echo "Building ${PKG_NAME}..."
+                bun run prepublishOnly
+              fi
+              # bun pm pack rewrites workspace:* deps; it does not run lifecycle scripts.
+              TARBALL=$(bun pm pack | grep '\.tgz$')
+              # The last gate: a sibling pinned to another release must not reach npm.
+              node ../../config/check-pins.mjs "$TARBALL"
+              bunx npm publish "$TARBALL" --provenance --access public --tag latest || {
+                echo "::warning::Failed to publish ${PKG_NAME}@${VERSION}; may need a manual retry"
+              }
+              rm -f "$TARBALL"
+            )
+          done
+
+      - name: Create GitHub release
+        run: npx changelogithub
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

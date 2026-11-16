@@ -1,0 +1,71 @@
+{
+ "components": [
+  {
+   "type": "board",
+   "id": "__ID__-bg"
+  },
+  {
+   "type": "box",
+   "id": "__ID__-card",
+   "cls": "card",
+   "style": "left:900px;top:200px;width:880px;height:560px;padding:32px",
+   "children": [
+    {
+     "type": "text",
+     "id": "__ID__-label",
+     "tag": "h4",
+     "text": "{{__ID__.label}}"
+    }
+   ]
+  },
+  {
+   "type": "head",
+   "id": "__ID__-head",
+   "at": "ground",
+   "eyebrow": "{{__ID__.eyebrow}}",
+   "line": "{{__ID__.line}}",
+   "sub": "{{__ID__.sub}}",
+   "style": "left:110px;top:300px;width:700px"
+  }
+ ],
+ "tracks": [
+  {
+   "kind": "effect",
+   "effect": "push",
+   "target": ".cam",
+   "t0": 0,
+   "dur": 10,
+   "from": 1,
+   "to": 1.02
+  },
+  {
+   "kind": "effect",
+   "effect": "showHead",
+   "target": ".__ID__-head",
+   "t0": -0.4
+  },
+  {
+   "kind": "effect",
+   "effect": "fade",
+   "target": ".__ID__-card",
+   "t0": 0.8
+  }
+ ],
+ "css": ".__ID__-card { position:absolute; box-sizing:border-box; box-shadow:0 14px 30px rgba(0,0,0,.07) } .__ID__-label { margin:0; font-size:24px; font-weight:600; letter-spacing:.08em; color:var(--mute) }",
+ "portrait": {
+  "hoist": [
+   ".__ID__-head"
+  ],
+  "frame": [
+   640,
+   1000
+  ],
+  "crop": [
+   880,
+   180,
+   920,
+   600
+  ],
+  "css": ".__ID__-head{left:70px!important;top:150px!important;width:940px!important}"
+ }
+}

@@ -1,0 +1,59 @@
+{
+  "title": "Measure the Right Work",
+  "look": "Session board: counters, an activity chart, two paired metric cards and metric groups on a dot-grid desk. Washi paper, sumi ink, rationed vermillion for rework, jade for work that landed. The brand mark on the close.",
+  "background": "#F3F0E9",
+  "palette": [
+    "#F9F6F1",
+    "#48413D",
+    "#1F1916",
+    "#C25237"
+  ],
+  "fonts": {
+    "display": {
+      "family": "Fraunces",
+      "weights": [
+        300,
+        400
+      ]
+    },
+    "sans": {
+      "family": "Inter",
+      "weights": [
+        400,
+        600
+      ]
+    }
+  },
+  "scenes": [
+    {
+      "id": "hook",
+      "name": "More",
+      "dur": 6.5,
+      "desc": "Tokens, commits and lines count up. Is any of it right?"
+    },
+    {
+      "id": "problem",
+      "name": "Busy",
+      "dur": 8.5,
+      "desc": "A bad week looks busier than a good one: fixing things is activity too."
+    },
+    {
+      "id": "pair",
+      "name": "The pair",
+      "dur": 13,
+      "desc": "First-turn resolution and rework share, read together: high resolution with rising rework means work deferred, not done."
+    },
+    {
+      "id": "groups",
+      "name": "Grouped",
+      "dur": 9,
+      "desc": "The dashboard groups metrics by outcome, quality, velocity, usage and cost, and shows velocity next to its quality companion."
+    },
+    {
+      "id": "close",
+      "name": "Close",
+      "dur": 5.5,
+      "desc": "End card with the brand mark: measure the right work, not more work."
+    }
+  ]
+}

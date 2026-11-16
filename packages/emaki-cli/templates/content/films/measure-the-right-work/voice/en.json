@@ -1,0 +1,7 @@
+[
+  { "scene": "hook", "text": "More tokens. More commits. More lines. Is any of it right?", "say": null },
+  { "scene": "problem", "text": "Volume goes up on bad weeks too, because fixing things is activity as well.", "say": null },
+  { "scene": "pair", "text": "So read two numbers together: first-turn resolution and rework share. High resolution with rising rework means work deferred, not done.", "say": null },
+  { "scene": "groups", "text": "Group the rest by the question they answer, and never show a speed metric without its quality companion.", "say": null },
+  { "scene": "close", "text": "Measure the right work, not more work.", "say": null }
+]

@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "emaki/scene.schema.json",
+  "title": "content/films/<slug>/scene-<id>.json (see skills/emaki/references/04-scene-authoring.md and kit/core/scene-schema.ts)",
+  "type": "object",
+  "required": [
+    "components",
+    "tracks"
+  ],
+  "properties": {
+    "components": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "type",
+          "id"
+        ],
+        "properties": {
+          "type": {
+            "enum": [
+              "board",
+              "head",
+              "node",
+              "wire",
+              "checks",
+              "bars",
+              "logo",
+              "group",
+              "svg",
+              "raw",
+              "text",
+              "box"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "at": {
+            "enum": [
+              "cam",
+              "ground"
+            ]
+          }
+        }
+      }
+    },
+    "tracks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "kind",
+          "target"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "tween",
+              "effect"
+            ]
+          },
+          "effect": {
+            "enum": [
+              "showHead",
+              "push",
+              "fade",
+              "pop",
+              "draw",
+              "counter",
+              "swap",
+              "words",
+              "settle",
+              "growBars"
+            ]
+          },
+          "target": {
+            "type": "string"
+          },
+          "t0": {
+            "type": "number"
+          },
+          "t1": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "css": {
+      "type": "string"
+    },
+    "portrait": {
+      "type": "object",
+      "required": [
+        "hoist",
+        "frame",
+        "crop"
+      ],
+      "properties": {
+        "hoist": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "frame": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "crop": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "css": {
+          "type": "string"
+        }
+      }
+    },
+    "locales": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "css": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "emaki/film.schema.json",
+  "title": "content/films/<slug>/film.json",
+  "type": "object",
+  "required": [
+    "title",
+    "background",
+    "scenes"
+  ],
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "look": {
+      "type": "string"
+    },
+    "background": {
+      "type": "string"
+    },
+    "palette": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "fonts": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "family"
+        ],
+        "properties": {
+          "family": {
+            "type": "string"
+          },
+          "weights": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        }
+      }
+    },
+    "scenes": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "dur"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "dur": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "desc": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "cover": {
+      "type": "object",
+      "required": [
+        "scene"
+      ],
+      "properties": {
+        "scene": {
+          "type": "string"
+        },
+        "at": {
+          "type": "number"
+        }
+      }
+    }
+  }
+}

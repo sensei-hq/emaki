@@ -1,0 +1,64 @@
+# Voice, timing and video
+
+Optional module; the site works without it (figures and the player are silent unless the viewer turns on the
+action tones). Needs ffmpeg, Playwright (Chromium), and one voice provider per locale.
+
+## Choosing the voice provider
+
+Claude writes the script, the pronunciations and the translations; the audio comes from a speech engine or a person.
+the `emaki` CLI's TTS providers supports these, set per locale in `emaki.config.json` (`voice.default`, `voice.<lang>`,
+`voice.<locale>`; a block that names a different provider starts fresh):
+
+| Provider | Runs | Cost | Quality | Good for | Needs |
+|---|---|---|---|---|---|
+| `piper` | offline, any OS | free | good, clear | default for teams with no TTS account; private content; air-gapped | `pip install piper-tts` + a voice file (.onnx + .onnx.json) per language |
+| `kokoro` | offline, any OS | free | very natural | best free quality in en, es, fr, it, pt, hi, ja, zh | `pip install kokoro soundfile` (pulls PyTorch), espeak-ng |
+| `macos` | offline, Mac | free | fair | quick drafts and timing passes | macOS `say` (more voices in Accessibility › Spoken Content) |
+| `espeak` | offline, any OS | free | robotic | timing drafts only | espeak-ng |
+| `azure` | cloud | per character | excellent, 140+ locales | Microsoft 365 / Azure organisations | `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION` |
+| `google` | cloud | per character | excellent | Google Workspace / GCP organisations | `GOOGLE_TTS_API_KEY` or `gcloud auth login` |
+| `polly` | cloud | per character | very good | AWS organisations | the `aws` CLI + AWS credentials |
+| `openai` | cloud | per character | natural, steerable tone | teams with OpenAI or Azure OpenAI | `OPENAI_API_KEY` (or `AZURE_OPENAI_ENDPOINT` + key) |
+| `elevenlabs` | cloud | subscription | top | premium narration, voice cloning | `ELEVENLABS_API_KEY` |
+| `manual` | a person | time | human | regulated or brand-critical narration | recorded `take-NN.wav` files |
+
+Rules: use the same voice for a locale across the whole site; the default recommendation is the organisation's
+existing cloud platform if it has one (procurement and data agreements already exist), otherwise Piper (free,
+offline, private). Use `macos`/`espeak` only for draft timing passes, never for published video. Keys go in
+environment variables or the CI secret store, never in `emaki.config.json` (`set-voice` refuses them).
+
+```sh
+emaki tts-check                                    # per locale: provider and whether it's ready here
+emaki voices --locale es --provider azure          # list voices to choose from
+emaki set-voice --locale es --provider azure --opt voice=es-ES-ElviraNeural
+emaki voice <slug> --locale es --provider macos     # one-off override (e.g. a draft pass)
+```
+
+## Steps per story per locale
+
+```sh
+emaki voice  <slug> --locale en      # takes from voice/en.json → production/<slug>/en/takes/
+emaki fit    <slug> --locale en      # timing.en.json: scenes stretched to fit their takes
+emaki render <slug> --locale en      # 16:9 + 9:16 picture with the score, covers
+emaki build  <slug> --locale en      # voice laid at each scene start, score ducked, -14 LUFS, captions
+```
+
+- **Voice script**: 150 words a minute; each line ≤ the scene's length minus 2 s (lead 0.6 s + tail 1.2 s), or the
+  scene stretches. Write for the ear: short sentences, the scene's point first, numbers spoken as words where it helps.
+  Put tricky pronunciations in `say` (`"Sen-say"`, `"S-Q-L"`). Same voice per locale across the site.
+- **Fit vs retime**: `fit` lengthens a scene so it holds its last picture until the voice ends (fine for most). When
+  a beat must land on a word, retime the scene's track times (and the matching `T.<scene>` times in score.js) or add
+  a hold `[[at, seconds]]` in `timing.<locale>.json` to pause the clock at that moment.
+- **Captions** come from the voice text (`.vtt` for the site player, `.srt` burned into social cuts). Review them in
+  every locale.
+- **Covers**: the last frame of the close scene, per orientation and locale; the 16:9 one is copied to the site's
+  covers folder (`coversDir`) as the og:image.
+- **Credentials**: every provider key lives in the environment only; never in files, never committed, never printed,
+  never pasted into chat. Each take run records which provider and voice made it (`takes/provider.json`).
+
+## Delivery checklist
+
+- Durations: film 60–90 s, short 30–60 s. Loudness -14 LUFS, true peak ≤ -1.5 dB.
+- Watch the first and last 5 s of every render; spot-check each scene change for a frozen or blank frame.
+- 9:16 safe area: nothing important in the bottom 300 px (platform UI) or top 150 px.
+- File names: `<slug>-<locale>-16x9.mp4`, `-9x16.mp4`, `.vtt`, `.srt`, `cover-16x9.jpg`.

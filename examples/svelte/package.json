@@ -1,0 +1,22 @@
+{
+  "name": "emaki-example-svelte",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "emaki": "emaki"
+  },
+  "dependencies": {
+    "@senseihq/emaki": "workspace:*",
+    "@senseihq/emaki-svelte": "workspace:*"
+  },
+  "devDependencies": {
+    "@senseihq/emaki-cli": "workspace:*",
+    "@sveltejs/vite-plugin-svelte": "^5.0.3",
+    "svelte": "^5.28.0",
+    "vite": "^6.3.5",
+    "playwright": "1.63.0"
+  }
+}

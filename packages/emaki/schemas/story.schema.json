@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "emaki/story.schema.json",
+  "title": "content/stories/<locale>/<slug>.json",
+  "type": "object",
+  "required": [
+    "title",
+    "dek",
+    "sections"
+  ],
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "dek": {
+      "type": "string"
+    },
+    "kicker": {
+      "type": "string"
+    },
+    "sections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "body"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "eyebrow": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "caption": {
+            "type": "string"
+          },
+          "code": {
+            "type": "object",
+            "properties": {
+              "lang": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              }
+            }
+          },
+          "motion": {
+            "type": "object",
+            "required": [
+              "film",
+              "scene"
+            ],
+            "properties": {
+              "film": {
+                "type": "string"
+              },
+              "scene": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "takeaway": {
+      "type": "string"
+    },
+    "takeawaySub": {
+      "type": "string"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "label",
+          "href"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "href": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,49 @@
+name: Check
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.x
+      - name: Install dependencies
+        run: bun install --frozen-lockfile --ignore-scripts
+      # Every package's build (the wrappers type-check against the built core), types incl. svelte-check, unit specs:
+      # the same gate `bun run bump` runs before a release.
+      - name: Types, build, specs
+        run: bun run check
+
+  browser:
+    # The example app in real Chromium: the figure, the player and the capture contract the video pipeline uses.
+    # ubuntu-24.04: Playwright installs Chromium's system dependencies there.
+    runs-on: ubuntu-24.04
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.x
+      - name: Install dependencies
+        run: bun install --frozen-lockfile --ignore-scripts
+      - name: Build the packages
+        run: bun run build:all
+      - name: Install Chromium
+        run: bunx playwright install --with-deps chromium
+      - name: Example app in the browser
+        run: bun run test:browser

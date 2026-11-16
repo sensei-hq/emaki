@@ -1,0 +1,9 @@
+// The same steps as the CLI, as functions (for scripts and CI): project() reads emaki.config.json and content/.
+export { project, SIZES, SUFFIX } from './config.js'
+export { manifest, validate, validateFilm, validateStory, newFilm, keysIn } from './films.js'
+export { voice, fit, build, captions, ttsCheck, setVoice, listVoices, takesFor } from './voice.js'
+export { sheet, render, openSite } from './capture.js'
+export { PROVIDERS, OFFLINE, provider, voiceConfig, TTSError } from './tts.js'
+export { installPlugin, installSkills, installAgents, listSkills, listAgents, parseFrontmatter } from './plugin.js'
+export { init, detectFramework } from './init.js'
+export { MotionError } from './util.js'

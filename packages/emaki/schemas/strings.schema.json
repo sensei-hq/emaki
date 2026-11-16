@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "emaki/strings.schema.json",
+  "title": "content/films/<slug>/strings/<locale>.json: {{key}} \u2192 text (inline <b>/<em> allowed in raw/html text)",
+  "type": "object",
+  "additionalProperties": {
+    "type": "string"
+  }
+}

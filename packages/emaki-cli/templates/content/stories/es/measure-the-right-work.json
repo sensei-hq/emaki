@@ -1,0 +1,13 @@
+{
+  "title": "Mide el trabajo correcto, no más trabajo",
+  "dek": "Los tokens, los commits y las líneas dicen cuánto pasó. No dicen si estuvo bien. Dos números en pareja lo hacen mejor.",
+  "sections": [
+    { "id": "hook", "eyebrow": "La pregunta", "title": "Estar ocupado no es lo mismo que acertar", "body": ["Los contadores de actividad solo suben. Suben en las buenas semanas y en las malas."], "caption": "Contadores que solo suben." },
+    { "id": "problem", "eyebrow": "El problema", "title": "El volumen es una métrica de vanidad", "body": ["Más commits, más tokens, más líneas: todo eso sube también cuando el trabajo va mal, porque corregir también es actividad."] },
+    { "id": "pair", "eyebrow": "El par", "title": "Resolución al primer intento y cuota de retrabajo", "body": ["La resolución al primer intento es la proporción de sesiones completadas sin una corrección. La cuota de retrabajo es la proporción del esfuerzo que vino de sesiones corregidas. Léelas juntas: una resolución alta con retrabajo en aumento significa trabajo aplazado, no hecho."], "points": ["Nunca leas una métrica de velocidad sola", "Mira dónde se concentra la fricción", "Trata el retrabajo en aumento como una alerta temprana"] },
+    { "id": "groups", "eyebrow": "En la práctica", "title": "Agrupadas por lo que responden", "body": ["Agrupa las métricas por la pregunta que responden (resultado, calidad, velocidad, uso, coste) y muestra siempre una cifra de velocidad junto a su compañera de calidad."] }
+  ],
+  "takeaway": "Mide el trabajo correcto, no más trabajo.",
+  "takeawaySub": "Acompaña cada métrica de velocidad con su compañera de calidad.",
+  "sources": []
+}

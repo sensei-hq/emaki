@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.svelte-kit/
+*.tgz
+coverage/
+production/
+.DS_Store
+packages/*/LICENSE
+!LICENSE
+.env*

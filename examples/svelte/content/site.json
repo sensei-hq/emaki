@@ -1,0 +1,10 @@
+{
+  "name": "Acme Learning",
+  "url": "https://learn.example.com",
+  "timeZone": "America/Chicago",
+  "locales": ["en", "es"],
+  "defaultLocale": "en",
+  "rtl": ["ar", "he", "fa", "ur"],
+  "brand": { "logo": "brand", "accent": "#C25237" },
+  "topics": [{ "id": "metrics", "label": { "en": "Metrics", "es": "Métricas" } }]
+}

@@ -1,0 +1,43 @@
+{
+  "library": "emaki",
+  "ecosystem": "npm",
+  "version": ">=0.1",
+  "documents": "0.1.0",
+  "repo": "https://github.com/sensei-hq/emaki",
+  "ref": "v0.1.0",
+  "packages": [
+    "@senseihq/emaki",
+    "@senseihq/emaki-cli",
+    "@senseihq/emaki-posting",
+    "@senseihq/emaki-react",
+    "@senseihq/emaki-svelte",
+    "@senseihq/emaki-vue"
+  ],
+  "skills": [
+    { "name": "emaki", "focus": "program", "path": "packages/emaki-cli/plugin/skills/emaki/SKILL.md", "url": "/skills/emaki/SKILL.md" },
+    { "name": "story-build", "focus": "authoring", "path": "packages/emaki-cli/plugin/skills/story-build/SKILL.md", "url": "/skills/story-build/SKILL.md" },
+    { "name": "story-review", "focus": "review", "path": "packages/emaki-cli/plugin/skills/story-review/SKILL.md", "url": "/skills/story-review/SKILL.md" },
+    { "name": "story-localize", "focus": "i18n", "path": "packages/emaki-cli/plugin/skills/story-localize/SKILL.md", "url": "/skills/story-localize/SKILL.md" },
+    { "name": "story-media", "focus": "voice-and-video", "path": "packages/emaki-cli/plugin/skills/story-media/SKILL.md", "url": "/skills/story-media/SKILL.md" },
+    { "name": "story-publish", "focus": "publishing", "path": "packages/emaki-cli/plugin/skills/story-publish/SKILL.md", "url": "/skills/story-publish/SKILL.md" }
+  ],
+  "agents": [
+    { "name": "story-planner", "focus": "planning", "path": "packages/emaki-cli/plugin/agents/story-planner.md", "url": "/agents/story-planner.md" },
+    { "name": "scene-builder", "focus": "scene-authoring", "path": "packages/emaki-cli/plugin/agents/scene-builder.md", "url": "/agents/scene-builder.md" },
+    { "name": "story-writer", "focus": "writing", "path": "packages/emaki-cli/plugin/agents/story-writer.md", "url": "/agents/story-writer.md" },
+    { "name": "visual-reviewer", "focus": "visual-review", "path": "packages/emaki-cli/plugin/agents/visual-reviewer.md", "url": "/agents/visual-reviewer.md" },
+    { "name": "fact-checker", "focus": "fact-review", "path": "packages/emaki-cli/plugin/agents/fact-checker.md", "url": "/agents/fact-checker.md" },
+    { "name": "localizer", "focus": "translation", "path": "packages/emaki-cli/plugin/agents/localizer.md", "url": "/agents/localizer.md" }
+  ],
+  "llms": {
+    "focus": "package APIs, scene format, content model, i18n, voice and video, CLI, posting desk",
+    "path": "docs/llms",
+    "url": "/llms",
+    "index": "/llms/index.txt"
+  },
+  "install": {
+    "skills": "emaki skills add <name>",
+    "agents": "emaki agents add <name>",
+    "plugin": "emaki plugin install"
+  }
+}

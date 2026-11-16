@@ -1,0 +1,7 @@
+[
+  { "scene": "hook", "text": "Más tokens. Más commits. Más líneas. ¿Algo de eso está bien?", "say": null },
+  { "scene": "problem", "text": "El volumen también sube en las malas semanas, porque arreglar cosas también es actividad.", "say": null },
+  { "scene": "pair", "text": "Lee dos números juntos: la resolución al primer intento y la cuota de retrabajo. Mucha resolución con retrabajo en alza es trabajo aplazado, no hecho.", "say": null },
+  { "scene": "groups", "text": "Agrupa el resto por la pregunta que responde, y nunca muestres una métrica de velocidad sin su compañera de calidad.", "say": null },
+  { "scene": "close", "text": "Mide el trabajo correcto, no más trabajo.", "say": null }
+]

@@ -1,0 +1,40 @@
+# emaki: LLM reference index
+
+> One set of JSON scenes per story renders an article's figures, a story player and narrated videos, in every
+> language. Framework-free core on npm under @senseihq, with Svelte, React and Vue wrappers, a posting desk, and a CLI
+> that also installs a Claude plugin (skills + agents + playbook).
+
+## Quick setup
+
+```bash
+npx @senseihq/emaki-cli init          # detects the framework; sample content, config, film source, /show route, plugin
+npm i @senseihq/emaki @senseihq/emaki-svelte   # or motion-react / motion-vue
+npm i -D @senseihq/emaki-cli playwright && npx playwright install chromium
+npx emaki validate && npx emaki tts-check
+```
+
+Then in Claude: "build our learning portal with the emaki playbook" (the emaki skill runs the
+program: interview, outline, item cards, pilot, batches, review).
+
+## Packages
+
+- [@senseihq/emaki](/llms/packages/emaki.txt): core, web components, loaders, JSON Schemas, capture contract
+- [@senseihq/emaki-svelte](/llms/packages/emaki-svelte.txt): MotionScene, MotionShow, ScenePlayer, ShowPage (Svelte 5)
+- [@senseihq/emaki-react](/llms/packages/emaki-react.txt): the same components + hooks
+- [@senseihq/emaki-vue](/llms/packages/emaki-vue.txt): the same components + composables
+- [@senseihq/emaki-posting](/llms/packages/emaki-posting.txt): stage → approve → post, Cloudflare + SvelteKit adapters
+- [@senseihq/emaki-cli](/llms/packages/emaki-cli.txt): `emaki` commands, TTS providers, plugin install
+
+## Guides
+
+- [Architecture](/llms/guides/architecture.md): files, data flow, layouts
+- [Content model](/llms/guides/content-model.md): site.json, stories, films, strings, voice, timing
+- [Scene authoring](/llms/guides/scene-authoring.md): components, tracks, portrait block, the escape hatch
+- [Internationalisation](/llms/guides/i18n.md): locales, fallbacks, RTL, per-locale timing
+- [Voice and video](/llms/guides/voice-and-video.md): providers, takes, fit, render, build
+
+## Skills and agents
+
+`emaki skills` / `emaki agents` list them; `emaki plugin install` installs all of them into `.claude/`.
+Skills: emaki (the program), story-build, story-review, story-localize, story-media, story-publish.
+Agents: story-planner, scene-builder, story-writer, visual-reviewer, fact-checker, localizer.

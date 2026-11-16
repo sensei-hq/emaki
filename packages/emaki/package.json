@@ -1,0 +1,29 @@
+{
+  "name": "@senseihq/emaki",
+  "version": "0.1.0",
+  "description": "Motion stories core: JSON scenes that render as article figures, a story player and video capture, in any language. Framework-free, with web components and loaders.",
+  "type": "module",
+  "license": "MIT",
+  "author": "SenecaGlobal",
+  "repository": { "type": "git", "url": "git+https://github.com/sensei-hq/emaki.git", "directory": "packages/emaki" },
+  "homepage": "https://github.com/sensei-hq/emaki#readme",
+  "keywords": ["emaki", "motion", "animation", "scenes", "explainer", "video", "i18n", "web-components", "storytelling"],
+  "sideEffects": false,
+  "files": ["dist/**/*.js", "dist/**/*.d.ts", "src/**/*.ts", "schemas/*.json", "README.md", "LICENSE"],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
+    "./elements": { "types": "./dist/elements/index.d.ts", "import": "./dist/elements/index.js" },
+    "./loaders/vite": { "types": "./dist/loaders/vite.d.ts", "import": "./dist/loaders/vite.js" },
+    "./loaders/fetch": { "types": "./dist/loaders/fetch.d.ts", "import": "./dist/loaders/fetch.js" },
+    "./schemas/*": "./schemas/*"
+  },
+  "scripts": {
+    "build": "rm -rf dist && bunx tsc --project tsconfig.build.json",
+    "prepublishOnly": "cp ../../LICENSE . && bun run build",
+    "postpublish": "rm -f LICENSE"
+  },
+  "publishConfig": { "access": "public" }
+}

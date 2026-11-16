@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "emaki/voice.schema.json",
+  "title": "content/films/<slug>/voice/<locale>.json: one line per scene, in order",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": [
+      "scene",
+      "text"
+    ],
+    "properties": {
+      "scene": {
+        "type": "string"
+      },
+      "text": {
+        "type": "string",
+        "description": "What is said, and the caption text"
+      },
+      "say": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "description": "TTS spelling when it differs (names, acronyms)"
+      }
+    }
+  }
+}

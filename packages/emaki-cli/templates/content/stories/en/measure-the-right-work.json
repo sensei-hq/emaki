@@ -1,0 +1,13 @@
+{
+  "title": "Measure the right work, not more work",
+  "dek": "Tokens, commits and lines tell you how much happened. They don't tell you whether it was right. Two paired numbers do better.",
+  "sections": [
+    { "id": "hook", "eyebrow": "The question", "title": "Busy is not the same as right", "body": ["Activity counters only go up. They rise on good weeks and bad ones alike."], "caption": "Counters that only go up." },
+    { "id": "problem", "eyebrow": "The problem", "title": "Volume is a vanity metric", "body": ["More commits, more tokens, more lines: all of these go up when work is going badly too, because fixing things is also activity."] },
+    { "id": "pair", "eyebrow": "The pair", "title": "First-turn resolution and rework share", "body": ["First-turn resolution is the share of sessions completed without a correction. Rework share is the share of effort that came from corrected sessions. Read them together: high resolution with rising rework means work is being deferred, not done."], "points": ["Never read a speed metric alone", "Look where the friction concentrates", "Treat rising rework as an early warning"] },
+    { "id": "groups", "eyebrow": "In practice", "title": "Grouped by what they answer", "body": ["Group metrics by the question they answer (outcome, quality, velocity, usage, cost) and always show a velocity number next to its quality companion."] }
+  ],
+  "takeaway": "Measure the right work, not more work.",
+  "takeawaySub": "Pair every speed metric with its quality companion.",
+  "sources": []
+}

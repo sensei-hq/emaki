@@ -1,0 +1,27 @@
+{
+  "name": "@senseihq/emaki-react",
+  "version": "0.1.0",
+  "description": "React components and hooks for motion stories: article figures, the story player, a controlled scene player and the video capture page.",
+  "type": "module",
+  "license": "MIT",
+  "author": "SenecaGlobal",
+  "repository": { "type": "git", "url": "git+https://github.com/sensei-hq/emaki.git", "directory": "packages/emaki-react" },
+  "keywords": ["emaki", "react", "nextjs", "motion", "animation", "explainer", "i18n"],
+  "sideEffects": false,
+  "files": ["dist/**/*.js", "dist/**/*.d.ts", "src", "README.md", "LICENSE"],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" }
+  },
+  "scripts": {
+    "build": "rm -rf dist && bunx tsc --project tsconfig.build.json",
+    "prepublishOnly": "cp ../../LICENSE . && bun run build",
+    "postpublish": "rm -f LICENSE"
+  },
+  "peerDependencies": { "react": ">=18" },
+  "dependencies": { "@senseihq/emaki": "workspace:*" },
+  "devDependencies": { "@types/react": "^19.1.0", "react": "^19.1.0", "react-dom": "^19.1.0", "@types/react-dom": "^19.1.0" },
+  "publishConfig": { "access": "public" }
+}
