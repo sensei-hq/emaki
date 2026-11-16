@@ -209,10 +209,12 @@ prog.command('build <slug>')
 	.describe('Final videos: picture + voice + ducked score, captions (.srt/.vtt and burned in), -14 LUFS.')
 	.option('--locale', 'Locale (default: the site default)')
 	.option('--no-captions', 'Do not burn captions in')
+	.option('--check', 'Print each scene\'s take, freeze and start; build nothing', false)
+	.option('--out', 'Output folder (default production/<slug>/<locale>/out/)')
 	.action(act(async (slug, o) => {
 		const { build } = await import('./voice.js')
 		const p = P()
-		build(p, slug, { locale: loc(o, p), noCaptions: o.captions === false })
+		build(p, slug, { locale: loc(o, p), noCaptions: o.captions === false, check: o.check, out: o.out })
 	}))
 
 prog.parse(process.argv)
