@@ -13,6 +13,8 @@ export interface AttachOptions {
   autoplay?: boolean;
   /** Light, dark or 'auto' (the default: follow the page's data-mode, else prefers-color-scheme). */
   mode?: Mode;
+  /** A still: never plays, shows the scene near its end. Defaults to the reader's prefers-reduced-motion. */
+  still?: boolean;
 }
 
 export interface AttachedScene {

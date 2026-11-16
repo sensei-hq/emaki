@@ -13,6 +13,8 @@ export interface ShowOptions {
   mode?: Mode;
   /** Force where scenes come from: their JSON file or the film's code modules (parity checks; ?src= on /show). */
   src?: 'json' | 'js';
+  /** Open on the film's cover, paused, until start() (which plays from the top with sound on). */
+  poster?: boolean;
 }
 export type ShowListener = (s: { index: number; local: number; playing: boolean; sound: boolean; layout: Layout }) => void;
 
@@ -63,7 +65,9 @@ export async function createShow(host: HTMLElement, slug: string, opts: ShowOpti
 
   const api = {
     film: f as FilmMeta, timeline: tl,
-    get state() { return { index, local, playing, sound, layout }; },
+    get state() { return { index, local, playing, sound, layout, started: true }; },
+    /** From a poster: play from the first scene with sound on. */
+    async start(): Promise<void> { throw new Error('not implemented'); },
     /** Fit the stage into a box of w x h px; the host takes the stage's scaled size (centre it with CSS). */
     fit(w: number, h: number) {
       const [W, H] = SIZES[layout];

@@ -24,6 +24,10 @@ export class ScenePlayerState {
   error = '';
   playing = false;
   loop = true;
+  /** Seconds to rest on the last frame before looping. */
+  hold = 0;
+  /** How many times the scene has looped (a cue for anything that restarts with it, such as its sound). */
+  loops = 0;
 
   /** Changes whenever the mount must be rebuilt (film, scene, layout or source). */
   get key(): string {
