@@ -17,7 +17,7 @@
     "check": "bun run build:all && bun run check:types && bun run test:ci",
     "bump": "bun run check && bumpp --configFilePath config/bump.config.js",
     "bump:next": "bumpp --configFilePath config/bump.config.js --preid=next",
-    "publish:all": "for d in emaki emaki-svelte emaki-react emaki-vue emaki-posting emaki-cli; do (cd packages/$d && bun publish) || exit 1; done",
+    "publish:all": "sh config/publish-all.sh",
     "release": "bun run clean && bun install && bun run publish:all",
     "test:browser": "cd examples/svelte && bun run build && node browser.mjs",
     "prepare": "simple-git-hooks || true"
