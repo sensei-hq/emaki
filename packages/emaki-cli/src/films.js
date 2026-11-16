@@ -136,7 +136,8 @@ export function newFilm(p, slug, { scenes, title, date } = {}) {
 	for (const loc of p.site.locales) {
 		save(join(d, 'strings', `${loc}.json`), strings)
 		save(join(d, 'voice', `${loc}.json`), voice)
-		save(join(p.content, 'stories', loc, `${slug}.json`), {
+		const body = join(p.content, 'stories', loc, `${slug}.json`)
+		if (!exists(body)) save(body, {
 			title: film.title, dek: 'One or two sentences.',
 			sections: ids.filter((i) => !['hook', 'close'].includes(i)).map((i) => ({ id: i, eyebrow: name(i), title: 'Section title', body: ['Paragraph.'] })),
 			takeaway: strings['close.title'], takeawaySub: strings['close.sub'], sources: []
@@ -144,7 +145,7 @@ export function newFilm(p, slug, { scenes, title, date } = {}) {
 	}
 	const ip = join(p.content, 'stories', 'index.json')
 	const index = exists(ip) ? load(ip) : []
-	index.push({ slug, publish_date: date || today(), kind: 'film', tags: [], minutes: 4 })
+	if (!index.some((e) => e.slug === slug)) index.push({ slug, publish_date: date || today(), kind: 'film', tags: [], minutes: 4 })
 	save(ip, index.sort((a, b) => a.publish_date.localeCompare(b.publish_date)))
 	manifest(p)
 	return { slug, scenes: ids.length, locales: p.site.locales.length }
