@@ -20,6 +20,8 @@ export interface AttachedScene {
   fit(width: number): void;
   /** Change the language; remounts the scene. */
   setLocale(locale: string): void;
+  /** Change light/dark/auto; remounts the scene. */
+  setMode(mode: Mode): void;
   destroy(): void;
 }
 
@@ -87,6 +89,7 @@ export function attachScene(host: HTMLElement, player: ScenePlayerState, opts: A
 
   return {
     fit(w) { width = w; scale(); },
+    setMode() {},
     setLocale(l) { if (l !== locale) { locale = l; seenKey = keyOf(); sync(); } },
     destroy() { alive = false; cancelAnimationFrame(raf); off(); io?.disconnect(); m?.destroy(); m = null; },
   };

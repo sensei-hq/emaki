@@ -1,7 +1,8 @@
 // Light and dark scenes. A film opts into dark with a `dark` block in film.json and styles it in look.css under
 // #stage[data-mode="dark"]; the page picks the mode the way rokkit does, with data-mode on an ancestor.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createShow, loadFilm, mountScene, useSource, type FilmJson, type Mode } from '../src/index.js';
+import { attachScene, createShow, loadFilm, mountScene, ScenePlayerState, useSource, type FilmJson, type Mode } from '../src/index.js';
+import { defineMotionElements } from '../src/elements/index.js';
 
 const film = (dark: boolean): FilmJson => ({
   title: 'T',
@@ -98,5 +99,36 @@ describe('scene mode', () => {
     expect(a.shadowRoot!.getElementById('stage')!.dataset.mode).toBe('dark');
     await createShow(b, 'duo', { capture: true });
     expect(b.shadowRoot!.getElementById('stage')!.dataset.mode).toBe('light');
+  });
+
+  it('attachScene takes a mode and setMode redraws in the other', async () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const player = new ScenePlayerState();
+    player.load({ film: 'duo', scene: 'a', layout: 'landscape' });
+    const view = attachScene(host, player, { mode: 'dark' });
+    const stage = () => host.shadowRoot?.getElementById('stage');
+    await vi.waitFor(() => expect(stage()?.dataset.mode).toBe('dark'));
+    view.setMode('light');
+    await vi.waitFor(() => expect(stage()?.dataset.mode).toBe('light'));
+    view.destroy();
+  });
+
+  it('<motion-scene> and <motion-show> take a mode attribute', async () => {
+    class Watch { observe() {} disconnect() {} }
+    vi.stubGlobal('ResizeObserver', Watch);
+    vi.stubGlobal('IntersectionObserver', Watch);
+    defineMotionElements();
+    const el = document.createElement('motion-scene');
+    el.setAttribute('film', 'duo'); el.setAttribute('scene', 'a'); el.setAttribute('layout', 'landscape'); el.setAttribute('mode', 'dark');
+    const show = document.createElement('motion-show');
+    show.setAttribute('film', 'duo'); show.setAttribute('mode', 'dark');
+    document.body.append(el, show);
+    const stage = (x: Element) => x.querySelector('div')?.shadowRoot?.getElementById('stage');
+    await vi.waitFor(() => expect(stage(el)?.dataset.mode).toBe('dark'));
+    await vi.waitFor(() => expect(stage(show)?.dataset.mode).toBe('dark'));
+    el.setAttribute('mode', 'light');
+    await vi.waitFor(() => expect(stage(el)?.dataset.mode).toBe('light'));
+    el.remove(); show.remove();
   });
 });
