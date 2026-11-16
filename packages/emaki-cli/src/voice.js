@@ -1,9 +1,11 @@
 // The narration: choose a voice per locale, synthesise takes, fit scene times to them, and build the final videos
 // (voice + score + captions, -14 LUFS).
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { SUFFIX } from './config.js'
-import { buildArgs, buildPlan, chaptersText, description, ffmeta, planTable, storyLink, ytChapters } from './media.js'
+import {
+	buildArgs, buildPlan, chaptersText, description, ffmeta, planTable, posterSteps, storyLink, webArgs, webNote, ytChapters
+} from './media.js'
 import { OFFLINE, provider, TTSError, voiceConfig } from './tts.js'
 import { die, hasAudio, load, mediaLength, pad2, run, save } from './util.js'
 
@@ -217,7 +219,7 @@ export function build(p, slug, { locale, noCaptions = false, check = false, out:
 	const story = join(p.content, 'stories', locale, `${slug}.json`)
 	const title = (existsSync(story) ? load(story).title : null) ?? film.title ?? slug
 	writeFileSync(join(out, 'description.txt'), description({ title, chapters: yt, link: storyLink(p.site, p.cfg, slug, locale) }))
-	const built = []
+	const built = [], videos = {}
 	for (const [layout, pic] of pics) {
 		const dst = join(out, `${slug}-${locale}-${SUFFIX[layout]}.mp4`)
 		run('ffmpeg', buildArgs({
@@ -225,9 +227,20 @@ export function build(p, slug, { locale, noCaptions = false, check = false, out:
 			chapters, scoreLevel: p.cfg.scoreLevel ?? 0.55, dst
 		}))
 		log(`built ${p.rel(dst)} (${plan.rows.length} chapters)`)
-		built.push(dst)
+		built.push((videos[layout] = dst))
 	}
 	rmSync(chapters, { force: true })
+	if (videos.landscape) {
+		const web = join(out, `${slug}-${locale}-web.mp4`)
+		run('ffmpeg', webArgs(videos.landscape, web))
+		log(`built ${p.rel(web)} (${webNote(statSync(web).size)})`)
+		built.push(web)
+	}
+	for (const step of posterSteps({ render, out, slug, locale, built: videos, last: plan.rows.at(-1), exists: existsSync })) {
+		if (step.copy) copyFileSync(...step.copy)
+		else run('ffmpeg', step.ffmpeg)
+		log(`  ${p.rel((step.copy ?? step.ffmpeg).at(-1))}`)
+	}
 	log(`captions: ${p.rel(out)}/${slug}-${locale}.vtt/.srt; chapters.txt, description.txt`)
 	return { built, duration: plan.total, plan }
 }

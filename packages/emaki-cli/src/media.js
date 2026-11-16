@@ -149,6 +149,34 @@ export function storyLink(site, cfg, slug, locale) {
 	return pattern.replaceAll('{site}', base).replaceAll('{locale}', locale).replaceAll('{slug}', slug)
 }
 
+/** poster.jpg, poster-vertical.jpg and <slug>-<locale>-thumb.jpg (1280x720, YouTube's custom thumbnail): from the
+ *  covers render saved, else a still from the end card of the built video (2.5 s into the last scene, or 0.2 s
+ *  before its end). Each step is { copy: [src, dst] } or { ffmpeg: args }; a step with no source is left out. */
+export function posterSteps({ render, out, slug, locale, built, last, exists }) {
+	const cover = (sfx) => join(render, `${slug}-${locale}-cover-${sfx}.jpg`)
+	const still = (last.at + Math.min(last.tot - 0.2, 2.5)).toFixed(2)
+	const steps = []
+	for (const [sfx, layout, name] of [['16x9', 'landscape', 'poster.jpg'], ['9x16', 'portrait', 'poster-vertical.jpg']]) {
+		if (exists(cover(sfx))) steps.push({ copy: [cover(sfx), join(out, name)] })
+		else if (built[layout]) steps.push({ ffmpeg: ['-y', '-v', 'error', '-ss', still, '-i', built[layout], '-frames:v', '1', '-q:v', '2', join(out, name)] })
+	}
+	const thumb = join(out, `${slug}-${locale}-thumb.jpg`)
+	if (exists(cover('16x9'))) steps.push({ ffmpeg: ['-y', '-v', 'error', '-i', cover('16x9'), '-vf', 'scale=1280:720', '-q:v', '3', thumb] })
+	else if (built.landscape)
+		steps.push({ ffmpeg: ['-y', '-v', 'error', '-ss', still, '-i', built.landscape, '-vf', 'scale=1280:720', '-frames:v', '1', '-q:v', '3', thumb] })
+	return steps
+}
+
+/** The -web.mp4: the 16:9 film at 30 fps, CRF 26, AAC 128k, chapters kept; small enough for static hosting. */
+export const webArgs = (src, dst) => ['-y', '-v', 'error', '-i', src, '-r', '30', '-c:v', 'libx264', '-crf', '26', '-preset', 'slow',
+	'-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '128k', '-map_chapters', '0', '-movflags', '+faststart', dst]
+
+/** The web copy's size, flagged above the 25 MiB a static host such as Cloudflare Pages serves. */
+export function webNote(bytes) {
+	const mb = bytes / 1048576
+	return `${mb.toFixed(1)} MiB${mb > 25 ? ' - OVER 25 MiB, raise -crf' : ''}`
+}
+
 const LOUDNORM = 'loudnorm=I=-14:TP=-1.5:LRA=11'
 
 /** ffmpeg for one final video: the rendered picture (`pic`, its own audio track the music when `music`), the voice
