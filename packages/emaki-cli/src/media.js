@@ -23,3 +23,40 @@ export function renderOut(dir, slug, locale, layout, { out = undefined, layouts 
 	if (layouts > 1) die(`--out ${out} is one file, so it takes one layout: add --o landscape or --o portrait, or give a folder`)
 	return resolve(out)
 }
+
+/** Where the music comes from (--music): `synth` the page's score (window.__show.audio(), on the film's own timing),
+ *  `export` the audio of an exported film (`exportFile`; silent if it is missing), `none` a silent picture. */
+export function musicFor(mode = 'synth', { exportFile = '', exists = (_f) => false } = {}) {
+	if (mode === 'synth') return { kind: 'synth' }
+	if (mode === 'none') return { kind: 'none' }
+	if (mode !== 'export') die(`--music ${mode}: use synth | export | none`)
+	if (exists(exportFile)) return { kind: 'file', file: exportFile }
+	return { kind: 'none', note: `no ${exportFile}: silent picture` }
+}
+
+/** What a render run does: capture frames, lay the music, save the covers. --audio-only lays the music on the
+ *  existing render; --cover-only saves just the covers. */
+export function renderSteps({ audioOnly = false, coverOnly = false } = {}) {
+	if (audioOnly && coverOnly) die('--audio-only and --cover-only exclude each other')
+	return { frames: !audioOnly && !coverOnly, music: !coverOnly, cover: true }
+}
+
+/** ffmpeg reading JPEG frames from stdin; `audio` (from film time t0) laid under them. */
+export function encodeArgs({ fps, seconds, dst, audio = null, t0 = 0 }) {
+	return ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'mjpeg', '-i', '-',
+		...(audio ? ['-ss', t0.toFixed(3), '-i', audio, '-map', '0:v', '-map', '1:a'] : []),
+		'-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p', '-r', String(fps),
+		...(audio ? ['-c:a', 'aac', '-b:a', '192k'] : []), '-t', seconds.toFixed(3), '-movflags', '+faststart', dst]
+}
+
+/** --audio-only: copies the picture and lays `audio` (from film time t0, for dur) under it. */
+export function muxArgs(video, audio, t0, dur, dst) {
+	return ['-y', '-loglevel', 'error', '-i', video, '-ss', t0.toFixed(3), '-i', audio, '-map', '0:v', '-map', '1:a',
+		'-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-t', dur.toFixed(3), '-movflags', '+faststart', dst]
+}
+
+/** A warning when an existing render no longer runs as long as the film (after a retiming): its frames are stale. */
+export function staleRender(rendered, film, ranged = false) {
+	if (ranged || Math.abs(rendered - film) <= 0.2) return null
+	return `the render runs ${rendered.toFixed(1)} s but the film now runs ${film.toFixed(1)} s; render the frames again`
+}

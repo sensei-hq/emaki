@@ -193,10 +193,16 @@ prog.command('render <slug>')
 	.option('--from', 'Start at this film time (s)', 0)
 	.option('--to', 'Stop at this film time (s; default the end)')
 	.option('--out', 'Output: a .mp4 file (one layout) or a folder (default production/<slug>/<locale>/render/)')
+	.option('--music', 'synth (the film\'s score) | export (audio of production/<slug>/<locale>/<slug>.mp4) | none', 'synth')
+	.option('--audio-only', 'Lay the music on the existing render; capture no frames', false)
+	.option('--cover-only', 'Just save the cover frames', false)
 	.action(act(async (slug, o) => {
 		const { render } = await import('./capture.js')
 		const p = P()
-		await render(p, slug, { locale: loc(o, p), url: o.url, o: o.o, fps: Number(o.fps), from: Number(o.from), to: o.to == null ? undefined : Number(o.to), out: o.out })
+		await render(p, slug, {
+			locale: loc(o, p), url: o.url, o: o.o, fps: Number(o.fps), from: Number(o.from), to: o.to == null ? undefined : Number(o.to),
+			out: o.out, music: o.music, audioOnly: o['audio-only'], coverOnly: o['cover-only']
+		})
 	}))
 
 prog.command('build <slug>')
