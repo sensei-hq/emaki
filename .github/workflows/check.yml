@@ -44,6 +44,9 @@ jobs:
       - name: Build the packages
         run: bun run build:all
       - name: Install Chromium
+        # From the example, so bunx uses its pinned playwright; at the root it fetches the latest, whose Chromium build
+        # is not the one the pinned version launches.
+        working-directory: examples/svelte
         run: bunx playwright install --with-deps chromium
       - name: Example app in the browser
         run: bun run test:browser
