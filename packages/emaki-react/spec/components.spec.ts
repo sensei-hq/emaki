@@ -1,0 +1,173 @@
+// The React components over the core: each mounts the core's DOM side (attachScene, createShow, installCapture) into
+// its element, forwards prop changes to it, renders chrome from the core's state, and tears it down on unmount.
+import { act, createElement as h, type ReactNode } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { attachScene, createShow, installCapture, ScenePlayerState } from '@senseihq/emaki';
+import { MotionScene, MotionShow, ScenePlayer, ShowPage } from '../src/index.js';
+import type { Show } from '../src/hooks.js';
+import { FakeResizeObserver, fakeShow, fakeView, type FakeShow } from './fakes.js';
+
+vi.mock('@senseihq/emaki', async (actual) => ({
+  ...(await actual<typeof import('@senseihq/emaki')>()),
+  attachScene: vi.fn(), createShow: vi.fn(), installCapture: vi.fn(),
+}));
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+let root: Root, el: HTMLElement, views: ReturnType<typeof fakeView>[], shows: FakeShow[];
+beforeEach(() => {
+  el = document.body.appendChild(document.createElement('div'));
+  root = createRoot(el);
+  FakeResizeObserver.all = [];
+  vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+  views = []; shows = [];
+  vi.mocked(attachScene).mockReset().mockImplementation(() => { const v = fakeView(); views.push(v); return v; });
+  vi.mocked(createShow).mockReset().mockImplementation(async () => { const s = fakeShow(); shows.push(s); return s as never; });
+  vi.mocked(installCapture).mockReset().mockImplementation(async () => { const s = fakeShow(); shows.push(s); return s as never; });
+});
+afterEach(() => { act(() => root.unmount()); el.remove(); vi.unstubAllGlobals(); });
+const render = (node: ReactNode) => act(async () => root.render(node));
+const unmount = () => { act(() => root.unmount()); root = createRoot(el); };
+const button = (name: string) => [...el.querySelectorAll('button')].find((b) => b.getAttribute('aria-label') === name || b.textContent === name)!;
+const click = (name: string) => act(() => button(name).dispatchEvent(new MouseEvent('click', { bubbles: true })));
+
+describe('MotionScene', () => {
+  it('attaches its own player for the scene, forwards locale and mode, fits to its width, and destroys on unmount', async () => {
+    await render(h(MotionScene, { film: 'f', scene: 'a', className: 'fig', style: { maxWidth: 600 } }));
+    const box = el.firstElementChild as HTMLElement, host = box.firstElementChild as HTMLElement;
+    expect(box.className).toBe('fig');
+    expect(box.style.maxWidth).toBe('600px');
+    const [hostArg, player, opts] = vi.mocked(attachScene).mock.calls[0];
+    expect(hostArg).toBe(host);
+    expect(player.ref).toEqual({ film: 'f', scene: 'a', layout: 'figure' });
+    expect(opts).toEqual({ locale: 'en', mode: 'auto', autoplay: true });
+
+    await render(h(MotionScene, { film: 'f', scene: 'b', locale: 'de', mode: 'dark' }));
+    expect(player.ref).toEqual({ film: 'f', scene: 'b', layout: 'figure' });
+    expect(views[0].setLocale).toHaveBeenLastCalledWith('de');
+    expect(views[0].setMode).toHaveBeenLastCalledWith('dark');
+    expect(attachScene).toHaveBeenCalledTimes(1);
+
+    act(() => FakeResizeObserver.resize(box, 480));
+    expect(views[0].fit).toHaveBeenCalledWith(480);
+    unmount();
+    expect(views[0].destroy).toHaveBeenCalledOnce();
+  });
+});
+
+describe('ScenePlayer', () => {
+  it('shows loading, then the error, from the player it is given', async () => {
+    const player = new ScenePlayerState();
+    await render(h(ScenePlayer, { player }));
+    expect(vi.mocked(attachScene).mock.calls[0][1]).toBe(player);
+    expect(vi.mocked(attachScene).mock.calls[0][2]).toEqual({ locale: 'en', mode: 'auto', autoplay: false });
+    expect(el.textContent).toBe('Loading the scene…');
+    act(() => player.fail('no film "f"'));
+    expect(el.querySelector('[role=alert]')!.textContent).toBe('no film "f"');
+  });
+
+  it('with controls, plays, pauses and seeks the player', async () => {
+    const player = new ScenePlayerState();
+    player.load({ film: 'f', scene: 'a', layout: 'landscape' });
+    await render(h(ScenePlayer, { player, controls: true }));
+    expect(el.querySelector('button')).toBeNull();
+    act(() => player.markReady(4));
+    expect(el.querySelector('[role=alert]')).toBeNull();
+    expect(el.textContent).toContain('0.0 / 4.0');
+    click('Play');
+    expect(player.playing).toBe(true);
+    expect(button('Pause').textContent).toBe('❚❚');
+    click('Pause');
+    expect(player.playing).toBe(false);
+    const range = el.querySelector('input[type=range]') as HTMLInputElement;
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(range, '2.5');
+      range.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    expect(player.t).toBe(2.5);
+    expect(el.textContent).toContain('2.5 / 4.0');
+  });
+});
+
+describe('MotionShow', () => {
+  it('creates the show in its stage, reports it ready, drives it from its buttons and keys, and destroys it', async () => {
+    const onReady = vi.fn();
+    await render(h(MotionShow, { film: 'f', onReady }));
+    const [stage, film, opts] = vi.mocked(createShow).mock.calls[0];
+    expect(film).toBe('f');
+    expect(opts).toEqual({ locale: 'en', layout: 'landscape', mode: 'auto', slide: 1, loop: false });
+    expect(stage.parentElement!.parentElement).toBe(el.querySelector('[role=application]'));
+    const show = shows[0];
+    expect(onReady).toHaveBeenCalledWith(show);
+    expect(el.textContent).toContain('1 / 3');
+
+    click('Next scene');
+    expect(el.textContent).toContain('2 / 3');
+    click('Previous scene');
+    expect(show.prev).toHaveBeenCalled();
+    click('Pause');
+    expect(show.state.playing).toBe(false);
+    click('Sound off');
+    expect(button('Sound on').getAttribute('aria-pressed')).toBe('true');
+
+    const app = el.querySelector('[role=application]')!;
+    const right = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true });
+    act(() => { app.dispatchEvent(right); });
+    expect(right.defaultPrevented).toBe(true);
+    expect(show.next).toHaveBeenCalledTimes(2);
+    const other = new KeyboardEvent('keydown', { key: 'x', bubbles: true, cancelable: true });
+    act(() => { app.dispatchEvent(other); });
+    expect(other.defaultPrevented).toBe(false);
+
+    act(() => FakeResizeObserver.resize(stage.parentElement!, 800, 450));
+    expect(show.fit).toHaveBeenLastCalledWith(800, 450);
+    await render(h(MotionShow, { film: 'f', onReady, layout: 'portrait' }));
+    expect(show.setLayout).toHaveBeenCalledWith('portrait');
+
+    unmount();
+    expect(show.destroy).toHaveBeenCalled();
+  });
+
+  it('starts over when the film changes, and drops a show that arrives after unmount', async () => {
+    await render(h(MotionShow, { film: 'f', controls: false }));
+    expect(el.querySelector('button')).toBeNull();
+    await render(h(MotionShow, { film: 'g', controls: false }));
+    expect(shows[0].destroy).toHaveBeenCalled();
+    expect(vi.mocked(createShow).mock.calls.map((c) => c[1])).toEqual(['f', 'g']);
+
+    let resolve!: (s: Show) => void;
+    vi.mocked(createShow).mockImplementationOnce(() => new Promise((r) => { resolve = r; }));
+    await render(h(MotionShow, { film: 'late' }));
+    unmount();
+    const late = fakeShow();
+    await act(async () => resolve(late as unknown as Show));
+    expect(late.destroy).toHaveBeenCalled();
+  });
+
+  it('ignores keys until the show is ready', async () => {
+    vi.mocked(createShow).mockImplementationOnce(() => new Promise(() => {}));
+    await render(h(MotionShow, { film: 'f' }));
+    const key = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true });
+    act(() => { el.querySelector('[role=application]')!.dispatchEvent(key); });
+    expect(key.defaultPrevented).toBe(false);
+  });
+});
+
+describe('ShowPage', () => {
+  it('without capture, is a full-window story player', async () => {
+    await render(h(ShowPage, { film: 'f', layout: 'portrait', locale: 'de' }));
+    expect((el.firstElementChild as HTMLElement).style.position).toBe('fixed');
+    expect(vi.mocked(createShow).mock.calls[0][2]).toMatchObject({ layout: 'portrait', locale: 'de', mode: 'auto' });
+    expect(installCapture).not.toHaveBeenCalled();
+  });
+
+  it('with capture, installs the capture contract (light unless asked) and destroys it on unmount', async () => {
+    await render(h(ShowPage, { film: 'f', capture: true }));
+    expect(vi.mocked(installCapture).mock.calls[0]).toEqual([el.firstElementChild, 'f', 'landscape', 'en', { mode: 'light', src: undefined }]);
+    unmount();
+    expect(shows[0].destroy).toHaveBeenCalled();
+    await render(h(ShowPage, { film: 'f', capture: true, mode: 'dark', src: 'js' }));
+    expect(vi.mocked(installCapture).mock.calls[1][4]).toEqual({ mode: 'dark', src: 'js' });
+    expect(createShow).not.toHaveBeenCalled();
+  });
+});
