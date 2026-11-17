@@ -13,6 +13,7 @@
 //     bodies: import.meta.glob('/content/stories/*/*.json', { import: 'default' }),
 //     logos: import.meta.glob('/content/logos/*.svg', { eager: true, query: '?raw', import: 'default' }),
 //     site: import.meta.glob('/content/site.json', { eager: true, import: 'default' }),
+//     voice: import.meta.glob('/content/films/*/voice/*/*.m4a', { eager: true, query: '?url', import: 'default' }),
 //   };
 //   export const { filmSource, contentSource, logos, site } = viteSource(g);
 import type { ContentSource, FilmJson, FilmSource, SceneSpec, StoryBody, StoryEntry, TimingJson } from '../index.js';
@@ -29,6 +30,8 @@ export interface ViteGlobs {
   bodies?: Lazy<StoryBody>;
   logos?: Record<string, string>;
   site?: Record<string, SiteConfig>;
+  /** voice/<locale>/<scene>.m4a as URLs (`?url`): the narration `emaki voice-web` encodes for the web. */
+  voice?: Record<string, string>;
 }
 
 const call = async <T>(v: unknown): Promise<T | null> => (v == null ? null : ((typeof v === 'function' ? await v() : v) as T));
@@ -61,6 +64,7 @@ export function viteSource(g: ViteGlobs) {
     score: (slug) => call<string>(at(g.raw, F(slug, 'score.js'))),
     strings: (slug, locale) => call<Record<string, string>>(at(g.strings, F(slug, `strings/${locale}.json`))),
     timing: async (slug, locale) => at(g.timings, F(slug, `timing.${locale}.json`)) ?? at(g.timings, F(slug, 'timing.json')) ?? null,
+    voice: async (slug, locale, scene) => at(g.voice, F(slug, `voice/${locale}/${scene}.m4a`)) ?? null,
   };
   const contentSource: ContentSource = {
     index: async () => Object.values(g.index ?? {})[0] ?? [],
