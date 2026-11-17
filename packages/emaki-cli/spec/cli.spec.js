@@ -7,6 +7,9 @@ import {
 	captions, detectFramework, fit, init, installPlugin, listAgents, listSkills, manifest, newFilm, parseFrontmatter,
 	migrate, project, PROVIDERS, provider, setVoice, ttsCheck, validate, voiceConfig, MotionError
 } from '../src/api.js'
+import { buildPlan } from '../src/media.js'
+import { scenePlan } from '../src/youtube-text.js'
+import { localizeScene, motionEnd } from '@senseihq/emaki'
 
 const dirs = []
 const tmp = () => { const d = mkdtempSync(join(tmpdir(), 'motion-cli-')); dirs.push(d); return d }
@@ -184,6 +187,60 @@ describe('voice', () => {
 		expect(cues).toHaveLength(2)
 		expect(cues[0].startsWith('00:00:00,600 --> ')).toBe(true)
 		expect(cues[1].endsWith(' --> 00:00:04,600')).toBe(true)
+	})
+})
+
+describe('scenes fit their narration', () => {
+	const slug = 'measure-the-right-work'
+	/** A fresh project whose takes for `locale` all last `seconds` (or per scene, from a function of the id). */
+	function narrated(seconds, locale = 'en') {
+		const d = tmp()
+		init({ cwd: d, framework: 'vanilla' })
+		const p = project(d), dir = join(d, `content/films/${slug}`), film = json(join(dir, 'film.json'))
+		writeFileSync(join(dir, `voice/${locale}.json`), JSON.stringify(film.scenes.map((s) => ({ scene: s.id, text: 'Line.' }))))
+		const takes = p.prod(slug, locale, 'takes')
+		mkdirSync(takes, { recursive: true })
+		film.scenes.forEach((s, i) => writeFileSync(join(takes, `take-${String(i + 1).padStart(2, '0')}.wav`), s.id))
+		const len = (f) => (typeof seconds === 'function' ? seconds(readFileSync(f, 'utf-8')) : seconds)
+		return { d, p, dir, film, len }
+	}
+	const up = (v) => Math.ceil(v * 10 - 1e-9) / 10
+	const settleOf = (dir, id, locale = 'en') =>
+		up(motionEnd(localizeScene(json(join(dir, `scene-${id}.json`)), json(join(dir, `strings/${locale}.json`)))))
+
+	it('a short take ends its scene with the voice, but never before the last movement', () => {
+		const { p, dir, film, len } = narrated(1)
+		const r = fit(p, slug, { locale: 'en', length: len })
+		const need = up(0.6 + 1 + 1.2)
+		for (const [i, s] of film.scenes.entries())
+			expect(r.rows[i].runs, s.id).toBe(Math.min(s.dur, Math.max(settleOf(dir, s.id), need)))
+		expect(r.rows.some((x) => x.runs < x.design)).toBe(true)
+		const tm = json(join(dir, 'timing.en.json')).scenes
+		for (const x of r.rows) expect(tm[x.scene]?.dur, x.scene).toBe(x.runs < x.design ? x.runs : undefined)
+	})
+
+	it('a scene without narration keeps its design time', () => {
+		const { p, film, len } = narrated((id) => (id === 'hook' ? 0 : 1))
+		const r = fit(p, slug, { locale: 'en', length: len })
+		expect(r.rows[0]).toMatchObject({ scene: 'hook', runs: film.scenes[0].dur })
+	})
+
+	it('film.json "settle" says when a scene\'s motion is over (JS scenes have no tracks to read)', () => {
+		const { p, dir, film, len } = narrated(1)
+		film.scenes[0].settle = 4.25
+		writeFileSync(join(dir, 'film.json'), JSON.stringify(film))
+		expect(fit(p, slug, { locale: 'en', length: len }).rows[0].runs).toBe(4.3)
+	})
+
+	it('the build and the chapters run each scene for its fitted time', () => {
+		const { d, p, dir, film, len } = narrated(1)
+		fit(p, slug, { locale: 'en', length: len })
+		const tm = json(join(dir, 'timing.en.json')).scenes
+		const short = film.scenes.find((s) => tm[s.id]?.dur < s.dur)
+		const plan = buildPlan(film, tm, new Map(), { lead: 0.6, tail: 1.2 })
+		expect(plan.rows.find((r) => r.id === short.id).dur).toBe(tm[short.id].dur)
+		expect(scenePlan(p, slug, 'en').find((r) => r.id === short.id).dur).toBe(tm[short.id].dur)
+		expect(d).toBeTruthy()
 	})
 })
 
