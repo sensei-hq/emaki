@@ -26,6 +26,9 @@ jobs:
       # the same gate `bun run bump` runs before a release.
       - name: Types, build, specs
         run: bun run check
+      # The poster (packages/emaki-posting/poster) is python on the standard library only: no install step.
+      - name: Poster (python)
+        run: python3 -B -m unittest discover -s packages/emaki-posting/spec -p 'test_*.py'
 
   browser:
     # The example app in real Chromium: the figure, the player and the capture contract the video pipeline uses.
