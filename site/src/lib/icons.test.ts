@@ -14,10 +14,14 @@ const firstPath = logo.match(/<path d="([^"]{40})/)![1];
 const pngSize = (b: Buffer) => (b.subarray(1, 4).toString() === 'PNG' ? [b.readUInt32BE(16), b.readUInt32BE(20)] : null);
 
 describe('icons', () => {
-	it('favicon.svg is the emaki logo, and turns light when the OS is dark', () => {
+	it('favicon.svg is the emaki logo cropped square, and turns light when the OS is dark', () => {
 		const svg = read('static/favicon.svg').toString();
 		expect(svg).toContain(firstPath);
 		expect(svg).toMatch(/@media\s*\(prefers-color-scheme:\s*dark\)/);
+		// A square cropped to the artwork, not the logo's 512 box with its wide margin.
+		const [, , w, h] = svg.match(/viewBox="([^"]+)"/)![1].split(/\s+/).map(Number);
+		expect(w).toBe(h);
+		expect(w).toBeLessThan(480);
 	});
 
 	it('favicon.ico carries 16, 32 and 48 px images', () => {
