@@ -24,8 +24,11 @@ export function configurePaths(p: Partial<typeof paths>) { Object.assign(paths, 
 export const isAdminPath = (path: string) => path === paths.admin || path.startsWith(paths.admin + '/') || path.startsWith(paths.api + '/');
 export const accessConfigured = (c: AccessConfig) => Boolean(c.teamDomain && c.aud);
 
+/** A host without its scheme or trailing slash, so a team domain and an issuer compare however they are written. */
+const bare = (host: string) => host.replace(/^https?:\/\//, '').replace(/\/$/, '');
+
 async function keys(teamDomain: string, fetchFn: typeof fetch, now: number): Promise<Jwk[]> {
-  const url = `https://${teamDomain.replace(/^https?:\/\//, '').replace(/\/$/, '')}/cdn-cgi/access/certs`;
+  const url = `https://${bare(teamDomain)}/cdn-cgi/access/certs`;
   if (certs && certs.url === url && now - certs.at < 3_600_000) return certs.keys;
   const r = await fetchFn(url);
   if (!r.ok) throw new Error(`Access certs ${r.status}`);
@@ -33,47 +36,80 @@ async function keys(teamDomain: string, fetchFn: typeof fetch, now: number): Pro
   return certs.keys;
 }
 
+type Claims = Record<string, unknown>;
+/** A token split into its parts, header and claims decoded. */
+interface Token { h: string; p: string; s: string; head: Claims; claims: Claims }
+/** What a token is checked against. */
+interface Check { c: AccessConfig; fetchFn: typeof fetch; now: number }
+
+/** Why a token is refused before anyone is looked up, in the order they are checked; the first that holds refuses. */
+const REFUSALS: ((t: Token, k: Check) => boolean)[] = [
+  // not RS256
+  (t) => t.head.alg !== 'RS256',
+  // not for this app's audience
+  (t, k) => !(Array.isArray(t.claims.aud) ? t.claims.aud : [t.claims.aud]).some((a) => list(k.c.aud).includes(String(a).toLowerCase())),
+  // no expiry, or expired
+  (t, k) => typeof t.claims.exp !== 'number' || t.claims.exp * 1000 < k.now,
+  // issued by another team
+  (t, k) => Boolean(t.claims.iss) && bare(String(t.claims.iss)) !== bare(k.c.teamDomain!),
+];
+
+/** The service-token lists, in the order a client id is looked up in them. */
+const MACHINES: [Role, 'stagers' | 'posters'][] = [['stager', 'stagers'], ['poster', 'posters']];
+
+/** Who the claims name: a listed person by email, else (only without an email) a listed machine by client id. */
+function named(claims: Claims, c: AccessConfig): Caller | null {
+  const email = String(claims.email ?? '').toLowerCase();
+  if (email) return list(c.emails).includes(email) ? { role: 'admin', id: email } : null;
+  const cn = String(claims.common_name ?? '').toLowerCase();
+  const machine = cn ? MACHINES.find(([, ids]) => list(c[ids]).includes(cn)) : undefined;
+  return machine ? { role: machine[0], id: cn } : null;
+}
+
+/** Whether the token is signed by the team key it names. */
+async function signed(t: Token, k: Check): Promise<boolean> {
+  const jwk = (await keys(k.c.teamDomain!, k.fetchFn, k.now)).find((x) => x.kid === t.head.kid);
+  if (!jwk) return false;
+  const key = await crypto.subtle.importKey('jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
+  return crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, b64(t.s), new TextEncoder().encode(`${t.h}.${t.p}`));
+}
+
+/** The caller a token names, once its claims hold and its signature checks out. Throws on a badly encoded token. */
+async function callerOfToken(h: string, p: string, s: string, k: Check): Promise<Caller | null> {
+  const t: Token = { h, p, s, head: part(h), claims: part(p) };
+  const caller = REFUSALS.some((refuse) => refuse(t, k)) ? null : named(t.claims, k.c);
+  // The keys are fetched only for a token that names someone.
+  return caller && (await signed(t, k)) ? caller : null;
+}
+
 /** The caller behind a valid Access token for this app, or null. */
 export async function verifyCaller(token: string | null, c: AccessConfig, fetchFn: typeof fetch = fetch, now = Date.now()): Promise<Caller | null> {
   if (!token || !accessConfigured(c)) return null;
   const [h, p, s] = token.split('.');
   if (!h || !p || !s) return null;
-  try {
-    const head = part(h), claims = part(p);
-    if (head.alg !== 'RS256') return null;
-    const aud: string[] = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
-    if (!aud.some((a) => list(c.aud).includes(String(a).toLowerCase()))) return null;
-    if (typeof claims.exp !== 'number' || claims.exp * 1000 < now) return null;
-    const team = c.teamDomain!.replace(/^https?:\/\//, '').replace(/\/$/, '');
-    if (claims.iss && String(claims.iss).replace(/^https?:\/\//, '').replace(/\/$/, '') !== team) return null;
-    let caller: Caller | null = null;
-    const email = String(claims.email ?? '').toLowerCase();
-    const cn = String(claims.common_name ?? '').toLowerCase();
-    if (email && list(c.emails).includes(email)) caller = { role: 'admin', id: email };
-    else if (!email && cn && list(c.stagers).includes(cn)) caller = { role: 'stager', id: cn };
-    else if (!email && cn && list(c.posters).includes(cn)) caller = { role: 'poster', id: cn };
-    if (!caller) return null;
-    const jwk = (await keys(c.teamDomain!, fetchFn, now)).find((k) => k.kid === head.kid);
-    if (!jwk) return null;
-    const key = await crypto.subtle.importKey('jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
-    const ok = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, b64(s), new TextEncoder().encode(`${h}.${p}`));
-    return ok ? caller : null;
-  } catch {
-    return null;
-  }
+  return callerOfToken(h, p, s, { c, fetchFn, now }).catch(() => null);
 }
+
+/** The endpoints each machine may use, as 'METHOD path' under the API prefix; a path ending in '/' is a prefix. */
+const GRANTS: Record<Exclude<Role, 'admin'>, string[]> = {
+  // The producing machine: upload media, stage posts, report what is produced, read and answer motion requests.
+  stager: ['PUT media/', 'POST stage', 'POST production', 'GET requests', 'POST requests'],
+  // The CI poster: read the approved queue and the posting order, download media, report outcomes.
+  poster: ['GET queue', 'POST posted', 'GET media/', 'GET schedule'],
+};
+
+const covers = (grant: string, method: string, sub: string) => {
+  const [m, path] = grant.split(' ');
+  return m === method && (path.endsWith('/') ? sub.startsWith(path) : sub === path);
+};
 
 /** Which roles may use a path (and method). People: everything. Machines: only their own endpoints. */
 export function allowed(role: Role, path: string, method: string): boolean {
   if (role === 'admin') return true;
-  const a = paths.api;
-  // The producing machine: upload media, stage posts, report what is produced, read and answer motion requests.
-  if (role === 'stager') return (path.startsWith(`${a}/media/`) && method === 'PUT') || (path === `${a}/stage` && method === 'POST') ||
-    (path === `${a}/production` && method === 'POST') || (path === `${a}/requests` && (method === 'GET' || method === 'POST'));
-  // The CI poster: read the approved queue and the posting order, download media, report outcomes.
-  if (role === 'poster') return (path === `${a}/queue` && method === 'GET') || (path === `${a}/posted` && method === 'POST') ||
-    (path.startsWith(`${a}/media/`) && method === 'GET') || (path === `${a}/schedule` && method === 'GET');
-  return false;
+  const prefix = `${paths.api}/`;
+  if (!Object.hasOwn(GRANTS, role) || !path.startsWith(prefix)) return false;
+  const sub = path.slice(prefix.length);
+  return GRANTS[role as keyof typeof GRANTS].some((g) => covers(g, method, sub));
 }
 
 /** for tests: forget the cached keys */
