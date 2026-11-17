@@ -209,14 +209,15 @@ export function evaluateScene(spec: SceneSpec, t: number, opts: { locale?: strin
 }
 
 /** When the scene's motion is over: the latest time any track still moves, with the same defaults evaluateScene
- *  uses (keep the two together). From then on every frame is the final one, except the closing mark's breathing,
- *  which never stops and is left out. Pass a localised spec: word counts set when text arrives. Scene seconds. */
+ *  uses (keep the two together). Background motion is left out: the closing mark's breathing (it never stops) and
+ *  the camera push (a slow drift sized to fill the scene, fine to cut away from). Pass a localised spec: word counts
+ *  set when text arrives. Scene seconds. */
 export function motionEnd(spec: SceneSpec): number {
   const after = (n: number | undefined, stagger: number | undefined) => ((n ?? 1) - 1) * (stagger ?? 0);
   const end = (tr: TrackSpec): number => {
     if (tr.kind === 'tween') return tr.t1 + after(tr.count, tr.stagger);
     switch (tr.effect) {
-      case 'push': return tr.t0 + tr.dur;
+      case 'push': return 0;
       case 'fade': return tr.t0 + after(tr.count, tr.stagger) + (tr.d ?? 0.5);
       case 'pop': return tr.t0 + after(tr.count, tr.stagger) + 0.4;
       case 'draw': return tr.t1 + after(tr.count, tr.stagger);
