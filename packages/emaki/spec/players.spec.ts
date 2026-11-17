@@ -4,7 +4,7 @@
 // ←/→, Space, M and O.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  attachScene, createShow, sceneSound, showKey, ticks, ScenePlayerState, useSource, type FilmJson,
+  attachScene, createShow, installCapture, sceneSound, showKey, ticks, ScenePlayerState, useSource, type FilmJson,
 } from '../src/index.js';
 import { defineMotionElements } from '../src/elements/index.js';
 
@@ -124,6 +124,90 @@ describe('story player', () => {
     show.destroy();
   });
 });
+
+describe('story player keys, the rest of the way', () => {
+  it('← goes back a scene, Space starts a poster and then pauses it, O turns portrait back to landscape', async () => {
+    const show = await createShow(box(), 'f', { poster: true });
+    const key = (k: string) => showKey(show, new KeyboardEvent('keydown', { key: k }));
+    key(' ');
+    await vi.waitFor(() => expect(show.state).toMatchObject({ started: true, playing: true, index: 0 }));
+    key(' ');
+    expect(show.state.playing).toBe(false);
+    key('ArrowLeft');
+    expect(show.state.index).toBe(2);
+    key('o'); key('o');
+    expect(show.state.layout).toBe('landscape');
+    show.destroy();
+  });
+
+  it('F leaves fullscreen when something is fullscreen, and asks for the whole page by default', async () => {
+    const show = await createShow(box(), 'f');
+    const page = document.documentElement as HTMLElement & { requestFullscreen: () => Promise<void> };
+    page.requestFullscreen = vi.fn(async () => {});
+    showKey(show, new KeyboardEvent('keydown', { key: 'f' }));
+    expect(page.requestFullscreen).toHaveBeenCalledTimes(1);
+    const exit = vi.fn(async () => {});
+    Object.defineProperty(document, 'fullscreenElement', { configurable: true, get: () => page });
+    Object.defineProperty(document, 'exitFullscreen', { configurable: true, value: exit });
+    showKey(show, new KeyboardEvent('keydown', { key: 'f' }));
+    expect(exit).toHaveBeenCalledTimes(1);
+    expect(page.requestFullscreen).toHaveBeenCalledTimes(1);
+    delete (document as unknown as Record<string, unknown>).fullscreenElement;
+    delete (document as unknown as Record<string, unknown>).exitFullscreen;
+    delete (page as unknown as Record<string, unknown>).requestFullscreen;
+    show.destroy();
+  });
+});
+
+describe('story player teardown', () => {
+  it('drops a scene that finishes mounting after the show was destroyed', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    useSource({
+      films: async () => [{ slug: 'f', json: film }],
+      css: async () => '',
+      scene: async (_s, id) => { if (id === 'b') await gate; return { components: [{ type: 'text', id: `t-${id}`, text: id }], tracks: [] }; },
+    });
+    const host = box();
+    const show = await createShow(host, 'f');
+    show.go(1);
+    await new Promise((r) => setTimeout(r, 10));
+    show.destroy();
+    release();
+    await new Promise((r) => setTimeout(r, 10));
+    expect(host.shadowRoot!.getElementById('stage')).toBeNull();
+  });
+});
+
+describe('capture', () => {
+  it('renders light by default, seeks to film time, and hands over the score as a base64 WAV (or null without one)', async () => {
+    const host = box();
+    const show = await installCapture(host, 'f', 'landscape', 'en');
+    expect(host.shadowRoot!.getElementById('stage')!.dataset.mode).toBe('light');
+    const cap = (window as unknown as { __show: { seek: (t: number) => Promise<void>; audio: () => Promise<string | null> } }).__show;
+    await cap.seek(4);
+    expect(show.state).toMatchObject({ index: 1, local: 2 });
+    expect(host.shadowRoot!.getElementById('stage')!.textContent).toBe('b');
+    expect(await cap.audio()).toBeNull();
+    score = 'kit.score(function (S) { S.fx("tick", 0.5); });';
+    vi.stubGlobal('OfflineAudioContext', silentOfflineContext());
+    const wav = atob((await cap.audio())!);
+    expect(wav.slice(0, 4)).toBe('RIFF');
+    expect(wav.length).toBe(44 + 4 * 4);
+    show.destroy();
+  });
+});
+
+/** An OfflineAudioContext whose nodes accept anything and whose render is four samples of silence. */
+function silentOfflineContext() {
+  const any = (): unknown => new Proxy(function () {}, { get: (_t, k) => (k === 'then' ? undefined : any()), set: () => true, apply: () => any() });
+  return class {
+    sampleRate = 48000; currentTime = 0; destination = any();
+    constructor() { return new Proxy(this, { get: (o, k) => (k in o ? o[k as keyof typeof o] : () => any()) }); }
+    async startRendering() { const d = new Float32Array(4); return { length: 4, getChannelData: () => d }; }
+    createBuffer(_c: number, n: number) { const d = new Float32Array(Math.max(1, n | 0)); return { length: d.length, getChannelData: () => d }; }
+  };
+}
 
 describe('<motion-show>', () => {
   it('answers the same keys (it delegates to showKey)', async () => {
