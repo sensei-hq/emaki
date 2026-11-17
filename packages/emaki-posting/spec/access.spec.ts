@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { allowed, resetAccessCache, verifyCaller } from '../src/access.js';
+import { allowed, callerOf, configurePaths, isAdminPath, resetAccessCache, verifyCaller } from '../src/access.js';
 
 const enc = (o: unknown) => Buffer.from(JSON.stringify(o)).toString('base64url');
 const pair = await crypto.subtle.generateKey({ name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' }, true, ['sign', 'verify']);
@@ -50,5 +50,105 @@ describe('admin access', () => {
       expect(allowed(r, '/admin', 'POST')).toBe(false);
     }
     expect(allowed('admin', '/admin', 'POST')).toBe(true);
+  });
+});
+
+describe('admin access, every branch', () => {
+  beforeEach(() => resetAccessCache());
+  const counting = () => {
+    const calls: string[] = [];
+    const f = (async (url: string) => { calls.push(String(url)); return new Response(JSON.stringify({ keys: [jwk] })); }) as unknown as typeof fetch;
+    return { calls, f };
+  };
+
+  it('allows exactly this table of role, path and method', () => {
+    const a = '/api/admin';
+    const subs = ['queue', 'posted', 'stage', 'production', 'schedule', 'requests', 'media/a/b.mp4', 'nope'];
+    const grant: Record<string, string[]> = {
+      stager: ['PUT media/a/b.mp4', 'POST stage', 'POST production', 'GET requests', 'POST requests'],
+      poster: ['GET queue', 'POST posted', 'GET media/a/b.mp4', 'GET schedule'],
+    };
+    for (const role of ['stager', 'poster'] as const)
+      for (const sub of subs)
+        for (const m of ['GET', 'POST', 'PUT', 'DELETE'])
+          expect(allowed(role, `${a}/${sub}`, m), `${role} ${m} ${sub}`).toBe(grant[role].includes(`${m} ${sub}`));
+    expect(allowed('stager', `${a}/media`, 'PUT')).toBe(false);
+    expect(allowed('poster', `${a}/queue/x`, 'GET')).toBe(false);
+    expect(allowed('poster', `/elsewhere${a}/queue`, 'GET')).toBe(false);
+    expect(allowed('admin', '/anything', 'DELETE')).toBe(true);
+    expect(allowed('nobody' as never, `${a}/queue`, 'GET')).toBe(false);
+  });
+
+  it('follows configured paths', () => {
+    configurePaths({ api: '/desk/api', admin: '/desk' });
+    try {
+      expect(allowed('poster', '/desk/api/queue', 'GET')).toBe(true);
+      expect(allowed('poster', '/api/admin/queue', 'GET')).toBe(false);
+      expect(isAdminPath('/desk')).toBe(true);
+      expect(isAdminPath('/desk/x')).toBe(true);
+      expect(isAdminPath('/desk/api/queue')).toBe(true);
+      expect(isAdminPath('/desktop')).toBe(false);
+    } finally { configurePaths({ api: '/api/admin', admin: '/admin' }); }
+  });
+
+  it('refuses malformed tokens and other algorithms', async () => {
+    const good = await token({ aud: 'aud1', exp, email: 'admin@example.com' });
+    const [h, p, s] = good.split('.');
+    expect(await verifyCaller(`${h}.${p}`, config, certs)).toBeNull();
+    expect(await verifyCaller(`${h}..${s}`, config, certs)).toBeNull();
+    expect(await verifyCaller(`!!!.${p}.${s}`, config, certs)).toBeNull();
+    expect(await verifyCaller(`${enc({ alg: 'HS256', kid: 'k1' })}.${p}.${s}`, config, certs)).toBeNull();
+    expect(await verifyCaller('', config, certs)).toBeNull();
+  });
+
+  it('needs a numeric exp and accepts any listed audience, case-insensitively', async () => {
+    expect(await verifyCaller(await token({ aud: 'aud1', exp: String(exp), email: 'admin@example.com' }), config, certs)).toBeNull();
+    expect(await verifyCaller(await token({ aud: 'aud1', email: 'admin@example.com' }), config, certs)).toBeNull();
+    const c2 = { ...config, aud: 'other, AUD1' };
+    expect(await verifyCaller(await token({ aud: ['x', 'Aud1'], exp, email: 'admin@example.com' }), c2, certs)).toEqual({ role: 'admin', id: 'admin@example.com' });
+  });
+
+  it('compares the issuer without scheme or trailing slash, and skips it when absent', async () => {
+    const c2 = { ...config, teamDomain: 'https://team.cloudflareaccess.com/' };
+    expect(await verifyCaller(await token({ aud: 'aud1', exp, email: 'admin@example.com', iss: 'http://team.cloudflareaccess.com/' }), c2, certs)).toEqual({ role: 'admin', id: 'admin@example.com' });
+    expect(await verifyCaller(await token({ aud: 'aud1', exp, email: 'admin@example.com', iss: '' }), config, certs)).toEqual({ role: 'admin', id: 'admin@example.com' });
+  });
+
+  it('gives a token with an email no machine role, and prefers stager when a client id is in both lists', async () => {
+    expect(await verifyCaller(await token({ aud: 'aud1', exp, email: 'x@example.com', common_name: 'mac-id.access' }), config, certs)).toBeNull();
+    expect(await verifyCaller(await token({ aud: 'aud1', exp, email: 'admin@example.com', common_name: 'mac-id.access' }), config, certs)).toEqual({ role: 'admin', id: 'admin@example.com' });
+    const both = { ...config, posters: 'mac-id.access' };
+    expect(await verifyCaller(await token({ aud: 'aud1', exp, common_name: 'MAC-ID.access' }), both, certs)).toEqual({ role: 'stager', id: 'mac-id.access' });
+    expect(await verifyCaller(await token({ aud: 'aud1', exp }), config, certs)).toBeNull();
+  });
+
+  it('does not fetch keys for a token that names no one, and refuses when the keys cannot be fetched', async () => {
+    const { calls, f } = counting();
+    expect(await verifyCaller(await token({ aud: 'aud1', exp, email: 'x@example.com' }), config, f)).toBeNull();
+    expect(calls).toEqual([]);
+    const down = (async () => new Response('no', { status: 500 })) as unknown as typeof fetch;
+    expect(await verifyCaller(await token({ aud: 'aud1', exp, email: 'admin@example.com' }), config, down)).toBeNull();
+  });
+
+  it('caches the keys for an hour per team', async () => {
+    const { calls, f } = counting();
+    const t = await token({ aud: 'aud1', exp: exp + 7200, email: 'admin@example.com' });
+    const now = Date.now();
+    await verifyCaller(t, config, f, now);
+    await verifyCaller(t, config, f, now + 3_599_999);
+    expect(calls).toEqual(['https://team.cloudflareaccess.com/cdn-cgi/access/certs']);
+    await verifyCaller(t, config, f, now + 3_600_000);
+    expect(calls).toHaveLength(2);
+    await verifyCaller(t, { ...config, teamDomain: 'https://team.cloudflareaccess.com/' }, f, now + 3_600_001);
+    expect(calls).toHaveLength(2);
+  });
+
+  it('callerOf: dev admin only when Access is not configured; else the verified token', async () => {
+    const req = new Request('https://site.test/admin');
+    expect(await callerOf(req, {}, { dev: true })).toEqual({ role: 'admin', id: 'dev@localhost' });
+    expect(await callerOf(req, {})).toBeNull();
+    expect(await callerOf(req, config, { dev: true, fetch: certs })).toBeNull();
+    const t = await token({ aud: 'aud1', exp, email: 'admin@example.com' });
+    expect(await callerOf(new Request('https://site.test/admin', { headers: { 'cf-access-jwt-assertion': t } }), config, { fetch: certs })).toEqual({ role: 'admin', id: 'admin@example.com' });
   });
 });
