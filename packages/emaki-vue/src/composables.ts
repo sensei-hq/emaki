@@ -1,9 +1,12 @@
 // Vue reactivity over the core: the core notifies, a shallowRef version makes reads tracked.
-import { onBeforeUnmount, shallowRef, ref, watch, type Ref } from 'vue';
+import { onBeforeUnmount, shallowRef, ref, toRaw, watch, type Ref } from 'vue';
 import type { createShow, Layout, ScenePlayerState } from '@senseihq/emaki';
 
-/** A reactive view of a ScenePlayerState: read `state.value.t` etc. in templates; call methods on the player. */
-export function useScenePlayer(player: ScenePlayerState) {
+/** A reactive view of a ScenePlayerState: read `state.value.t` etc. in templates; call methods on the player.
+ *  A player kept in a ref or reactive() arrives as a proxy, which cannot reach the class's private fields: use the
+ *  object behind it. */
+export function useScenePlayer(held: ScenePlayerState) {
+  const player = toRaw(held);
   const version = ref(player.version);
   const off = player.subscribe(() => { version.value = player.version; });
   onBeforeUnmount(off);
