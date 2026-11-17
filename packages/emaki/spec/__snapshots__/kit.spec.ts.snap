@@ -1,0 +1,285 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`scene kit > TextFx splits words once and fades them in from the right and out to the left > in, defaults 1`] = `"<span style="display: inline-block; white-space: pre; opacity: 0.9359999999999999; transform: translateX(1.92px);">one </span><span style="display: inline-block; white-space: pre; opacity: 0.761672; transform: translateX(7.15px);">two </span><span style="display: inline-block; white-space: pre; opacity: 0.4072959999999999; transform: translateX(17.78px);">three</span>"`;
+
+exports[`scene kit > TextFx splits words once and fades them in from the right and out to the left > in, options 1`] = `"<span style="display: inline-block; white-space: pre; opacity: 0.657; transform: translateX(17.15px);">one </span><span style="display: inline-block; white-space: pre; opacity: 0.2709999999999999; transform: translateX(36.45px);">two </span><span style="display: inline-block; white-space: pre; opacity: 0; transform: translateX(50.00px);">three</span>"`;
+
+exports[`scene kit > TextFx splits words once and fades them in from the right and out to the left > out, defaults 1`] = `"<span style="display: inline-block; white-space: pre; opacity: 0.125; transform: translateX(-26.25px);">one </span><span style="display: inline-block; white-space: pre; opacity: 0.2746249999999999; transform: translateX(-21.76px);">two </span><span style="display: inline-block; white-space: pre; opacity: 0.5119999999999999; transform: translateX(-14.64px);">three</span>"`;
+
+exports[`scene kit > TextFx splits words once and fades them in from the right and out to the left > out, options 1`] = `"<span style="display: inline-block; white-space: pre; opacity: 0.21599999999999997; transform: translateX(-7.84px);">one </span><span style="display: inline-block; white-space: pre; opacity: 0.5120000000000001; transform: translateX(-4.88px);">two </span><span style="display: inline-block; white-space: pre; opacity: 1; transform: translateX(0.00px);">three</span>"`;
+
+exports[`scene kit > computes the same easings and helpers at every point 1`] = `
+{
+  "breathe": [
+    0.9870096189432335,
+    1,
+    1.0031186753622663,
+    1.0075,
+    1.0129903810567666,
+    1.015,
+    1.0142658477444273,
+    1.0129903810567666,
+    1,
+  ],
+  "breathe2": [
+    0.9,
+    1,
+    1.0309016994374947,
+    1.0707106781186548,
+    1.1,
+    1.0707106781186548,
+    1.0309016994374947,
+    1,
+    0.9,
+  ],
+  "clamp": [
+    0.2,
+    0.2,
+    0.2,
+    0.25,
+    0.5,
+    0.75,
+    0.8,
+    0.8,
+    0.8,
+  ],
+  "clamp01": [
+    0,
+    0,
+    0.1,
+    0.25,
+    0.5,
+    0.75,
+    0.9,
+    1,
+    1,
+  ],
+  "ei": [
+    0,
+    0,
+    0.0010000000000000002,
+    0.015625,
+    0.125,
+    0.421875,
+    0.7290000000000001,
+    1,
+    1,
+  ],
+  "eio": [
+    0,
+    0,
+    0.004000000000000001,
+    0.0625,
+    0.5,
+    0.9375,
+    0.996,
+    1,
+    1,
+  ],
+  "eo": [
+    0,
+    0,
+    0.2709999999999999,
+    0.578125,
+    0.875,
+    0.984375,
+    0.999,
+    1,
+    1,
+  ],
+  "eob": [
+    0,
+    0,
+    0.38439999999999963,
+    0.775,
+    1.0499999999999998,
+    1.05,
+    1.0116,
+    1,
+    1,
+  ],
+  "eob2": [
+    0,
+    0,
+    0.47350000000000003,
+    0.9296875,
+    1.1875,
+    1.1015625,
+    1.0215,
+    1,
+    1,
+  ],
+  "eoq": [
+    0,
+    0,
+    0.3439,
+    0.68359375,
+    0.9375,
+    0.99609375,
+    0.9999,
+    1,
+    1,
+  ],
+  "eox": [
+    0,
+    0,
+    0.5,
+    0.8232233047033631,
+    0.96875,
+    0.99447572827198,
+    0.998046875,
+    1,
+    1,
+  ],
+  "lerp": [
+    5,
+    10,
+    11,
+    12.5,
+    15,
+    17.5,
+    19,
+    20,
+    25,
+  ],
+  "pulse": [
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+  ],
+  "seg": [
+    0,
+    0,
+    0,
+    0,
+    0.5,
+    1,
+    1,
+    1,
+    1,
+  ],
+  "smoothstep": [
+    0,
+    0,
+    0,
+    0.09228515624999999,
+    0.5,
+    0.90771484375,
+    1,
+    1,
+    1,
+  ],
+  "spring": [
+    0,
+    0,
+    0.6119315705238302,
+    1.0853882155497734,
+    1.0352047736583148,
+    0.9897366254715791,
+    0.9968062949877007,
+    1,
+    1,
+  ],
+  "step": [
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+  ],
+}
+`;
+
+exports[`scene kit > draws the same random and noise sequences per seed > seed -7 1`] = `
+{
+  "noise": [
+    0.820495888357982,
+    -0.3892735275439918,
+    -0.5332897882908583,
+    -0.3560464753769338,
+    -0.6802763429395854,
+    -0.46128165791742504,
+    0.49565584158699494,
+  ],
+  "rng": [
+    0.23335510585457087,
+    0.6436405524145812,
+    0.02657585358247161,
+    0.4087523363996297,
+    0.7188135664910078,
+  ],
+}
+`;
+
+exports[`scene kit > draws the same random and noise sequences per seed > seed 0 1`] = `
+{
+  "noise": [
+    0.2909931798931211,
+    -0.4928463692776859,
+    -0.527088949456811,
+    -0.469712805327028,
+    -0.04982356230542065,
+    -0.5099676593672484,
+    0.2090102778020082,
+  ],
+  "rng": [
+    0.23645552527159452,
+    0.3692706737201661,
+    0.5042420323006809,
+    0.7048832636792213,
+    0.05054362863302231,
+  ],
+}
+`;
+
+exports[`scene kit > draws the same random and noise sequences per seed > seed 1 1`] = `
+{
+  "noise": [
+    0.2909931798931211,
+    -0.4928463692776859,
+    -0.527088949456811,
+    -0.469712805327028,
+    -0.04982356230542065,
+    -0.5099676593672484,
+    0.2090102778020082,
+  ],
+  "rng": [
+    0.23645552527159452,
+    0.3692706737201661,
+    0.5042420323006809,
+    0.7048832636792213,
+    0.05054362863302231,
+  ],
+}
+`;
+
+exports[`scene kit > draws the same random and noise sequences per seed > seed 42 1`] = `
+{
+  "noise": [
+    0.20229179901070893,
+    -0.523657183162868,
+    -0.49530965043231845,
+    -0.5662527463212609,
+    -0.05675306155532611,
+    -0.5094834167975932,
+    -0.2053607365960488,
+  ],
+  "rng": [
+    0.2523451747838408,
+    0.08812504541128874,
+    0.5772811982315034,
+    0.22255426598712802,
+    0.37566019711084664,
+  ],
+}
+`;
