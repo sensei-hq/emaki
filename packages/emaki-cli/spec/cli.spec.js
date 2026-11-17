@@ -151,6 +151,80 @@ describe('films', () => {
 	})
 })
 
+describe('validate', () => {
+	const write = (root, rel, data) => {
+		mkdirSync(join(root, rel, '..'), { recursive: true })
+		writeFileSync(join(root, rel), typeof data === 'string' ? data : JSON.stringify(data))
+	}
+	it('reports every film and story problem, in order', () => {
+		const d = tmp()
+		write(d, 'content/site.json', { locales: ['en', 'es', 'fr'], defaultLocale: 'en' })
+		const F = 'content/films/bad'
+		write(d, `${F}/film.json`, { scenes: [{ id: 'a', dur: 5 }, { id: 'b', dur: 0 }, { id: 'c', dur: 60 }, { id: 'd', dur: 3 }, { id: 'e', dur: 4 }] })
+		write(d, `${F}/scene-a.json`, { portrait: {}, components: [{ id: 'x', text: '{{a.k}}' }, { id: 'x' }] })
+		write(d, `${F}/scene-b.json`, { text: ['{{b.k}}', { deep: '{{ b.j }}' }] })
+		write(d, `${F}/scene-c.js`, 'scene')
+		write(d, `${F}/scene-e.json`, { portrait: null })
+		write(d, `${F}/strings/en.json`, { 'a.k': 'A', 'z.unused': 'Z', 'y.unused': 'Y' })
+		write(d, `${F}/voice/en.json`, [{ scene: 'a' }, { scene: 'c' }])
+		write(d, `${F}/strings/es.json`, Object.fromEntries(Array.from({ length: 11 }, (_, i) => [`u${String(i).padStart(2, '0')}`, 'x'])))
+		const G = 'content/films/plain'
+		write(d, `${G}/film.json`, { cover: { scene: 'a' }, dark: {}, scenes: [{ id: 'a', dur: 1 }] })
+		write(d, `${G}/look.css`, '#stage {}')
+		write(d, `${G}/scene-a.json`, { portrait: {} })
+		write(d, 'content/stories/index.json', [
+			{ slug: 'bad', publish_date: '2026-1-2' },
+			{ slug: 'plain', publish_date: '2026-01-02', film: 'bad' },
+			{ slug: 'lone', publish_date: '2026-01-03' }
+		])
+		write(d, 'content/stories/en/bad.json', { title: 'T', dek: '', sections: [], takeaway: 'x' })
+		write(d, 'content/stories/es/bad.json', { title: 'T', dek: 'D', sections: [{ id: 'a' }, { id: 'zz' }, { id: 'more' }, { id: 'sources' }, { id: 'q', motion: 'a' }, { id: 'r', figure: 'a' }] })
+		write(d, 'content/stories/en/plain.json', { title: 'P', dek: 'D', sections: [{ id: 'nope' }], takeaway: 'y' })
+		write(d, 'content/stories/en/lone.json', { title: 'L', dek: 'D', sections: [{ id: 'nope' }] })
+		const r = validate(project(d))
+		expect(r.lines).toEqual([
+			'film bad: look.css is missing',
+			'film bad: scene a: duplicate component ids',
+			'film bad: scene b: no portrait block (needed for 9:16 and article figures)',
+			'film bad: scene b: dur 0 looks wrong',
+			'film bad: scene c: dur 60 looks wrong',
+			'film bad: scene d: no scene-d.json (or .js)',
+			'film bad: the last scene should be "close" (the punchline card is the cover), or film.json should name its cover',
+			'film bad: strings/en.json: missing b.j, b.k',
+			'film bad: strings/en.json: unused y.unused, z.unused',
+			'film bad: voice/en.json: no line for b, d, e',
+			'film bad: strings/es.json: missing a.k, b.j, b.k',
+			'film bad: strings/es.json: unused u00, u01, u02, u03, u04, u05, u06, u07 …',
+			'film bad: strings/fr.json is missing',
+			'film plain: film.json has a dark block but look.css never styles #stage[data-mode="dark"]',
+			'story bad: publish_date must be YYYY-MM-DD',
+			'story bad: en: dek is empty',
+			'story bad: en: sections is empty',
+			'story bad: es: a film story needs a takeaway (the closing line)',
+			'story bad: (info) es: section zz has no figure (no scene of that id)',
+			'story bad: (info) stories/fr/bad.json not translated yet',
+			'story plain: (info) en: section nope has no figure (no scene of that id)',
+			'story plain: (info) stories/es/plain.json not translated yet',
+			'story plain: (info) stories/fr/plain.json not translated yet',
+			'story lone: (info) stories/es/lone.json not translated yet',
+			'story lone: (info) stories/fr/lone.json not translated yet'
+		])
+		expect(r.problems).toBe(18)
+		expect(validate(project(d), 'plain').lines).toEqual([
+			'film plain: film.json has a dark block but look.css never styles #stage[data-mode="dark"]',
+			'story plain: (info) en: section nope has no figure (no scene of that id)',
+			'story plain: (info) stories/es/plain.json not translated yet',
+			'story plain: (info) stories/fr/plain.json not translated yet'
+		])
+		rmSync(join(d, 'content/stories/en/lone.json'))
+		expect(validate(project(d)).lines.slice(-3)).toEqual([
+			'story lone: stories/en/lone.json is missing',
+			'story lone: (info) stories/es/lone.json not translated yet',
+			'story lone: (info) stories/fr/lone.json not translated yet'
+		])
+	})
+})
+
 describe('voice', () => {
 	it('merges voice blocks default → language → locale, and starts fresh on a provider switch', () => {
 		const cfg = { voice: { default: { provider: 'piper', model: 'a.onnx' }, es: { model: 'es.onnx' }, 'es-MX': { provider: 'azure', voice: 'es-MX-DaliaNeural' } } }
