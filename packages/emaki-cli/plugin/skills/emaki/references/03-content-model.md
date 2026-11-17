@@ -51,7 +51,8 @@ Rules:
 | `score.js` | The sound: action tones timed to scene events (`T.<scene> + seconds`). |
 | `strings/<locale>.json` | Every on-screen word, keyed `scene.part` (`hook.line`, `signs.2`). Inline `<b>`/`<em>` allowed in strings used by `raw`/`html` text. |
 | `voice/<locale>.json` | One line per scene, in order: `{ scene, text, say }`; `say` is the TTS spelling when it differs (acronyms, names). The text is also the caption. |
-| `timing.json` / `timing.<locale>.json` | Written by `emaki fit`: per scene `dur` (stretched to fit that locale's take) and hand-set `holds` [[at, seconds]] (pause the clock at a beat). The site reads the locale's file. |
+| `timing.json` / `timing.<locale>.json` | Written by `emaki fit`: per scene `dur` (stretched to fit that locale's take) and hand-set `holds` [[at, seconds]] (pause the clock at a beat); `emaki voice-web` adds `voice`, where the scene's narration starts. The site reads the locale's file. |
+| `voice/<locale>/<scene>.m4a` | The site's narration, encoded from the takes by `emaki voice-web`. A scene with a `voice` start plays it when sound is on. |
 
 ## Production (not deployed)
 

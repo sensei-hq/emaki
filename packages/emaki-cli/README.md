@@ -23,6 +23,7 @@ npx emaki init            # sample content, emaki.config.json, film source, /sho
 | `voices [--locale] [--provider]` | the voices a provider offers |
 | `voice <slug> [--locale] [--only 2,5] [--provider] [--opt]` | narration takes from `voice/<locale>.json` |
 | `fit <slug> [--locale] [--check]` | scene times fitted to the takes: `timing.<locale>.json` |
+| `voice-web <slug> [--locale]` | the site's narration: each take as `voice/<locale>/<scene>.m4a` (mono AAC, -16 LUFS) and its start in `timing.<locale>.json` |
 | `render <slug> [--locale] [--o both] [--fps 30] [--from s] [--to s] [--out file.mp4\|dir] [--music synth\|export\|none] [--audio-only] [--cover-only]` | picture + music + covers; `--from/--to` a stretch of film time, `--out` a file (one layout) or a folder, `--music export` the audio of `production/<slug>/<locale>/<slug>.mp4`, `--audio-only` lays the music on the existing render, `--cover-only` just the covers; survives the dev server reloading mid-capture |
 | `build <slug> [--locale] [--no-captions] [--check] [--out dir]` | voice + ducked music, −14 LUFS, captions (.srt/.vtt, burned in), a chapter per scene embedded, `-web.mp4`, `chapters.txt`, `description.txt`, posters and `-thumb.jpg`; a take that outruns its scene freezes the scene's last frame until it ends (`--check` prints that table and builds nothing) |
 | `stage <slug> [--channels a,b] [--locale] [--dry-run]` | upload a finished piece's media (sha256-checked) and post text to the posting desk, one post per channel, for approval; a film's text is drafted into `content/films/<slug>/post.<locale>.json` on the first run |
@@ -63,7 +64,7 @@ Load them from a file that git ignores without writing them anywhere else, e.g. 
 node_modules/.bin/emaki stage <slug>` or `set -a; . ./.env; set +a`.
 
 Needs Node 20.10+, ffmpeg, and Playwright with Chromium for `sheet`, `render` and `carousel`. The same steps are importable as
-functions from `@senseihq/emaki-cli` (`project`, `validate`, `voice`, `fit`, `render`, `build`, `stage`, `publish`,
+functions from `@senseihq/emaki-cli` (`project`, `validate`, `voice`, `voiceWeb`, `fit`, `render`, `build`, `stage`, `publish`,
 `youtube`, `instagram`, `carousel`, `campaignStatus`, …); every network call takes an injectable `fetch`.
 
 MIT © SenecaGlobal
