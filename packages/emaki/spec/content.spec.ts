@@ -2,9 +2,9 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  configureLocales, coverTime, dirOf, evaluateScene, fallbackChain, listStories, loadFilm, loadStory, localizeScene,
+  configureLocales, coverTime, defaultLocale, dirOf, formatDate, listFilms, locales, evaluateScene, fallbackChain, listStories, loadFilm, loadStory, localizeScene,
   mergeChain, negotiate, sceneKeys, t, timeline, today, unwarp, useSource, validateScene, warp, type SceneSpec,
 } from '../src/index.js';
 import { viteSource } from '../src/loaders/vite.js';
@@ -42,8 +42,20 @@ describe('locales', () => {
     expect(dirOf('ar')).toBe('rtl');
     expect(dirOf('es')).toBe('ltr');
   });
+  it('knows the configured languages and the default', () => {
+    expect(locales()).toEqual(['en', 'es', 'fr-CA', 'fr', 'ar']);
+    expect(defaultLocale()).toBe('en');
+  });
+  it('negotiates a configured region exactly, whatever its case', () => {
+    expect(negotiate(['FR-ca', 'en'])).toBe('fr-CA');
+  });
+  it('formats a date for the reader, on the day it names in any time zone', () => {
+    expect(formatDate('2026-11-15', 'en-US')).toBe('Nov 15, 2026');
+    expect(formatDate('2026-11-15', 'en-US', { month: 'long' })).toBe('November');
+  });
   it('interpolates UI strings and merges tables, most specific winning', () => {
     expect(t({ n: '{n} stories' }, 'n', { n: 3 })).toBe('3 stories');
+    expect(t({ n: '{n} of {total}' }, 'n', { n: 3 })).toBe('3 of {total}');
     expect(t({}, 'missing.key')).toBe('missing.key');
     expect(mergeChain([{ a: 'fr-CA' }, { a: 'fr', b: 'fr' }, { a: 'en', b: 'en', c: 'en' }])).toEqual({ a: 'fr-CA', b: 'fr', c: 'en' });
   });
@@ -63,6 +75,19 @@ describe('vite loader + registry', () => {
     const tl = timeline(f);
     expect(tl.duration).toBeCloseTo(f.scenes.reduce((n, s) => n + s.dur, 0));
     expect(coverTime(f)).toBeGreaterThan(tl.scenes.at(-1)!.start);
+  });
+  it('asks the app to install a source before anything loads', async () => {
+    vi.resetModules();
+    const fresh = await import('../src/registry.js');
+    expect(() => fresh.getSource()).toThrow(/no film source; call useSource/);
+  });
+  it('lists every film with its title and scene count', async () => {
+    const { filmSource } = globs();
+    useSource(filmSource);
+    const [only] = await listFilms();
+    expect(only.slug).toBe(film);
+    expect(only.scenes).toBe((await filmSource.films())[0].json.scenes.length);
+    expect(only.title).toBeTruthy();
   });
   it('validates every scene and localises it with no key left over', async () => {
     const { filmSource } = globs();
@@ -111,6 +136,17 @@ describe('stories', () => {
     const s = (await loadStory(withFigure, film, 'en'))!.sections.find((x) => x.id === id)!;
     expect(s.figure).toBe('top10');
     expect(s.motion).toBeUndefined();
+  });
+  it('has no story for a slug the index does not list, or one with no body in any language', async () => {
+    const { contentSource } = globs();
+    expect(await loadStory(contentSource, 'nope', 'en')).toBeNull();
+    expect(await loadStory({ ...contentSource, body: async () => null }, film, 'fr-CA')).toBeNull();
+  });
+  it('leaves sections as written when the source cannot say which scenes a film has', async () => {
+    const { contentSource } = globs();
+    const story = (await loadStory({ ...contentSource, sceneIds: undefined }, film, 'en'))!;
+    expect(story.sections.some((x) => x.motion)).toBe(false);
+    expect(story.film).toBeUndefined();
   });
   it('hides future-dated stories unless drafts are asked for', async () => {
     const { contentSource } = globs();

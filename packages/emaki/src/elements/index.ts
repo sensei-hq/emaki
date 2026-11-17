@@ -68,7 +68,8 @@ class MotionScene extends HTMLElement {
     if (!this.#sound) return;
     if (this.#sound.on) return this.#stopSound();
     this.#btn.textContent = '🔊'; this.#btn.setAttribute('aria-label', 'Sound off');
-    this.#sound.toggle(Math.min(this.#t, this.#m?.dur ?? 0));
+    // The sound is made right after the scene mounts, so a scene is always there by now.
+    this.#sound.toggle(Math.min(this.#t, this.#m!.dur));
   }
 }
 

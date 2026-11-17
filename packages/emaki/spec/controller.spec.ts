@@ -7,11 +7,12 @@ type Fake = { args: unknown[]; stage: HTMLElement; W: number; dur: number; rende
 const mounts: Fake[] = [];
 let gate: Promise<void> | null = null;
 let mountError: unknown = null;
+let fontsGate: Promise<void> | null = null;
 vi.mock('../src/mount.js', async (orig) => {
   const real = await orig<typeof import('../src/mount.js')>();
   return {
     ...real,
-    fontsReady: async () => {},
+    fontsReady: async () => { if (fontsGate) await fontsGate; },
     mountScene: async (...args: unknown[]) => {
       if (gate) await gate;
       if (mountError) throw mountError;
@@ -21,7 +22,7 @@ vi.mock('../src/mount.js', async (orig) => {
     },
   };
 });
-const { attachScene, ScenePlayerState, useSource } = await import('../src/index.js');
+const { attachScene, figurePlayer, ScenePlayerState, useSource } = await import('../src/index.js');
 
 let frames: FrameRequestCallback[] = [];
 let now = 0;
@@ -30,7 +31,7 @@ let observer: { cb: (e: { isIntersecting: boolean }[]) => void; observed: Elemen
 
 beforeEach(() => {
   mounts.length = 0;
-  gate = null; mountError = null; observer = null;
+  gate = null; mountError = null; fontsGate = null; observer = null;
   frames = []; now = 0;
   vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => { frames.push(cb); return frames.length; });
   vi.stubGlobal('cancelAnimationFrame', vi.fn());
@@ -224,5 +225,35 @@ describe('attachScene', () => {
     expect(mounts[0].render.mock.calls.length).toBe(renders);
     step(2);
     expect(frames).toHaveLength(0);
+  });
+});
+
+describe('attachScene, the rest of the way', () => {
+  it('mounts nothing when the view is destroyed while the fonts load', async () => {
+    let release!: () => void;
+    fontsGate = new Promise((r) => (release = r));
+    const p = loaded();
+    const view = attachScene(box(), p);
+    await new Promise((r) => setTimeout(r, 0));
+    view.destroy();
+    release();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(mounts).toHaveLength(0);
+  });
+
+  it('shapes an empty player\'s host as landscape', () => {
+    const host = box();
+    const view = attachScene(host, new ScenePlayerState());
+    view.fit(960);
+    expect(host.style.aspectRatio).toBe('1920 / 1080');
+    view.destroy();
+  });
+});
+
+describe('figurePlayer', () => {
+  it('is a player already pointed at its scene', () => {
+    const p = figurePlayer({ film: 'f', scene: 'b', layout: 'figure' });
+    expect(p.ref).toEqual({ film: 'f', scene: 'b', layout: 'figure' });
+    expect(p.status).toBe('idle');
   });
 });

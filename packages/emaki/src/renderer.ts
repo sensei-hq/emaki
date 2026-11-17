@@ -83,9 +83,7 @@ function addStyle(host: HTMLElement, css: string | undefined) {
 }
 
 // W.portrait (shared.js), ported to the mount host: lift hoisted words out, frame the crop band.
-function applyPortrait(host: HTMLElement, spec: NonNullable<SceneSpec['portrait']>, PW: number) {
-  const ground = host.querySelector('.ground');
-  if (!ground) return;
+function applyPortrait(host: HTMLElement, ground: HTMLElement, spec: NonNullable<SceneSpec['portrait']>, PW: number) {
   const lifted = spec.hoist.flatMap((s) => [...ground.querySelectorAll(s)]);
   const inner = document.createElement('div');
   inner.className = 'pt-inner';
@@ -135,7 +133,7 @@ export function mountJsonScene(host: HTMLElement, raw: LocalizedSceneSpec, opts:
   ground.innerHTML = `<div class="cam json-cam">${laid.cam}</div>${laid.ground}`;
   host.appendChild(ground);
   addStyle(host, spec.css);
-  if (spec.portrait && opts.H > opts.W) applyPortrait(host, spec.portrait, opts.W);
+  if (spec.portrait && opts.H > opts.W) applyPortrait(host, ground, spec.portrait, opts.W);
   addStyle(host, localeCss(raw, opts.locale));
   if (opts.dir) host.setAttribute('dir', opts.dir);
   return {

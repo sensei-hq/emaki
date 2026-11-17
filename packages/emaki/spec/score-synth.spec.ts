@@ -1,7 +1,7 @@
 // Characterization: the synthesis graph each instrument, effect and playback window builds, recorded call by call on a
 // fake AudioContext, so restructuring the synth cannot change a sound.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { play, type Ev, type Program, type Score } from '../src/score.js';
+import { play, renderWav, type Ev, type Program, type Score } from '../src/score.js';
 
 /** An AudioContext that records every node, connection, start/stop and parameter write, in order. */
 function recordingContext() {
@@ -92,5 +92,32 @@ describe('score synthesis', () => {
     const s = (fadeOut: number) => score([{ kind: 'fx', name: 'tick', t: 1, dur: 0.1, vel: 30 }], {}, { gain: 0, fadeOut });
     expect(render(s(1.5), 0, 5, 0, 10).log).toMatchSnapshot('before the fade');
     expect(render(s(0), 0, 10, 0, 10).log).toMatchSnapshot('no fade');
+  });
+});
+
+describe('offline render', () => {
+  it('renders the whole score to a 16-bit stereo WAV, clipping what goes past full scale', async () => {
+    const rendered: { length: number; sampleRate: number }[] = [];
+    vi.stubGlobal('OfflineAudioContext', class {
+      ctx: BaseAudioContext; destination: unknown;
+      constructor(_channels: number, length: number, sampleRate: number) {
+        this.ctx = recordingContext().ctx;
+        this.destination = (this.ctx as unknown as { destination: unknown }).destination;
+        rendered.push({ length, sampleRate });
+        return new Proxy(this, { get: (o, k) => (k in o ? o[k as keyof typeof o] : (o.ctx as unknown as Record<string | symbol, unknown>)[k]) });
+      }
+      async startRendering() {
+        const L = new Float32Array([0, 0.5, 2]), R = new Float32Array([0, -0.5, -2]);
+        return { length: 3, getChannelData: (c: number) => (c ? R : L) };
+      }
+    });
+    const bytes = await renderWav(score([{ kind: 'fx', name: 'tick', t: 0.1, dur: 0.1, vel: 50 }]), 1, 1000);
+    vi.unstubAllGlobals();
+    expect(rendered).toEqual([{ length: 1200, sampleRate: 1000 }]);
+    const text = (o: number, n: number) => String.fromCharCode(...bytes.subarray(o, o + n));
+    const view = new DataView(bytes.buffer);
+    expect([text(0, 4), text(8, 4), text(12, 4), text(36, 4)]).toEqual(['RIFF', 'WAVE', 'fmt ', 'data']);
+    expect([view.getUint32(4, true), view.getUint16(22, true), view.getUint32(24, true), view.getUint32(40, true)]).toEqual([48, 2, 1000, 12]);
+    expect([0, 1, 2].flatMap((i) => [view.getInt16(44 + i * 4, true), view.getInt16(46 + i * 4, true)])).toEqual([0, 0, 16383, -16383, 32767, -32767]);
   });
 });

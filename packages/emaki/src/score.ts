@@ -60,7 +60,7 @@ export function collectScore(code: string, T: Record<string, number>): Score {
 
 // ── Synthesis ──────────────────────────────────────────────────────────────────────────────────────
 
-function rng(seed: number) { let s = seed >>> 0 || 1; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
+function rng(seed: number) { let s = seed; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
 const noiseCache = new WeakMap<BaseAudioContext, AudioBuffer>();
 function noise(ctx: BaseAudioContext) {
   let b = noiseCache.get(ctx);

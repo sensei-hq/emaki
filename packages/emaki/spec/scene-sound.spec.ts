@@ -3,11 +3,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const played: unknown[][] = [];
+const handles: { stop: ReturnType<typeof vi.fn> }[] = [];
 vi.mock('../src/score.js', async (orig) => {
   const real = await orig<typeof import('../src/score.js')>();
-  return { ...real, play: (...a: unknown[]) => { played.push(a); return { stop: vi.fn() }; } };
+  return { ...real, play: (...a: unknown[]) => { played.push(a); const h = { stop: vi.fn() }; handles.push(h); return h; } };
 });
-const { loadFilm, narration, sceneSound, useSource, DUCK } = await import('../src/index.js');
+const { filmScore, loadFilm, narration, sceneSound, scorePlayer, useSource, DUCK } = await import('../src/index.js');
 type FilmJson = import('../src/index.js').FilmJson;
 
 class FakeAudio {
@@ -136,6 +137,13 @@ describe('narration', () => {
     expect(narration(f, 'en').has('b')).toBe(false);
   });
 
+  it('stays silent when the source serves no voice at all', async () => {
+    const f = (await loadFilm('f'))!;
+    voice = undefined;
+    expect(await narration(f, 'en').start('b', 1)).toBe(false);
+    expect(playing()).toHaveLength(0);
+  });
+
   it('stays silent when the take fails to load', async () => {
     const f = (await loadFilm('f'))!;
     voice = async () => { throw new Error('offline'); };
@@ -154,5 +162,37 @@ describe('narration', () => {
     expect(playing()).toHaveLength(1);
     expect(playing()[0].currentTime).toBe(1.5);
     n.stop();
+  });
+});
+
+describe('film score', () => {
+  it('moves a sound placed after a pause along with the scene it falls in', async () => {
+    useSource({
+      films: async () => [{ slug: 'f', json: film }],
+      css: async () => '',
+      scene: async () => null,
+      score: async () => score,
+      timing: async () => ({ scenes: { b: { holds: [[0.2, 1]] } } }),
+    });
+    const sc = (await filmScore((await loadFilm('f'))!))!;
+    expect(sc.events.map((e) => e.t)).toEqual([3.5]);
+  });
+});
+
+describe('score player', () => {
+  it('starts ducked when the narration was already speaking, and restarting or stopping silences what was playing', async () => {
+    const p = scorePlayer((await loadFilm('f'))!);
+    p.duck(true);
+    expect(await p.start(0)).toBe(true);
+    expect(FakeCtx.all[0].gains[0].gain.value).toBe(DUCK);
+    const first = handles.at(-1)!;
+    expect(await p.start(1)).toBe(true);
+    expect(first.stop).toHaveBeenCalledTimes(1);
+    expect(FakeCtx.all).toHaveLength(1);
+    p.stop();
+    expect(handles.at(-1)!.stop).toHaveBeenCalledTimes(1);
+    p.stop();
+    p.close();
+    expect(FakeCtx.all[0].closed).toBe(true);
   });
 });

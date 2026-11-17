@@ -1,7 +1,7 @@
 // setupMotion: one call wires the source, the languages and the logos. Logos can come straight from an app's own
 // import.meta.glob, so a key that is a path to an .svg registers under the file's basename, the name scenes use.
 import { describe, expect, it } from 'vitest';
-import { renderComponent, setupMotion } from '../src/index.js';
+import { defaultLocale, locales, renderComponent, setupMotion } from '../src/index.js';
 import { viteSource } from '../src/loaders/vite.js';
 
 const source = { films: async () => [], css: async () => '', scene: async () => null, score: async () => null };
@@ -25,5 +25,13 @@ describe('setupMotion logos', () => {
     expect(Object.keys(logos)).toEqual(['hooli']);
     setupMotion({ source, logos });
     expect(draw('hooli')).toContain('gold');
+  });
+});
+
+describe('setupMotion languages', () => {
+  it('takes the languages from site.json, and needs no logos', () => {
+    setupMotion({ source, site: { locales: ['en', 'ja'], defaultLocale: 'ja' } });
+    expect(locales()).toEqual(['en', 'ja']);
+    expect(defaultLocale()).toBe('ja');
   });
 });
