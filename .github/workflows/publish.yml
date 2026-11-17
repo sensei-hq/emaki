@@ -40,6 +40,11 @@ jobs:
       - name: Check the lockfile and the library manifest match the release
         run: bunx vitest run --project config
 
+      # Every package, before any is published: a re-run skips what is already on npm, and a skipped package is not
+      # built by its own prepublishOnly, so a wrapper would compile against a core with no dist (TS2307).
+      - name: Build the packages
+        run: bun run build:all
+
       - name: Publish packages
         env:
           NODE_NO_WARNINGS: 1
@@ -47,6 +52,7 @@ jobs:
           # Dependency order: the core first, so each package's dependencies are already on npm.
           PACKAGES=(emaki emaki-svelte emaki-react emaki-vue emaki-posting emaki-cli)
           VERSION=$(node -p "require('./package.json').version")
+          failed=()
           for name in "${PACKAGES[@]}"; do
             pkg="./packages/${name}/package.json"
             [ -f "$pkg" ] || continue
@@ -57,22 +63,28 @@ jobs:
               echo "Skipping ${PKG_NAME}@${VERSION}: already published"
               continue
             fi
+            # Each step exits on failure itself: on the left of `||`, the subshell runs without bash -e.
             (
-              cd "./packages/${name}"
+              cd "./packages/${name}" || exit 1
               if node -e "const s=require('./package.json').scripts||{}; process.exit(s.prepublishOnly?0:1)" 2>/dev/null; then
                 echo "Building ${PKG_NAME}..."
-                bun run prepublishOnly
+                bun run prepublishOnly || exit 1
               fi
               # bun pm pack rewrites workspace:* deps; it does not run lifecycle scripts.
-              TARBALL=$(bun pm pack | grep '\.tgz$')
+              TARBALL=$(bun pm pack | grep '\.tgz$') || exit 1
               # The last gate: a sibling pinned to another release must not reach npm.
-              node ../../config/check-pins.mjs "$TARBALL"
-              bunx npm publish "$TARBALL" --provenance --access public --tag latest || {
-                echo "::warning::Failed to publish ${PKG_NAME}@${VERSION}; may need a manual retry"
-              }
+              node ../../config/check-pins.mjs "$TARBALL" || { rm -f "$TARBALL"; exit 1; }
+              bunx npm publish "$TARBALL" --provenance --access public --tag latest
+              status=$?
               rm -f "$TARBALL"
-            )
+              exit $status
+            ) || failed+=("${PKG_NAME}")
           done
+          # Try every package, then fail the run if any did not publish: re-run it (published ones are skipped).
+          if [ ${#failed[@]} -gt 0 ]; then
+            echo "::error::Not published: ${failed[*]}"
+            exit 1
+          fi
 
       - name: Create GitHub release
         run: npx changelogithub
