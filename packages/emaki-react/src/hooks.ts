@@ -21,18 +21,24 @@ export function usePlayerFor(ref: SceneRef | null) {
 }
 
 export type Show = Awaited<ReturnType<typeof createShow>>;
-export interface ShowState { index: number; local: number; playing: boolean; sound: boolean; layout: Layout }
+export interface ShowState { index: number; local: number; playing: boolean; sound: boolean; layout: Layout; started: boolean }
 
-/** State of a story player controller (from <MotionShow onReady>): re-renders on scene, play, sound, layout changes. */
+/** State of a story player controller (from <MotionShow onReady>): re-renders on scene, play, sound, layout changes,
+ *  and follows the playhead (read once a frame; it moves without notifications). `started` is false on a poster. */
 export function useShowState(show: Show | null): ShowState | null {
   const [st, setSt] = useState<ShowState | null>(show ? show.state : null);
-  const last = useRef(show);
   useEffect(() => {
-    last.current = show;
     if (!show) return setSt(null);
     setSt(show.state);
     const off = show.on((s) => setSt({ ...s }));
-    return () => { off(); };
+    let raf = 0;
+    const follow = () => {
+      const local = show.state.local;
+      setSt((s) => (s && s.local !== local ? { ...s, local } : s));
+      raf = requestAnimationFrame(follow);
+    };
+    raf = requestAnimationFrame(follow);
+    return () => { off(); cancelAnimationFrame(raf); };
   }, [show]);
   return st;
 }

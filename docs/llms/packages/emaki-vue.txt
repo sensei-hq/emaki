@@ -25,7 +25,11 @@ Every component takes `mode`: `light`, `dark` or `auto` (the default). Auto foll
 (see @senseihq/emaki); `ShowPage` captures light unless asked, and its `src` (`json`/`js`) forces where scenes come
 from.
 
+`MotionShow` props: `film`, `locale`, `layout`, `mode`, `poster` (cover frame first; `title`, `length` on it), `cover` (an
+image URL shown with the play button; the show is created on the first click, sound on), `fullscreenHref`, `controls`,
+`slide`, `loop`; `@ready(show)`. Its controls show a progress tick per scene.
+
 Call `setupMotion({ source, site, logos })` once on the client first. Composables: `useScenePlayer(player)` (a
-reactive snapshot of a `ScenePlayerState`) and `useShowState(showRef)`.
+reactive snapshot of a `ScenePlayerState`) and `useShowState(showRef)` (`{ index, local, playing, sound, layout, started }`, the playhead followed once a frame).
 
 MIT © SenecaGlobal

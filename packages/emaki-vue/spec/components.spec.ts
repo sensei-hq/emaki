@@ -256,4 +256,18 @@ describe('MotionShow poster, cover and progress (as the Svelte player)', () => {
     const fills = ['Scene 1', 'Scene 2', 'Scene 3'].map((n) => (button(n).firstElementChild as HTMLElement).style.width);
     expect(fills).toEqual(['100%', '100%', '50%']);
   });
+
+  it('names the play button plainly without a title or length, and drops a show a newer start overtook', async () => {
+    let resolve!: (s: Show) => void;
+    vi.mocked(createShow).mockImplementationOnce(() => new Promise((r) => { resolve = r; }));
+    const props = await mount(MotionShow, { film: 'f', poster: true });
+    props.film = 'g';
+    await settle();
+    const late = fakeShow();
+    resolve(late as unknown as Show);
+    await settle();
+    expect(late.destroy).toHaveBeenCalled();
+    expect(button('Play the film').textContent).toBe('Play the film');
+  });
 });
+
