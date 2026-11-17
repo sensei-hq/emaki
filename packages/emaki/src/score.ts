@@ -77,6 +77,12 @@ function impulse(ctx: BaseAudioContext, secs = 2.6) {
   return b;
 }
 
+/** An oscillator's waveform and pitch (Hz), detuned in cents. */
+interface Wave { type: OscillatorType; f: number; detune?: number }
+/** An amplitude envelope: rises over `attack` s to `peak`, then falls away over about `decay` s; with `sustain`
+ *  (a fraction of the peak) it settles there instead, holds `hold` s past the attack, then releases over `release` s. */
+interface Envelope { attack: number; peak: number; decay: number; sustain?: number; release?: number; hold?: number }
+
 /** A mixer for one playback: tracks feed a dry bus and a shared reverb; everything ends at `out`. */
 class Mix {
   out: GainNode; rev: ConvolverNode; nodes: AudioScheduledSourceNode[] = [];
@@ -97,11 +103,15 @@ class Mix {
     const s = this.ctx.createGain(); s.gain.value = p.rev; g.connect(s).connect(this.rev);
     return g;
   }
-  osc(type: OscillatorType, f: number, at: number, end: number, to: AudioNode, detune = 0) {
-    const o = this.ctx.createOscillator(); o.type = type; o.frequency.value = f; o.detune.value = detune;
+  /** An oscillator of `wave` into `to`, sounding from `at` to `end`. */
+  osc(to: AudioNode, wave: Wave, at: number, end: number) {
+    const o = this.ctx.createOscillator(); o.type = wave.type; o.frequency.value = wave.f; o.detune.value = wave.detune ?? 0;
     o.connect(to); o.start(at); o.stop(end); this.nodes.push(o); return o;
   }
-  env(to: AudioNode, at: number, a: number, peak: number, decay: number, sustain = 0, rel = 0.05, hold = 0) {
+  /** A gain into `to` shaped by `e` from `at`: attack to the peak, then a decay to 0 or, with sustain, a held level
+   *  released after `hold`. */
+  env(to: AudioNode, at: number, e: Envelope) {
+    const { attack: a, peak, decay, sustain = 0, release: rel = 0.05, hold = 0 } = e;
     const g = this.ctx.createGain(), p = g.gain;
     p.setValueAtTime(0, at); p.linearRampToValueAtTime(peak, at + a);
     if (sustain > 0) { p.setTargetAtTime(peak * sustain, at + a, decay / 3); p.setValueAtTime(peak * sustain, at + a + hold); p.setTargetAtTime(0, at + a + hold, rel / 3); }
@@ -114,71 +124,93 @@ class Mix {
   }
 }
 
-function playNote(m: Mix, p: Program, e: Extract<Ev, { kind: 'note' }>, at: number, input: AudioNode) {
-  const f = hz(e.midi), v = (e.vel / 127) ** 0.9, ctx = m.ctx;
-  switch (p.inst) {
-    case 'pad': {
-      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 500 + p.bright * 1800; lp.Q.value = 0.3;
-      const g = m.env(input, at, 0.9, v * VOICE_LEVEL.pad, 1, 1, 1.4, Math.max(0.1, e.dur - 0.9)); lp.connect(g);
-      const end = at + e.dur + 2;
-      m.osc('sawtooth', f, at, end, lp, -7); m.osc('sawtooth', f, at, end, lp, 7); m.osc('triangle', f / 2, at, end, lp);
-      break;
-    }
-    case 'vibes': case 'bell': {
-      const g = m.env(input, at, 0.004, v * VOICE_LEVEL.bell, Math.max(1.2, e.dur + 0.8));
-      const end = at + e.dur + 2.5;
-      m.osc('sine', f, at, end, g);
-      const h = m.env(input, at, 0.002, v * 0.12, 0.5); m.osc('sine', f * 4, at, end, h);
-      const trem = ctx.createOscillator(); trem.frequency.value = 5.2; const tg = ctx.createGain(); tg.gain.value = v * 0.06;
-      trem.connect(tg).connect(g.gain); trem.start(at); trem.stop(end); m.nodes.push(trem);
-      break;
-    }
-    case 'marimba': {
-      const g = m.env(input, at, 0.003, v * VOICE_LEVEL.marimba, 0.55); const end = at + 1.2;
-      m.osc('sine', f, at, end, g);
-      const h = m.env(input, at, 0.002, v * 0.2, 0.09); m.osc('sine', f * 4, at, end, h);
-      break;
-    }
-    case 'pluck': {
-      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(3200, at); lp.frequency.setTargetAtTime(700, at, 0.12);
-      const g = m.env(input, at, 0.003, v * VOICE_LEVEL.pluck, 0.45); lp.connect(g);
-      m.osc('triangle', f, at, at + 1, lp); m.osc('sawtooth', f, at, at + 1, lp, 4);
-      break;
-    }
-    case 'ep': {
-      const g = m.env(input, at, 0.006, v * VOICE_LEVEL.ep, Math.max(1.4, e.dur + 0.6)); const end = at + e.dur + 2;
-      const car = m.osc('sine', f, at, end, g);
-      const mod = ctx.createOscillator(); mod.frequency.value = f; const mi = ctx.createGain();
-      mi.gain.setValueAtTime(f * 1.2, at); mi.gain.setTargetAtTime(f * 0.1, at, 0.25);
-      mod.connect(mi).connect(car.frequency); mod.start(at); mod.stop(end); m.nodes.push(mod);
-      break;
-    }
-    default: { // bass and anything else: a round sine
-      const g = m.env(input, at, 0.01, v * VOICE_LEVEL.bass, Math.max(0.6, e.dur)); m.osc('sine', f, at, at + e.dur + 1, g); m.osc('triangle', f, at, at + e.dur + 1, g);
-    }
-  }
+/** One note to voice: the mix, its program, frequency, velocity (0 … 1, shaped), start, length and input. */
+interface Strike { m: Mix; p: Program; f: number; v: number; at: number; dur: number; input: AudioNode }
+
+/** A vibraphone/bell: a long sine with a fourth-harmonic shimmer and a slow tremolo. */
+function bell({ m, f, v, at, dur, input }: Strike) {
+  const g = m.env(input, at, { attack: 0.004, peak: v * VOICE_LEVEL.bell, decay: Math.max(1.2, dur + 0.8) });
+  const end = at + dur + 2.5;
+  m.osc(g, { type: 'sine', f }, at, end);
+  const h = m.env(input, at, { attack: 0.002, peak: v * 0.12, decay: 0.5 }); m.osc(h, { type: 'sine', f: f * 4 }, at, end);
+  const trem = m.ctx.createOscillator(); trem.frequency.value = 5.2; const tg = m.ctx.createGain(); tg.gain.value = v * 0.06;
+  trem.connect(tg).connect(g.gain); trem.start(at); trem.stop(end); m.nodes.push(trem);
 }
 
+/** Each instrument's voice. Anything not named here plays as the bass. */
+const INSTRUMENTS: Record<string, (s: Strike) => void> = {
+  pad: ({ m, p, f, v, at, dur, input }) => {
+    const lp = m.ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 500 + p.bright * 1800; lp.Q.value = 0.3;
+    const g = m.env(input, at, { attack: 0.9, peak: v * VOICE_LEVEL.pad, decay: 1, sustain: 1, release: 1.4, hold: Math.max(0.1, dur - 0.9) }); lp.connect(g);
+    const end = at + dur + 2;
+    m.osc(lp, { type: 'sawtooth', f, detune: -7 }, at, end); m.osc(lp, { type: 'sawtooth', f, detune: 7 }, at, end); m.osc(lp, { type: 'triangle', f: f / 2 }, at, end);
+  },
+  vibes: bell,
+  bell,
+  marimba: ({ m, f, v, at, input }) => {
+    const g = m.env(input, at, { attack: 0.003, peak: v * VOICE_LEVEL.marimba, decay: 0.55 }); const end = at + 1.2;
+    m.osc(g, { type: 'sine', f }, at, end);
+    const h = m.env(input, at, { attack: 0.002, peak: v * 0.2, decay: 0.09 }); m.osc(h, { type: 'sine', f: f * 4 }, at, end);
+  },
+  pluck: ({ m, f, v, at, input }) => {
+    const lp = m.ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(3200, at); lp.frequency.setTargetAtTime(700, at, 0.12);
+    const g = m.env(input, at, { attack: 0.003, peak: v * VOICE_LEVEL.pluck, decay: 0.45 }); lp.connect(g);
+    m.osc(lp, { type: 'triangle', f }, at, at + 1); m.osc(lp, { type: 'sawtooth', f, detune: 4 }, at, at + 1);
+  },
+  ep: ({ m, f, v, at, dur, input }) => {
+    const g = m.env(input, at, { attack: 0.006, peak: v * VOICE_LEVEL.ep, decay: Math.max(1.4, dur + 0.6) }); const end = at + dur + 2;
+    const car = m.osc(g, { type: 'sine', f }, at, end);
+    const mod = m.ctx.createOscillator(); mod.frequency.value = f; const mi = m.ctx.createGain();
+    mi.gain.setValueAtTime(f * 1.2, at); mi.gain.setTargetAtTime(f * 0.1, at, 0.25);
+    mod.connect(mi).connect(car.frequency); mod.start(at); mod.stop(end); m.nodes.push(mod);
+  },
+};
+
+/** Bass and anything else: a round sine. */
+function bass({ m, f, v, at, dur, input }: Strike) {
+  const g = m.env(input, at, { attack: 0.01, peak: v * VOICE_LEVEL.bass, decay: Math.max(0.6, dur) }); m.osc(g, { type: 'sine', f }, at, at + dur + 1); m.osc(g, { type: 'triangle', f }, at, at + dur + 1);
+}
+
+function playNote(m: Mix, p: Program, e: Extract<Ev, { kind: 'note' }>, at: number, input: AudioNode) {
+  const voice = Object.hasOwn(INSTRUMENTS, p.inst) ? INSTRUMENTS[p.inst] : bass;
+  voice({ m, p, f: hz(e.midi), v: (e.vel / 127) ** 0.9, at, dur: e.dur, input });
+}
+
+/** One effect to sound: the mix, the event, its start and input, and its shaped velocity. */
+interface Hit { m: Mix; e: Extract<Ev, { kind: 'fx' }>; at: number; input: AudioNode; v: number }
+
+function filter(ctx: BaseAudioContext, type: BiquadFilterType, f: number, q = 0.7) {
+  const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = q; return b;
+}
+const VIBES: Program = { inst: 'vibes', gain: 0, rev: 0.5, pan: 0, bright: 0.5 };
+/** A vibes note of `mi` at `t` (the pitched effects are made of these). */
+const ring = ({ m, input }: Hit, mi: number, t: number, vel: number) =>
+  playNote(m, VIBES, { kind: 'note', track: 'fx', midi: mi, t: 0, dur: 1, vel }, t, input);
+/** A noise sweep through a band-pass rising from 300 Hz to `top` over the effect, swelling and fading. */
+function sweep({ m, e, at, input, v }: Hit, top: number) {
+  const bp = filter(m.ctx, 'bandpass', 300, 1.2); bp.frequency.setValueAtTime(300, at); bp.frequency.exponentialRampToValueAtTime(top, at + e.dur);
+  const g = m.ctx.createGain(); g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime(v * 0.35, at + e.dur * 0.6); g.gain.linearRampToValueAtTime(0, at + e.dur);
+  bp.connect(g).connect(input); m.noise(at, e.dur + 0.05, bp);
+}
+
+/** Each effect's sound. Anything not named here is a short sine blip. */
+const EFFECTS: Record<string, (h: Hit) => void> = {
+  click: ({ m, at, input, v }) => { const g = m.env(input, at, { attack: 0.001, peak: v * 0.5, decay: 0.025 }); const hp = filter(m.ctx, 'highpass', 2400); hp.connect(g); m.noise(at, 0.05, hp); },
+  tick: ({ m, at, input, v }) => { const g = m.env(input, at, { attack: 0.001, peak: v * 0.3, decay: 0.04 }); m.osc(g, { type: 'sine', f: 2100 }, at, at + 0.1); },
+  thud: ({ m, at, input, v }) => { const g = m.env(input, at, { attack: 0.004, peak: v * 0.9, decay: 0.3 }); const o = m.osc(g, { type: 'sine', f: 95 }, at, at + 0.6); o.frequency.setTargetAtTime(48, at, 0.08); },
+  pop: ({ m, at, input, v }) => { const g = m.env(input, at, { attack: 0.002, peak: v * 0.45, decay: 0.07 }); const o = m.osc(g, { type: 'sine', f: 420 }, at, at + 0.2); o.frequency.setTargetAtTime(980, at, 0.02); },
+  whoosh: (h) => sweep(h, 2400),
+  revswell: (h) => sweep(h, 5000),
+  roll: ({ m, e, at, input }) => { for (let k = 0; k * 0.06 < e.dur; k++) playFx(m, { ...e, name: 'tick', vel: e.vel * 0.7 }, at + k * 0.06, input); },
+  ding: (h) => ring(h, h.e.pitch ?? 84, h.at, h.e.vel),
+  chime: (h) => [0, 4, 7].forEach((d, i) => ring(h, (h.e.pitch ?? 79) + d, h.at + i * 0.09, h.e.vel * 0.8)),
+  sparkle: (h) => [0, 4, 7, 12, 16].forEach((d, i) => ring(h, (h.e.pitch ?? 84) + d, h.at + i * 0.05, h.e.vel * 0.55)),
+};
+const blip = ({ m, at, input, v }: Hit) => { const g = m.env(input, at, { attack: 0.001, peak: v * 0.3, decay: 0.05 }); m.osc(g, { type: 'sine', f: 1500 }, at, at + 0.1); };
+
 function playFx(m: Mix, e: Extract<Ev, { kind: 'fx' }>, at: number, input: AudioNode) {
-  const v = (e.vel / 127) ** 0.9, ctx = m.ctx;
-  const filt = (type: BiquadFilterType, f: number, q = 0.7) => { const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = q; return b; };
-  const bell = (mi: number, t: number, vel: number) => playNote(m, { inst: 'vibes', gain: 0, rev: 0.5, pan: 0, bright: 0.5 }, { kind: 'note', track: 'fx', midi: mi, t: 0, dur: 1, vel }, t, input);
-  switch (e.name) {
-    case 'click': { const g = m.env(input, at, 0.001, v * 0.5, 0.025); const hp = filt('highpass', 2400); hp.connect(g); m.noise(at, 0.05, hp); break; }
-    case 'tick': { const g = m.env(input, at, 0.001, v * 0.3, 0.04); m.osc('sine', 2100, at, at + 0.1, g); break; }
-    case 'thud': { const g = m.env(input, at, 0.004, v * 0.9, 0.3); const o = m.osc('sine', 95, at, at + 0.6, g); o.frequency.setTargetAtTime(48, at, 0.08); break; }
-    case 'pop': { const g = m.env(input, at, 0.002, v * 0.45, 0.07); const o = m.osc('sine', 420, at, at + 0.2, g); o.frequency.setTargetAtTime(980, at, 0.02); break; }
-    case 'whoosh': case 'revswell': {
-      const bp = filt('bandpass', 300, 1.2); bp.frequency.setValueAtTime(300, at); bp.frequency.exponentialRampToValueAtTime(e.name === 'whoosh' ? 2400 : 5000, at + e.dur);
-      const g = ctx.createGain(); g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime(v * 0.35, at + e.dur * 0.6); g.gain.linearRampToValueAtTime(0, at + e.dur);
-      bp.connect(g).connect(input); m.noise(at, e.dur + 0.05, bp); break;
-    }
-    case 'roll': { for (let k = 0; k * 0.06 < e.dur; k++) playFx(m, { ...e, name: 'tick', vel: e.vel * 0.7 }, at + k * 0.06, input); break; }
-    case 'ding': bell(e.pitch ?? 84, at, e.vel); break;
-    case 'chime': [0, 4, 7].forEach((d, i) => bell((e.pitch ?? 79) + d, at + i * 0.09, e.vel * 0.8)); break;
-    case 'sparkle': [0, 4, 7, 12, 16].forEach((d, i) => bell((e.pitch ?? 84) + d, at + i * 0.05, e.vel * 0.55)); break;
-    default: { const g = m.env(input, at, 0.001, v * 0.3, 0.05); m.osc('sine', 1500, at, at + 0.1, g); }
-  }
+  const sound = Object.hasOwn(EFFECTS, e.name) ? EFFECTS[e.name] : blip;
+  sound({ m, e, at, input, v: (e.vel / 127) ** 0.9 });
 }
 
 /**
