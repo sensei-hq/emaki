@@ -20,13 +20,15 @@ async function scoreFor(job, call) {
 	return audio
 }
 
-/** Seeks the page to each frame of the range and writes its JPEG to ffmpeg's stdin, waiting when the pipe is full. */
+/** Seeks the page to each frame of the range and writes its JPEG to ffmpeg's stdin, waiting when the pipe is full.
+ *  Stops when ffmpeg has quit (its stdin closed); its exit code says why. */
 async function pipeFrames(job, page, call, ff, { layout, t0, end, frames }) {
 	const { fps, log } = job
-	for (let i = 0; i < frames; i++) {
+	for (let i = 0; i < frames && !ff.stdin.destroyed; i++) {
 		await call((t) => window.__show.seek(t), t0 + i / fps)
 		const jpg = await page.screenshot({ type: 'jpeg', quality: 94 })
-		if (!ff.stdin.write(jpg)) await new Promise((r) => ff.stdin.once('drain', r))
+		if (!ff.stdin.write(jpg) && !ff.stdin.destroyed)
+			await new Promise((r) => { ff.stdin.once('drain', r); ff.stdin.once('close', r) })
 		if (i % (fps * 10) === 0) log(`  ${layout} ${(t0 + i / fps).toFixed(1).padStart(6)}s / ${end.toFixed(1)}s`)
 	}
 }
@@ -39,11 +41,15 @@ async function captureFrames(job, { page, meta, errors }, call, layout, dst) {
 	const tmp = dst.replace(/\.mp4$/i, '.part.mp4')
 	mkdirSync(dirname(dst), { recursive: true })
 	const ff = spawn('ffmpeg', encodeArgs({ fps, seconds, dst: tmp, audio, t0 }), { stdio: ['pipe', 'inherit', 'inherit'] })
-	const done = new Promise((ok, bad) => { ff.on('close', (c) => (c ? bad(new Error('ffmpeg failed')) : ok())); ff.on('error', bad) })
+	// Settles with the failure (or null) rather than rejecting, so an ffmpeg that quits mid-capture is reported once the
+	// frames stop, not as an unhandled rejection; a write to its closed stdin (EPIPE) is the same failure.
+	const done = new Promise((ok) => { ff.on('close', (c) => ok(c ? new Error('ffmpeg failed') : null)); ff.on('error', ok) })
+	ff.stdin.on('error', () => {})
 	const began = Date.now()
 	await pipeFrames(job, page, call, ff, { layout, ...range })
 	ff.stdin.end()
-	await done.catch((e) => die(e.message))
+	const failed = await done
+	if (failed) die(failed.message)
 	if (errors.length) die('the page reported errors: ' + errors.slice(0, 3).join('; '))
 	renameSync(tmp, dst)
 	log(`  wrote ${p.rel(dst)} (${frames} frames, ${Math.round((Date.now() - began) / 1000)}s)`)
