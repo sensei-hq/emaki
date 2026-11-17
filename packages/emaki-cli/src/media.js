@@ -1,5 +1,5 @@
 // What render and build decide, as pure functions: frame ranges, output paths, ffmpeg arguments, the freeze table,
-// chapters, the description. capture.js and voice.js run what these return (Playwright, ffmpeg); the specs test these.
+// chapters, the description. render.js and build-video.js run what these return (Playwright, ffmpeg); the specs test these.
 // Build's own decisions live in build-media.js and are re-exported here.
 // The reference is the sensei-hq.com website's films/tools/render.py and build.py.
 import { join, resolve } from 'node:path'

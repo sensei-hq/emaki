@@ -1,5 +1,5 @@
 // What build decides, as pure functions (build.py's): the freeze table, the ffmpeg arguments for the final videos,
-// chapters, the description, the posters. voice.js runs what these return; media.js re-exports them.
+// chapters, the description, the posters. build-video.js runs what these return; media.js re-exports them.
 import { join } from 'node:path'
 import { runningTime } from './util.js'
 
