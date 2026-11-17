@@ -165,3 +165,22 @@ function fakeAudioContext() {
   }
   return { Ctx: new Proxy(Ctx, { construct: (C) => new Proxy(new C() as unknown as Record<string | symbol, unknown>, { get: (t, k) => (k in t ? t[k] : (t[k] = () => any())) }) }), gains };
 }
+
+describe('loaders', () => {
+  it('vite: the voice glob (?url) maps a scene to its narration, and a scene without one to null', async () => {
+    const { viteSource } = await import('../src/loaders/vite.js');
+    const { filmSource } = viteSource({
+      films: { '/content/films/f/film.json': film },
+      scenes: {},
+      voice: { '/content/films/f/voice/es/a.m4a': '/assets/a-1234.m4a' },
+    });
+    expect(await filmSource.voice!('f', 'es', 'a')).toBe('/assets/a-1234.m4a');
+    expect(await filmSource.voice!('f', 'en', 'a')).toBeNull();
+    expect(await filmSource.voice!('f', 'es', 'b')).toBeNull();
+  });
+
+  it('fetch: the published content folder\'s voice/<locale>/<scene>.m4a', async () => {
+    const { fetchFilmSource } = await import('../src/loaders/fetch.js');
+    expect(await fetchFilmSource('/c').voice!('f', 'es', 'a')).toBe('/c/films/f/voice/es/a.m4a');
+  });
+});
