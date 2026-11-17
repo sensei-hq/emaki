@@ -1,0 +1,369 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`renderer characterization > ends motion where it did 1`] = `2.8`;
+
+exports[`renderer characterization > evaluates every effect, easing and default the same at every time > frames de-DE 1`] = `
+[
+  "0 6937bdada7fbaab3",
+  "0.1 2797d83c56401b2d",
+  "0.2 01509264e62a14bd",
+  "0.3 179b666e348a879f",
+  "0.4 89667f184fb57622",
+  "0.5 2f3fdccd1bb0d35b",
+  "0.6 4b9ee69cf5689401",
+  "0.7 724a90a8bc629853",
+  "0.8 02f529127ecd22ae",
+  "0.9 4290216888474c3b",
+  "1 52009374541e2803",
+  "1.1 6b5a4fef99377d5e",
+  "1.2 8e439f733c6f5a9e",
+  "1.3 2d61b89ec9450be5",
+  "1.4 9f15720ef0591f7c",
+  "1.5 82f99fdd54346cfa",
+  "1.6 22d7bbea91569a19",
+  "1.7 9a8dcb4340b0756e",
+  "1.8 79558e57fd3a0e9f",
+  "1.9 288ce52618b81de6",
+  "2 c682c18a7e13e8f1",
+  "2.1 c2f87fe3c38c4d09",
+  "2.2 abefa46faee37cc8",
+  "2.3 b9938de5e727248d",
+  "2.4 e9b6ffa1a135cc06",
+  "2.5 167557842b682c03",
+  "2.6 7a367e8d8c6cea0d",
+  "2.7 58f8601d192b1fb8",
+  "2.8 cf8aab38d4f6969c",
+  "2.9 89dd126491f94c9e",
+  "3 78f64bd1741d1002",
+  "3.1 bc28e7e3d9e1f802",
+  "3.2 202f7c84ddd3cad9",
+  "3.3 4ef72b237d1a7cec",
+  "3.4 ba095e9833803a41",
+  "3.5 c97fa7c9f767af1f",
+  "3.6 e30df853856ac6e2",
+  "3.7 34624a435fc2c39f",
+  "3.8 f5f953cb683d43c9",
+  "3.9 3cd1b8301302e9a5",
+  "4 2617909b8416eca8",
+]
+`;
+
+exports[`renderer characterization > evaluates every effect, easing and default the same at every time > frames default 1`] = `
+[
+  "0 6937bdada7fbaab3",
+  "0.1 027fa38106c17192",
+  "0.2 0b48e502a226ad36",
+  "0.3 1733127a5e4a1271",
+  "0.4 9fea96ee33bad245",
+  "0.5 b887b7b282c5c712",
+  "0.6 ac0ab6538febab71",
+  "0.7 0f606dd116b3aba3",
+  "0.8 22fb1b5f56969e88",
+  "0.9 9d41b416cad3f8ec",
+  "1 85d8bcb317c09911",
+  "1.1 4aa523a5c163df65",
+  "1.2 01d1bf09e93bae35",
+  "1.3 3013abc213b27bf9",
+  "1.4 6284ea5f85a0533e",
+  "1.5 a2bea1bc6895cd98",
+  "1.6 ee2110d6fa9c64e0",
+  "1.7 ee78a64181633481",
+  "1.8 cf0e3670fd9c7375",
+  "1.9 d65e2afa007b7fd8",
+  "2 93953783fb3a9d76",
+  "2.1 1b60b3021e076d04",
+  "2.2 aab666d488b2f2ed",
+  "2.3 75b54e747b4ad2d1",
+  "2.4 a28dfab42b046814",
+  "2.5 75ce4a5ce17cdd4e",
+  "2.6 e1da528f9878ef9a",
+  "2.7 3e156bfc13f304cb",
+  "2.8 b13decbd38472e68",
+  "2.9 e605952628b91c9e",
+  "3 c78c95cc89667d19",
+  "3.1 ef6f64c1651e827b",
+  "3.2 f8cf1847e8049474",
+  "3.3 7a4a0cfca17370bc",
+  "3.4 34afa1e097c64478",
+  "3.5 b8528d18e0acd042",
+  "3.6 0fdce50bf293fba7",
+  "3.7 bd2e9baa3a1a54d8",
+  "3.8 2ca3922c5ce20147",
+  "3.9 b6b0af30f0aa4f14",
+  "4 f2dda72883fbd205",
+]
+`;
+
+exports[`renderer characterization > mounts a spec with placeholders and no portrait host 1`] = `"<div class="ground"><div class="pt-frame" style="position: absolute; left: 0px; top: 0px; width: 100px; height: 1px; overflow: hidden;"><div class="pt-inner" style="position: absolute; left: 0px; top: 0px; width: 1920px; height: 1080px; transform-origin: 0 0; transform: translate(49.5px,0.0px) scale(1.0000);"><div class="cam json-cam"><p class="t">hola [missing]</p></div></div></div></div>"`;
+
+exports[`renderer characterization > mounts the DOM the same: portrait, scene and locale CSS, direction, and every op kind > mount es-MX 1080x1920 1`] = `
+[
+  "0 ade8c97961d08266",
+  "0.5 f294096fe29d7bac",
+  "1 fd3af469c28e37cb",
+  "1.5 d0d1e574862362ec",
+  "2 eda0d7bad32ec201",
+  "2.5 a37ab44ebaf14c74",
+  "3 d64c03cda619a655",
+]
+`;
+
+exports[`renderer characterization > mounts the DOM the same: portrait, scene and locale CSS, direction, and every op kind > mount fr 1920x1080 1`] = `
+[
+  "0 f9f1b7c867eea13d",
+  "0.5 d6019b1b167a65a0",
+  "1 c4ea2488515f9439",
+  "1.5 6b23575bacf251a2",
+  "2 cce4a2450a9fe291",
+  "2.5 f47af6208a7d1e25",
+  "3 19ed1d9e403d9acd",
+]
+`;
+
+exports[`renderer characterization > mounts the DOM the same: portrait, scene and locale CSS, direction, and every op kind > mount undefined 1920x1080 1`] = `
+[
+  "0 d7efc94d6fdf9c23",
+  "0.5 6a20e1d6f93dbe10",
+  "1 8117514d3a381b43",
+  "1.5 666af8d4307d894b",
+  "2 592259a4edaa1c38",
+  "2.5 51e84c0e670300de",
+  "3 846c1ca6c7925c19",
+]
+`;
+
+exports[`renderer characterization > renders every component variant the same 1`] = `
+[
+  {
+    "html": "",
+    "svg": "<defs><pattern id="bd" width="48" height="48" patternUnits="userSpaceOnUse"><circle cx="24" cy="24" r="2.4" style="fill:var(--dot)"/></pattern></defs><g class="board"><rect x="-400" y="-300" width="2720" height="1680" fill="url(#bd)"/></g>",
+  },
+  {
+    "html": "",
+    "svg": "<g class="n-spark"><rect x="-78" y="-66" width="156" height="156" rx="29.64" style="fill:var(--shade)"/><rect x="-78" y="-78" width="156" height="156" rx="29.64" style="fill:var(--tile);stroke:var(--hair);stroke-width:3"/><rect class="n-spark-band" x="-46.8" y="-78" width="93.6" height="10" rx="5" style="fill:var(--accent)"/><g transform="translate(0 4) scale(1)"><path d="M0 -34 Q4 -4 34 0 Q4 4 0 34 Q-4 4 -34 0 Q-4 -4 0 -34 Z" style="fill:var(--accent)"/></g></g>",
+  },
+  {
+    "html": "",
+    "svg": "<g class="n-brace"><rect x="-60" y="-48" width="120" height="120" rx="22.8" style="fill:var(--shade)"/><rect x="-60" y="-60" width="120" height="120" rx="22.8" style="fill:var(--tile);stroke:var(--hair);stroke-width:3"/><rect class="n-brace-band" x="-36" y="-60" width="72" height="10" rx="5" style="fill:var(--jade)"/><g transform="translate(0 4) scale(0.7692307692307693)"><path d="M-12 -30 Q-24 -30 -24 -18 V-8 Q-24 0 -32 0 Q-24 0 -24 8 V18 Q-24 30 -12 30 M12 -30 Q24 -30 24 -18 V-8 Q24 0 32 0 Q24 0 24 8 V18 Q24 30 12 30" style="fill:none;stroke:var(--main);stroke-width:9;stroke-linecap:round;stroke-linejoin:round"/></g></g>",
+  },
+  {
+    "html": "",
+    "svg": "<g class="n-ring"><rect x="-78" y="-66" width="156" height="156" rx="29.64" style="fill:var(--shade)"/><rect x="-78" y="-78" width="156" height="156" rx="29.64" style="fill:var(--tile);stroke:var(--hair);stroke-width:3"/><rect class="n-ring-band" x="-46.8" y="-78" width="93.6" height="10" rx="5" style="fill:var(--main)"/><g transform="translate(0 4) scale(1)"><circle r="26" style="fill:none;stroke:var(--main);stroke-width:9;stroke-linecap:round;stroke-linejoin:round"/><circle r="9" style="fill:var(--main)"/></g></g>",
+  },
+  {
+    "html": "",
+    "svg": "<g class="n-tri"><rect x="-60" y="-48" width="120" height="120" rx="22.8" style="fill:var(--shade)"/><rect x="-60" y="-60" width="120" height="120" rx="22.8" style="fill:var(--tile);stroke:var(--hair);stroke-width:3"/><rect class="n-tri-band" x="-36" y="-60" width="72" height="10" rx="5" style="fill:var(--accent)"/><g transform="translate(0 4) scale(0.7692307692307693)"><path d="M0 -30 L28 22 H-28 Z" style="fill:none;stroke:var(--accent);stroke-width:9;stroke-linecap:round;stroke-linejoin:round"/></g></g>",
+  },
+  {
+    "html": "",
+    "svg": "<g class="n-grid"><rect x="-78" y="-66" width="156" height="156" rx="29.64" style="fill:var(--shade)"/><rect x="-78" y="-78" width="156" height="156" rx="29.64" style="fill:var(--tile);stroke:var(--hair);stroke-width:3"/><rect class="n-grid-band" x="-46.8" y="-78" width="93.6" height="10" rx="5" style="fill:var(--jade)"/><g transform="translate(0 4) scale(1)"><g style="fill:var(--main)"><rect x="-28" y="-28" width="22" height="22" rx="5"/><rect x="6" y="-28" width="22" height="22" rx="5"/><rect x="-28" y="6" width="22" height="22" rx="5"/><rect x="6" y="6" width="22" height="22" rx="11"/></g></g></g>",
+  },
+  {
+    "html": "",
+    "svg": "<g class="n-db"><rect x="-60" y="-48" width="120" height="120" rx="22.8" style="fill:var(--shade)"/><rect x="-60" y="-60" width="120" height="120" rx="22.8" style="fill:var(--tile);stroke:var(--hair);stroke-width:3"/><rect class="n-db-band" x="-36" y="-60" width="72" height="10" rx="5" style="fill:var(--main)"/><g transform="translate(0 4) scale(0.7692307692307693)"><g style="fill:none;stroke:var(--main);stroke-width:9;stroke-linecap:round;stroke-linejoin:round"><ellipse cx="0" cy="-20" rx="28" ry="10"/><path d="M-28 -20 V20 Q0 34 28 20 V-20 M-28 0 Q0 14 28 0"/></g></g></g>",
+  },
+  {
+    "html": "",
+    "svg": "<g class="n-lock"><rect x="-78" y="-66" width="156" height="156" rx="29.64" style="fill:var(--shade)"/><rect x="-78" y="-78" width="156" height="156" rx="29.64" style="fill:var(--tile);stroke:var(--hair);stroke-width:3"/><rect class="n-lock-band" x="-46.8" y="-78" width="93.6" height="10" rx="5" style="fill:var(--accent)"/><g transform="translate(0 4) scale(1)"><path d="M-16 -6 V-18 Q-16 -32 0 -32 Q16 -32 16 -18 V-6" style="fill:none;stroke:var(--accent);stroke-width:9;stroke-linecap:round;stroke-linejoin:round"/><rect x="-26" y="-6" width="52" height="38" rx="8" style="fill:var(--accent)"/></g></g>",
+  },
+  {
+    "html": "",
+    "svg": "<g class="n-crown"><rect x="-60" y="-48" width="120" height="120" rx="22.8" style="fill:var(--shade)"/><rect x="-60" y="-60" width="120" height="120" rx="22.8" style="fill:var(--tile);stroke:var(--hair);stroke-width:3"/><rect class="n-crown-band" x="-36" y="-60" width="72" height="10" rx="5" style="fill:var(--jade)"/><g transform="translate(0 4) scale(0.7692307692307693)"><path d="M-30 20 L-30 -18 L-14 0 L0 -26 L14 0 L30 -18 L30 20 Z" style="fill:var(--main)"/></g></g>",
+  },
+  {
+    "html": "",
+    "svg": "<g class="n-list"><rect x="-78" y="-66" width="156" height="156" rx="29.64" style="fill:var(--shade)"/><rect x="-78" y="-78" width="156" height="156" rx="29.64" style="fill:var(--tile);stroke:var(--hair);stroke-width:3"/><rect class="n-list-band" x="-46.8" y="-78" width="93.6" height="10" rx="5" style="fill:var(--main)"/><g transform="translate(0 4) scale(1)"><g style="fill:none;stroke:var(--main);stroke-width:9;stroke-linecap:round;stroke-linejoin:round"><path d="M-12 -22 H28 M-12 0 H28 M-12 22 H18"/></g><g style="fill:var(--main)"><circle cx="-26" cy="-22" r="5"/><circle cx="-26" cy="0" r="5"/><circle cx="-26" cy="22" r="5"/></g></g></g>",
+  },
+  {
+    "html": "",
+    "svg": "<g class="n-check"><rect x="-60" y="-48" width="120" height="120" rx="22.8" style="fill:var(--shade)"/><rect x="-60" y="-60" width="120" height="120" rx="22.8" style="fill:var(--tile);stroke:var(--hair);stroke-width:3"/><rect class="n-check-band" x="-36" y="-60" width="72" height="10" rx="5" style="fill:var(--accent)"/><g transform="translate(0 4) scale(0.7692307692307693)"><circle r="28" style="fill:none;stroke:var(--accent);stroke-width:9;stroke-linecap:round;stroke-linejoin:round"/><path d="M-13 1 L-3 11 L15 -9" style="fill:none;stroke:var(--accent);stroke-width:9;stroke-linecap:round;stroke-linejoin:round"/></g></g>",
+  },
+  {
+    "html": "",
+    "svg": "<g class="n-steps"><rect x="-78" y="-66" width="156" height="156" rx="29.64" style="fill:var(--shade)"/><rect x="-78" y="-78" width="156" height="156" rx="29.64" style="fill:var(--tile);stroke:var(--hair);stroke-width:3"/><rect class="n-steps-band" x="-46.8" y="-78" width="93.6" height="10" rx="5" style="fill:var(--jade)"/><g transform="translate(0 4) scale(1)"><path d="M-30 24 H-10 V6 H10 V-12 H30" style="fill:none;stroke:var(--main);stroke-width:9;stroke-linecap:round;stroke-linejoin:round"/><circle cx="30" cy="-26" r="6" style="fill:var(--main)"/></g></g>",
+  },
+  {
+    "html": "",
+    "svg": "<g class="n-doc"><rect x="-60" y="-48" width="120" height="120" rx="22.8" style="fill:var(--shade)"/><rect x="-60" y="-60" width="120" height="120" rx="22.8" style="fill:var(--tile);stroke:var(--hair);stroke-width:3"/><rect class="n-doc-band" x="-36" y="-60" width="72" height="10" rx="5" style="fill:var(--main)"/><g transform="translate(0 4) scale(0.7692307692307693)"><path d="M-22 -30 H10 L24 -16 V30 H-22 Z" style="fill:none;stroke:var(--main);stroke-width:9;stroke-linecap:round;stroke-linejoin:round"/></g></g>",
+  },
+  {
+    "html": "",
+    "svg": "<g class="n-wave"><rect x="-78" y="-66" width="156" height="156" rx="29.64" style="fill:var(--shade)"/><rect x="-78" y="-78" width="156" height="156" rx="29.64" style="fill:var(--tile);stroke:var(--hair);stroke-width:3"/><rect class="n-wave-band" x="-46.8" y="-78" width="93.6" height="10" rx="5" style="fill:var(--accent)"/><g transform="translate(0 4) scale(1)"><path d="M-30 6 Q-15 -20 0 6 T30 6" style="fill:none;stroke:var(--accent);stroke-width:9;stroke-linecap:round;stroke-linejoin:round"/></g></g>",
+  },
+  {
+    "html": "",
+    "svg": "<g class="n-other"><rect x="-60" y="-48" width="120" height="120" rx="22.8" style="fill:var(--shade)"/><rect x="-60" y="-60" width="120" height="120" rx="22.8" style="fill:var(--tile);stroke:var(--hair);stroke-width:3"/><rect class="n-other-band" x="-36" y="-60" width="72" height="10" rx="5" style="fill:var(--jade)"/><g transform="translate(0 4) scale(0.7692307692307693)"><path d="M-30 6 Q-15 -20 0 6 T30 6" style="fill:none;stroke:var(--main);stroke-width:9;stroke-linecap:round;stroke-linejoin:round"/></g></g>",
+  },
+  {
+    "html": "",
+    "svg": "<g class="n-pos-pos" transform="translate(300 200)"><g class="n-pos"><rect x="-78" y="-66" width="156" height="156" rx="29.64" style="fill:var(--shade)"/><rect x="-78" y="-78" width="156" height="156" rx="29.64" style="fill:var(--tile);stroke:var(--hair);stroke-width:3"/><rect class="n-pos-band" x="-46.8" y="-78" width="93.6" height="10" rx="5" style="fill:var(--main)"/><g transform="translate(0 4) scale(1)"><circle r="26" style="fill:none;stroke:var(--main);stroke-width:9;stroke-linecap:round;stroke-linejoin:round"/><circle r="9" style="fill:var(--main)"/></g></g></g>",
+  },
+  {
+    "html": "",
+    "svg": "<path class="w1" pathLength="1" d="M0 0 Q50 80 100 0" style="fill:none;stroke:var(--wire);stroke-width:6;stroke-linecap:round"/>",
+  },
+  {
+    "html": "",
+    "svg": "<path class="w2" pathLength="1" d="M0 0 Q5 8 10 0" style="fill:none;stroke:red;stroke-width:6;stroke-linecap:round"/>",
+  },
+  {
+    "html": "",
+    "svg": "<rect class="b1" x="10" y="20" width="100" height="12" rx="6" style="fill:var(--accent)"/><rect class="b1" x="20" y="54" width="80" height="12" rx="6" style="fill:var(--jade)"/><rect class="b1" x="30" y="88" width="60" height="12" rx="6" style="fill:var(--main)"/><rect class="b1" x="10" y="122" width="40" height="12" rx="6" style="fill:var(--hair)"/>",
+  },
+  {
+    "html": "",
+    "svg": "<rect class="b2" x="10" y="20" width="100" height="8" rx="4" style="fill:var(--accent)"/>",
+  },
+  {
+    "html": "",
+    "svg": "<svg class="lg" x="68" y="68" width="64" height="64" viewBox="0 0 512 512" style="overflow:visible"><circle cx="256" cy="256" r="200"/></svg>",
+  },
+  {
+    "html": "<div class="words hd" style="top:0"><p class="eyebrow">Eye &amp; brow</p><h2 class="line"><span class="line-word" style="display:inline-block;white-space:pre">Named, </span><span class="line-word" style="display:inline-block;white-space:pre">counted, </span><span class="line-word" style="display:inline-block;white-space:pre">shown </span><span class="line-word" style="display:inline-block;white-space:pre">&lt;back&gt;.</span></h2><p class="sub">Sub &quot;quoted&quot;</p></div>",
+    "svg": "",
+  },
+  {
+    "html": "<div class="words hd2" style=""><h2 class="line"><span class="line-word" style="display:inline-block;white-space:pre">Just </span><span class="line-word" style="display:inline-block;white-space:pre">a </span><span class="line-word" style="display:inline-block;white-space:pre">line</span></h2></div>",
+    "svg": "",
+  },
+  {
+    "html": "<div class="checks ck" style="left:0"><div class="chk"><i></i><span>one</span></div><div class="chk"><i></i><span>two</span></div></div>",
+    "svg": "",
+  },
+  {
+    "html": "<div class="checks ck2" style=""><div class="chk"><i></i><span>x</span></div></div>",
+    "svg": "",
+  },
+  {
+    "html": "",
+    "svg": "<g class="gp" style="opacity:0"><circle r="3"/><g class="gn"><rect x="-78" y="-66" width="156" height="156" rx="29.64" style="fill:var(--shade)"/><rect x="-78" y="-78" width="156" height="156" rx="29.64" style="fill:var(--tile);stroke:var(--hair);stroke-width:3"/><rect class="gn-band" x="-46.8" y="-78" width="93.6" height="10" rx="5" style="fill:var(--main)"/><g transform="translate(0 4) scale(1)"><path d="M-22 -30 H10 L24 -16 V30 H-22 Z" style="fill:none;stroke:var(--main);stroke-width:9;stroke-linecap:round;stroke-linejoin:round"/></g></g></g>",
+  },
+  {
+    "html": "",
+    "svg": "<g class="gp2"></g>",
+  },
+  {
+    "html": "",
+    "svg": "<rect/>",
+  },
+  {
+    "html": "<div class="card">raw</div>",
+    "svg": "",
+  },
+  {
+    "html": "<i>g</i>",
+    "svg": "",
+  },
+  {
+    "html": "<div class="e-linear"></div><div class="e-ei"></div><div class="e-eio"></div><div class="e-eoq"></div><div class="e-eox"></div><div class="e-spring"></div><div class="eob"></div><div class="tpl"></div><div class="f1"></div><div class="p1"></div><div class="mk"></div><div class="mk2"></div><div class="gb2"></div><span class="f2"></span><span class="f2"></span><span class="f2"></span><span class="p2"></span><span class="p2"></span><span class="p2"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot2"></span><span class="dot2"></span><span class="dot2"></span><span class="dot3"></span><span class="dot3"></span><span class="dot3"></span><span class="ws"></span><span class="ws"></span><span class="ws"></span><span class="ws2"></span><span class="ws2"></span><span class="ws2"></span><span class="c1"></span><span class="c1"></span><span class="c1"></span><span class="c2"></span><span class="c2"></span><span class="c2"></span>",
+    "svg": "",
+  },
+  {
+    "html": "",
+    "svg": "<circle class="at"/><circle class="at"/><circle class="at"/><rect class="gb"/><rect class="gb"/><rect class="gb"/>",
+  },
+  {
+    "html": "<h3 class="tx big" style="color:red"><span class="tx-w" style="display:inline-block;white-space:pre">Split </span><span class="tx-w" style="display:inline-block;white-space:pre">these </span><span class="tx-w" style="display:inline-block;white-space:pre">words </span><span class="tx-w" style="display:inline-block;white-space:pre">&lt;now&gt;</span></h3>",
+    "svg": "",
+  },
+  {
+    "html": "<p class="tx2">Keep <b>bold</b></p>",
+    "svg": "",
+  },
+  {
+    "html": "<p class="tx3">plain &amp; simple</p>",
+    "svg": "",
+  },
+  {
+    "html": "<section class="bx card" style="pad:1"><p class="bt"><span class="bt-w" style="display:inline-block;white-space:pre">in </span><span class="bt-w" style="display:inline-block;white-space:pre">a </span><span class="bt-w" style="display:inline-block;white-space:pre">box</span></p><div class="bx2"><hr></div></section>",
+    "svg": "",
+  },
+]
+`;
+
+exports[`renderer characterization > renders every component variant the same 2`] = `
+{
+  "cam": "<svg class="art" viewBox="0 0 1920 1080"><defs><pattern id="bd" width="48" height="48" patternUnits="userSpaceOnUse"><circle cx="24" cy="24" r="2.4" style="fill:var(--dot)"/></pattern></defs><g class="board"><rect x="-400" y="-300" width="2720" height="1680" fill="url(#bd)"/></g><g class="n-spark"><rect x="-78" y="-66" width="156" height="156" rx="29.64" style="fill:var(--shade)"/><rect x="-78" y="-78" width="156" height="156" rx="29.64" style="fill:var(--tile);stroke:var(--hair);stroke-width:3"/><rect class="n-spark-band" x="-46.8" y="-78" width="93.6" height="10" rx="5" style="fill:var(--accent)"/><g transform="translate(0 4) scale(1)"><path d="M0 -34 Q4 -4 34 0 Q4 4 0 34 Q-4 4 -34 0 Q-4 -4 0 -34 Z" style="fill:var(--accent)"/></g></g><g class="n-brace"><rect x="-60" y="-48" width="120" height="120" rx="22.8" style="fill:var(--shade)"/><rect x="-60" y="-60" width="120" height="120" rx="22.8" style="fill:var(--tile);stroke:var(--hair);stroke-width:3"/><rect class="n-brace-band" x="-36" y="-60" width="72" height="10" rx="5" style="fill:var(--jade)"/><g transform="translate(0 4) scale(0.7692307692307693)"><path d="M-12 -30 Q-24 -30 -24 -18 V-8 Q-24 0 -32 0 Q-24 0 -24 8 V18 Q-24 30 -12 30 M12 -30 Q24 -30 24 -18 V-8 Q24 0 32 0 Q24 0 24 8 V18 Q24 30 12 30" style="fill:none;stroke:var(--main);stroke-width:9;stroke-linecap:round;stroke-linejoin:round"/></g></g><g class="n-ring"><rect x="-78" y="-66" width="156" height="156" rx="29.64" style="fill:var(--shade)"/><rect x="-78" y="-78" width="156" height="156" rx="29.64" style="fill:var(--tile);stroke:var(--hair);stroke-width:3"/><rect class="n-ring-band" x="-46.8" y="-78" width="93.6" height="10" rx="5" style="fill:var(--main)"/><g transform="translate(0 4) scale(1)"><circle r="26" style="fill:none;stroke:var(--main);stroke-width:9;stroke-linecap:round;stroke-linejoin:round"/><circle r="9" style="fill:var(--main)"/></g></g><g class="n-tri"><rect x="-60" y="-48" width="120" height="120" rx="22.8" style="fill:var(--shade)"/><rect x="-60" y="-60" width="120" height="120" rx="22.8" style="fill:var(--tile);stroke:var(--hair);stroke-width:3"/><rect class="n-tri-band" x="-36" y="-60" width="72" height="10" rx="5" style="fill:var(--accent)"/><g transform="translate(0 4) scale(0.7692307692307693)"><path d="M0 -30 L28 22 H-28 Z" style="fill:none;stroke:var(--accent);stroke-width:9;stroke-linecap:round;stroke-linejoin:round"/></g></g><g class="n-grid"><rect x="-78" y="-66" width="156" height="156" rx="29.64" style="fill:var(--shade)"/><rect x="-78" y="-78" width="156" height="156" rx="29.64" style="fill:var(--tile);stroke:var(--hair);stroke-width:3"/><rect class="n-grid-band" x="-46.8" y="-78" width="93.6" height="10" rx="5" style="fill:var(--jade)"/><g transform="translate(0 4) scale(1)"><g style="fill:var(--main)"><rect x="-28" y="-28" width="22" height="22" rx="5"/><rect x="6" y="-28" width="22" height="22" rx="5"/><rect x="-28" y="6" width="22" height="22" rx="5"/><rect x="6" y="6" width="22" height="22" rx="11"/></g></g></g><g class="n-db"><rect x="-60" y="-48" width="120" height="120" rx="22.8" style="fill:var(--shade)"/><rect x="-60" y="-60" width="120" height="120" rx="22.8" style="fill:var(--tile);stroke:var(--hair);stroke-width:3"/><rect class="n-db-band" x="-36" y="-60" width="72" height="10" rx="5" style="fill:var(--main)"/><g transform="translate(0 4) scale(0.7692307692307693)"><g style="fill:none;stroke:var(--main);stroke-width:9;stroke-linecap:round;stroke-linejoin:round"><ellipse cx="0" cy="-20" rx="28" ry="10"/><path d="M-28 -20 V20 Q0 34 28 20 V-20 M-28 0 Q0 14 28 0"/></g></g></g><g class="n-lock"><rect x="-78" y="-66" width="156" height="156" rx="29.64" style="fill:var(--shade)"/><rect x="-78" y="-78" width="156" height="156" rx="29.64" style="fill:var(--tile);stroke:var(--hair);stroke-width:3"/><rect class="n-lock-band" x="-46.8" y="-78" width="93.6" height="10" rx="5" style="fill:var(--accent)"/><g transform="translate(0 4) scale(1)"><path d="M-16 -6 V-18 Q-16 -32 0 -32 Q16 -32 16 -18 V-6" style="fill:none;stroke:var(--accent);stroke-width:9;stroke-linecap:round;stroke-linejoin:round"/><rect x="-26" y="-6" width="52" height="38" rx="8" style="fill:var(--accent)"/></g></g><g class="n-crown"><rect x="-60" y="-48" width="120" height="120" rx="22.8" style="fill:var(--shade)"/><rect x="-60" y="-60" width="120" height="120" rx="22.8" style="fill:var(--tile);stroke:var(--hair);stroke-width:3"/><rect class="n-crown-band" x="-36" y="-60" width="72" height="10" rx="5" style="fill:var(--jade)"/><g transform="translate(0 4) scale(0.7692307692307693)"><path d="M-30 20 L-30 -18 L-14 0 L0 -26 L14 0 L30 -18 L30 20 Z" style="fill:var(--main)"/></g></g><g class="n-list"><rect x="-78" y="-66" width="156" height="156" rx="29.64" style="fill:var(--shade)"/><rect x="-78" y="-78" width="156" height="156" rx="29.64" style="fill:var(--tile);stroke:var(--hair);stroke-width:3"/><rect class="n-list-band" x="-46.8" y="-78" width="93.6" height="10" rx="5" style="fill:var(--main)"/><g transform="translate(0 4) scale(1)"><g style="fill:none;stroke:var(--main);stroke-width:9;stroke-linecap:round;stroke-linejoin:round"><path d="M-12 -22 H28 M-12 0 H28 M-12 22 H18"/></g><g style="fill:var(--main)"><circle cx="-26" cy="-22" r="5"/><circle cx="-26" cy="0" r="5"/><circle cx="-26" cy="22" r="5"/></g></g></g><g class="n-check"><rect x="-60" y="-48" width="120" height="120" rx="22.8" style="fill:var(--shade)"/><rect x="-60" y="-60" width="120" height="120" rx="22.8" style="fill:var(--tile);stroke:var(--hair);stroke-width:3"/><rect class="n-check-band" x="-36" y="-60" width="72" height="10" rx="5" style="fill:var(--accent)"/><g transform="translate(0 4) scale(0.7692307692307693)"><circle r="28" style="fill:none;stroke:var(--accent);stroke-width:9;stroke-linecap:round;stroke-linejoin:round"/><path d="M-13 1 L-3 11 L15 -9" style="fill:none;stroke:var(--accent);stroke-width:9;stroke-linecap:round;stroke-linejoin:round"/></g></g><g class="n-steps"><rect x="-78" y="-66" width="156" height="156" rx="29.64" style="fill:var(--shade)"/><rect x="-78" y="-78" width="156" height="156" rx="29.64" style="fill:var(--tile);stroke:var(--hair);stroke-width:3"/><rect class="n-steps-band" x="-46.8" y="-78" width="93.6" height="10" rx="5" style="fill:var(--jade)"/><g transform="translate(0 4) scale(1)"><path d="M-30 24 H-10 V6 H10 V-12 H30" style="fill:none;stroke:var(--main);stroke-width:9;stroke-linecap:round;stroke-linejoin:round"/><circle cx="30" cy="-26" r="6" style="fill:var(--main)"/></g></g><g class="n-doc"><rect x="-60" y="-48" width="120" height="120" rx="22.8" style="fill:var(--shade)"/><rect x="-60" y="-60" width="120" height="120" rx="22.8" style="fill:var(--tile);stroke:var(--hair);stroke-width:3"/><rect class="n-doc-band" x="-36" y="-60" width="72" height="10" rx="5" style="fill:var(--main)"/><g transform="translate(0 4) scale(0.7692307692307693)"><path d="M-22 -30 H10 L24 -16 V30 H-22 Z" style="fill:none;stroke:var(--main);stroke-width:9;stroke-linecap:round;stroke-linejoin:round"/></g></g><g class="n-wave"><rect x="-78" y="-66" width="156" height="156" rx="29.64" style="fill:var(--shade)"/><rect x="-78" y="-78" width="156" height="156" rx="29.64" style="fill:var(--tile);stroke:var(--hair);stroke-width:3"/><rect class="n-wave-band" x="-46.8" y="-78" width="93.6" height="10" rx="5" style="fill:var(--accent)"/><g transform="translate(0 4) scale(1)"><path d="M-30 6 Q-15 -20 0 6 T30 6" style="fill:none;stroke:var(--accent);stroke-width:9;stroke-linecap:round;stroke-linejoin:round"/></g></g><g class="n-other"><rect x="-60" y="-48" width="120" height="120" rx="22.8" style="fill:var(--shade)"/><rect x="-60" y="-60" width="120" height="120" rx="22.8" style="fill:var(--tile);stroke:var(--hair);stroke-width:3"/><rect class="n-other-band" x="-36" y="-60" width="72" height="10" rx="5" style="fill:var(--jade)"/><g transform="translate(0 4) scale(0.7692307692307693)"><path d="M-30 6 Q-15 -20 0 6 T30 6" style="fill:none;stroke:var(--main);stroke-width:9;stroke-linecap:round;stroke-linejoin:round"/></g></g><g class="n-pos-pos" transform="translate(300 200)"><g class="n-pos"><rect x="-78" y="-66" width="156" height="156" rx="29.64" style="fill:var(--shade)"/><rect x="-78" y="-78" width="156" height="156" rx="29.64" style="fill:var(--tile);stroke:var(--hair);stroke-width:3"/><rect class="n-pos-band" x="-46.8" y="-78" width="93.6" height="10" rx="5" style="fill:var(--main)"/><g transform="translate(0 4) scale(1)"><circle r="26" style="fill:none;stroke:var(--main);stroke-width:9;stroke-linecap:round;stroke-linejoin:round"/><circle r="9" style="fill:var(--main)"/></g></g></g><path class="w1" pathLength="1" d="M0 0 Q50 80 100 0" style="fill:none;stroke:var(--wire);stroke-width:6;stroke-linecap:round"/><path class="w2" pathLength="1" d="M0 0 Q5 8 10 0" style="fill:none;stroke:red;stroke-width:6;stroke-linecap:round"/><rect class="b1" x="10" y="20" width="100" height="12" rx="6" style="fill:var(--accent)"/><rect class="b1" x="20" y="54" width="80" height="12" rx="6" style="fill:var(--jade)"/><rect class="b1" x="30" y="88" width="60" height="12" rx="6" style="fill:var(--main)"/><rect class="b1" x="10" y="122" width="40" height="12" rx="6" style="fill:var(--hair)"/><rect class="b2" x="10" y="20" width="100" height="8" rx="4" style="fill:var(--accent)"/><svg class="lg" x="68" y="68" width="64" height="64" viewBox="0 0 512 512" style="overflow:visible"><circle cx="256" cy="256" r="200"/></svg></svg><div class="words hd" style="top:0"><p class="eyebrow">Eye &amp; brow</p><h2 class="line"><span class="line-word" style="display:inline-block;white-space:pre">Named, </span><span class="line-word" style="display:inline-block;white-space:pre">counted, </span><span class="line-word" style="display:inline-block;white-space:pre">shown </span><span class="line-word" style="display:inline-block;white-space:pre">&lt;back&gt;.</span></h2><p class="sub">Sub &quot;quoted&quot;</p></div><div class="checks ck" style="left:0"><div class="chk"><i></i><span>one</span></div><div class="chk"><i></i><span>two</span></div></div><div class="checks ck2" style=""><div class="chk"><i></i><span>x</span></div></div><svg class="art" viewBox="0 0 1920 1080"><g class="gp" style="opacity:0"><circle r="3"/><g class="gn"><rect x="-78" y="-66" width="156" height="156" rx="29.64" style="fill:var(--shade)"/><rect x="-78" y="-78" width="156" height="156" rx="29.64" style="fill:var(--tile);stroke:var(--hair);stroke-width:3"/><rect class="gn-band" x="-46.8" y="-78" width="93.6" height="10" rx="5" style="fill:var(--main)"/><g transform="translate(0 4) scale(1)"><path d="M-22 -30 H10 L24 -16 V30 H-22 Z" style="fill:none;stroke:var(--main);stroke-width:9;stroke-linecap:round;stroke-linejoin:round"/></g></g></g><g class="gp2"></g><rect/></svg><div class="card">raw</div><div class="e-linear"></div><div class="e-ei"></div><div class="e-eio"></div><div class="e-eoq"></div><div class="e-eox"></div><div class="e-spring"></div><div class="eob"></div><div class="tpl"></div><div class="f1"></div><div class="p1"></div><div class="mk"></div><div class="mk2"></div><div class="gb2"></div><span class="f2"></span><span class="f2"></span><span class="f2"></span><span class="p2"></span><span class="p2"></span><span class="p2"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot2"></span><span class="dot2"></span><span class="dot2"></span><span class="dot3"></span><span class="dot3"></span><span class="dot3"></span><span class="ws"></span><span class="ws"></span><span class="ws"></span><span class="ws2"></span><span class="ws2"></span><span class="ws2"></span><span class="c1"></span><span class="c1"></span><span class="c1"></span><span class="c2"></span><span class="c2"></span><span class="c2"></span><svg class="art" viewBox="0 0 1920 1080"><circle class="at"/><circle class="at"/><circle class="at"/><rect class="gb"/><rect class="gb"/><rect class="gb"/></svg><h3 class="tx big" style="color:red"><span class="tx-w" style="display:inline-block;white-space:pre">Split </span><span class="tx-w" style="display:inline-block;white-space:pre">these </span><span class="tx-w" style="display:inline-block;white-space:pre">words </span><span class="tx-w" style="display:inline-block;white-space:pre">&lt;now&gt;</span></h3><p class="tx2">Keep <b>bold</b></p><p class="tx3">plain &amp; simple</p><section class="bx card" style="pad:1"><p class="bt"><span class="bt-w" style="display:inline-block;white-space:pre">in </span><span class="bt-w" style="display:inline-block;white-space:pre">a </span><span class="bt-w" style="display:inline-block;white-space:pre">box</span></p><div class="bx2"><hr></div></section>",
+  "ground": "<div class="words hd2" style=""><h2 class="line"><span class="line-word" style="display:inline-block;white-space:pre">Just </span><span class="line-word" style="display:inline-block;white-space:pre">a </span><span class="line-word" style="display:inline-block;white-space:pre">line</span></h2></div><i>g</i>",
+}
+`;
+
+exports[`the sample film, frame by frame > scene-close.json (en) 1`] = `
+{
+  "end": 1.4,
+  "frames": "d8601b3d2f8d3210",
+  "layout": "00d2fec833e964be",
+}
+`;
+
+exports[`the sample film, frame by frame > scene-close.json (es) 1`] = `
+{
+  "end": 1.4,
+  "frames": "d8601b3d2f8d3210",
+  "layout": "b603808a0998fcec",
+}
+`;
+
+exports[`the sample film, frame by frame > scene-groups.json (en) 1`] = `
+{
+  "end": 5.2,
+  "frames": "3c8b771125e4de95",
+  "layout": "d448f23a8d1b120f",
+}
+`;
+
+exports[`the sample film, frame by frame > scene-groups.json (es) 1`] = `
+{
+  "end": 5.2,
+  "frames": "3c8b771125e4de95",
+  "layout": "6d85176fee23411f",
+}
+`;
+
+exports[`the sample film, frame by frame > scene-hook.json (en) 1`] = `
+{
+  "end": 4.2,
+  "frames": "b7e8b92122a3ef2b",
+  "layout": "da083f7c0d97721c",
+}
+`;
+
+exports[`the sample film, frame by frame > scene-hook.json (es) 1`] = `
+{
+  "end": 4.2,
+  "frames": "f8c7628f790be688",
+  "layout": "031fabcf09e7a5ed",
+}
+`;
+
+exports[`the sample film, frame by frame > scene-pair.json (en) 1`] = `
+{
+  "end": 12.2,
+  "frames": "102da4e4bf3a93ad",
+  "layout": "afd2e4f413dadcea",
+}
+`;
+
+exports[`the sample film, frame by frame > scene-pair.json (es) 1`] = `
+{
+  "end": 12.2,
+  "frames": "102da4e4bf3a93ad",
+  "layout": "bb58c07af8ef306c",
+}
+`;
+
+exports[`the sample film, frame by frame > scene-problem.json (en) 1`] = `
+{
+  "end": 5.9,
+  "frames": "cf92b0ada6957f1a",
+  "layout": "dcbe64b31a2122d1",
+}
+`;
+
+exports[`the sample film, frame by frame > scene-problem.json (es) 1`] = `
+{
+  "end": 5.9,
+  "frames": "8da3e1c52b9966fb",
+  "layout": "cf108838754bc7a9",
+}
+`;

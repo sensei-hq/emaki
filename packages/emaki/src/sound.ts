@@ -2,6 +2,7 @@
 // running start; a sound placed after a pause moves with it), the offline render the video pipeline asks for, and the
 // narration (each scene's voice take, served for the web) that plays over the ducked score.
 import { collectScore, play, renderWav, type Score } from './score.js';
+import { narration } from './narration.js';
 import { getSource, loadFilm, timeline, unwarp } from './registry.js';
 import type { FilmMeta } from './types.js';
 
@@ -54,40 +55,51 @@ export function scorePlayer(f: FilmMeta) {
   };
 }
 
-/** A film's narration in one locale: each scene's take (FilmSource.voice), played from the scene's `voice` start.
- *  start(scene, local) picks it up where the picture is (or waits for it); stop() silences it. Resolves false when the
- *  scene is not narrated, the source serves no take, or a later start/stop overtook it. */
-export function narration(f: FilmMeta, locale: string) {
-  const urls = new Map<string, Promise<string | null>>();
-  let el: HTMLAudioElement | null = null, timer: ReturnType<typeof setTimeout> | undefined, turn = 0;
-  const url = (id: string) => {
-    if (!urls.has(id)) urls.set(id, getSource().voice?.(f.slug, locale, id) ?? Promise.resolve(null));
-    return urls.get(id)!;
-  };
-  const api = {
-    /** True when the scene has a narration start (whether the source serves a take is known only on start). */
-    has: (scene: string) => f.scenes.some((s) => s.id === scene && s.voice != null) && !!getSource().voice,
-    async start(scene: string, local: number) {
-      api.stop();
-      const mine = turn, s = f.scenes.find((x) => x.id === scene);
-      if (s?.voice == null) return false;
-      const u = await url(scene).catch(() => null);
-      if (!u || mine !== turn) return false;
-      const a = (el = new Audio(u));
-      a.preload = 'auto';
-      const go = (at: number) => { if (mine !== turn) return; a.currentTime = at; a.play().catch(() => {}); };
-      const lead = s.voice - local;
-      if (lead > 0) timer = setTimeout(() => go(0), lead * 1000);
-      else go(-lead);
-      return true;
-    },
-    stop() {
-      turn++;
-      clearTimeout(timer);
-      if (el) { el.pause(); el.removeAttribute('src'); el.load(); el = null; }
-    },
-  };
-  return api;
+/** Where a scene runs in its film in locale `l`: the film, the scene's window and the film's end; null if either is
+ *  missing. */
+async function placeScene(film: string, scene: string, l: string) {
+  const f = await loadFilm(film, l);
+  const tl = f && timeline(f), s = tl?.scenes.find((x) => x.id === scene);
+  return f && s && tl ? { f, from: s.start, to: s.start + s.dur, end: tl.duration } : null;
+}
+
+/** What an article figure's sound holds: its audio graph, what is sounding, the scene's window in the film, the
+ *  narration and the score for the current locale (`ready`). */
+interface FigureSound {
+  film: string; scene: string; locale: string;
+  ctx: AudioContext | null; bus: GainNode | null; voice: { stop: () => void } | null;
+  from: number; to: number; end: number; words: ReturnType<typeof narration> | null;
+  ready: Promise<{ score: Score | null; spoken: boolean }>;
+}
+
+/** Loads the scene in locale `l`: its window, its narration (the previous one stopped) and the film's score. */
+async function loadFigure(st: FigureSound, l: string) {
+  const placed = await placeScene(st.film, st.scene, l);
+  if (!placed) return { score: null, spoken: false };
+  ({ from: st.from, to: st.to, end: st.end } = placed);
+  st.words?.stop();
+  st.words = narration(placed.f, l);
+  return { score: await filmScore(placed.f), spoken: st.words.has(st.scene) };
+}
+
+/** Opens (and resumes, inside the reader's gesture) the AudioContext, if there is a score to play through it. */
+async function openFigure(st: FigureSound) {
+  const { score } = await st.ready;
+  if (!score) return;
+  st.ctx ??= new AudioContext();
+  await st.ctx.resume();
+}
+
+/** Starts the narration and the score's slice `at` seconds into the scene; the score is ducked under a narration. */
+async function soundFigure(st: FigureSound, r: Awaited<FigureSound['ready']>, at: number) {
+  const speaking = r.spoken && st.words ? st.words.start(st.scene, at) : Promise.resolve(false);
+  if (r.score && st.ctx) {
+    const c = st.ctx;
+    if (!st.bus) { st.bus = c.createGain(); st.bus.connect(c.destination); }
+    st.bus.gain.value = r.spoken ? DUCK : 1;
+    st.voice = play(c, st.bus, r.score, st.from + at, st.to, c.currentTime + 0.03, st.end);
+  }
+  await speaking;
 }
 
 /** One scene's sound for an article figure: its slice of the film's score and its narration. Off until toggled on,
@@ -95,47 +107,27 @@ export function narration(f: FilmMeta, locale: string) {
  *  stop() silences them (call it when the figure scrolls away). `available` resolves false when the scene has
  *  neither, so the button can stay hidden; setLocale() follows the figure into another language. */
 export function sceneSound(film: string, scene: string, locale = 'en') {
-  let ctx: AudioContext | null = null, bus: GainNode | null = null, voice: { stop: () => void } | null = null;
-  let from = 0, to = 0, end = 0, words: ReturnType<typeof narration> | null = null;
-  const load = (l: string) => loadFilm(film, l).then(async (f) => {
-    const tl = f && timeline(f), s = tl?.scenes.find((x) => x.id === scene);
-    if (!f || !s || !tl) return { score: null, spoken: false };
-    from = s.start; to = s.start + s.dur; end = tl.duration;
-    words?.stop();
-    words = narration(f, l);
-    return { score: await filmScore(f), spoken: words.has(scene) };
-  });
-  let ready = load(locale);
+  const st: FigureSound = { film, scene, locale, ctx: null, bus: null, voice: null, from: 0, to: 0, end: 0, words: null, ready: Promise.resolve({ score: null, spoken: false }) };
+  st.ready = loadFigure(st, locale);
   const api = {
-    get available() { return ready.then((r) => !!r.score || r.spoken); },
+    get available() { return st.ready.then((r) => !!r.score || r.spoken); },
     on: false,
     async toggle(at = 0) {
       api.on = !api.on;
       if (!api.on) return api.stop();
-      const { score } = await ready;
-      if (score) {
-        ctx ??= new AudioContext();
-        await ctx.resume();
-      }
+      await openFigure(st);
       await api.cue(at);
     },
     async cue(at = 0) {
       api.stop();
-      const { score, spoken } = await ready;
-      if (!api.on) return;
-      const speaking = spoken && words ? words.start(scene, at) : Promise.resolve(false);
-      if (score && ctx) {
-        if (!bus) { bus = ctx.createGain(); bus.connect(ctx.destination); }
-        bus.gain.value = spoken ? DUCK : 1;
-        voice = play(ctx, bus, score, from + at, to, ctx.currentTime + 0.03, end);
-      }
-      await speaking;
+      const r = await st.ready;
+      if (api.on) await soundFigure(st, r, at);
     },
-    setLocale(l: string) { if (l === locale) return; locale = l; api.stop(); ready = load(l); },
-    stop() { voice?.stop(); voice = null; words?.stop(); },
-    destroy() { api.on = false; api.stop(); ctx?.close(); ctx = null; },
+    setLocale(l: string) { if (l !== st.locale) { st.locale = l; api.stop(); st.ready = loadFigure(st, l); } },
+    stop() { st.voice?.stop(); st.voice = null; st.words?.stop(); },
+    destroy() { api.on = false; api.stop(); st.ctx?.close(); st.ctx = null; },
   };
   return api;
 }
 
-export { renderWav };
+export { narration, renderWav };
