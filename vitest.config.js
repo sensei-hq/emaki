@@ -15,7 +15,8 @@ export default defineConfig({
 			{ test: { name: 'emaki', include: ['packages/emaki/spec/**/*.spec.ts'], environment: 'jsdom' } },
 			{ test: { name: 'posting', include: ['packages/emaki-posting/spec/**/*.spec.ts'], environment: 'node' } },
 			{ test: { name: 'cli', include: ['packages/emaki-cli/spec/**/*.spec.js'], environment: 'node' } },
-			{ test: { name: 'react', include: ['packages/emaki-react/spec/**/*.spec.ts'], environment: 'jsdom' } }
+			{ test: { name: 'react', include: ['packages/emaki-react/spec/**/*.spec.ts'], environment: 'jsdom' } },
+			{ test: { name: 'vue', include: ['packages/emaki-vue/spec/**/*.spec.ts'], environment: 'jsdom' } }
 		]
 	}
 })
