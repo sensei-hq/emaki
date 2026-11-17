@@ -15,7 +15,7 @@
 **Remaining**
 - Merge the coverage PR.
 
-**Next command:** `gh pr merge <coverage PR> --merge --delete-branch`
+**Next command:** `gh pr merge 13 --merge --delete-branch`
 
 **Open questions**
 - Workers Builds on PR branches: set the non-production deploy command to
