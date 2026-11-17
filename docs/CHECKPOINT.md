@@ -3,28 +3,27 @@
 **Slice:** feat/web-narration (on feat/issue-1-adoption): narration plays on the site, in step with the scenes
 
 ## Done
-- Core: timing.<locale>.json `voice` (narration start per scene) → SceneMeta.voice; FilmSource.voice(slug, locale,
-  scene) → URL; `narration(f, locale)` (start at the playhead or wait for the voice start, stop, stale starts lose);
-  scorePlayer.duck (score at 0.35 under the voice); createShow narrates the scene on screen while sound is on;
-  sceneSound = score slice + narration, cue(at)/toggle(at) at the playhead, setLocale (attachScene passes it on)
+- Core: timing `voice` start → SceneMeta.voice; FilmSource.voice → URL; `narration()`; scorePlayer.duck (0.35);
+  createShow narrates the scene on screen; sceneSound = score slice + narration, cue/toggle at the playhead, setLocale
 - Loaders: vite `voice` glob (?url), fetch `voice/<locale>/<scene>.m4a`; init writes the glob; example + site glob it
-- `<motion-scene>` uses sceneSound; its button stays hidden until the scene is known to have sound
-- CLI `emaki voice-web <slug> --locale`: takes → voice/<locale>/<scene>.m4a (mono AAC 64k, -16 LUFS, faststart),
-  `voice` start = lead; drops the file and start of a scene whose take is gone
-- Example: macOS-say narration for the sample film (en); browser.mjs proves the player and a figure speak in Chromium
-- Docs: core/cli/svelte READMEs, docs/llms + site copies, plugin references 03/05, story-media skill, timing schema
-- Verified: bun run check (235 tests), test:browser (narration ✓, no page errors), site check/test (27)/build
+- `<motion-scene>` uses sceneSound; button hidden until the scene is known to have sound
+- CLI `emaki voice-web <slug> --locale`: takes → voice/<locale>/<scene>.m4a (mono AAC 64k, -16 LUFS), voice start
+- Sample film narrated with Piper (en_US-lessac-medium, es_MX-claude-high), en + es, in the CLI template (so every
+  `emaki init` and the site landing get it) and the example app (~490 KB for 10 takes)
+- Verified: bun run check (236), test:browser (narration ✓), site check/test (27)/build with CF_PAGES=1
+- Pushed feat/web-narration
 
 ## Remaining
-- Not pushed; no PR yet (feat/issue-1-adoption PR still pending the user's answer)
-- Site landing film is silent: the CLI template has no takes (needs a real voice; macOS say is drafts only)
+- Live site shows Cloudflare's "Hello world": the `emaki` Worker was never deployed (site not on main; no PRs).
+  Build is ready in site/.svelte-kit/cloudflare; deploy needs the user (`cd site && bunx wrangler deploy`)
+- PRs: feat/issue-1-adoption → main (Closes #1), then feat/web-narration; connect Workers Builds to main (CF_PAGES=1)
 - React/Vue figures have no sound button (story players narrate via createShow)
 
 ## Next command
-`git push -u origin feat/web-narration`
+`cd site && bunx wrangler deploy` (user), then `gh pr create` for feat/issue-1-adoption
 
 ## Open questions
-- Ship narration for the template film (site demo + every `emaki init`)? Which voice provider?
+- None blocking
 
 ## Known broken
-- show.seek() does not re-sync sound while playing (score and narration; capture does not need it)
+- show.seek() does not re-sync sound while playing (score and narration)
