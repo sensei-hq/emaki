@@ -10,7 +10,7 @@ import { fakeFetch } from './helpers.js'
 import { tools } from './tools.js'
 
 let t
-beforeAll(() => { t = tools() })
+beforeAll(() => { t = tools() }, 60000)
 afterAll(() => { t.restore(); t.remove() })
 beforeEach(() => { t.use(); t.reset() })
 afterEach(() => vi.unstubAllEnvs())
@@ -28,9 +28,6 @@ describe('run', () => {
 		expect(() => run(blocked, [])).toThrow(/blocked: .*EACCES/)
 		vi.stubEnv('FAKE_FFMPEG_FAIL', 'no input')
 		expect(() => run('ffmpeg', ['out'])).toThrow(new MotionError('ffmpeg failed: ffmpeg broke: no input\n'))
-		const quiet = join(t.bin, 'quiet')
-		writeFileSync(quiet, '#!/bin/sh\nexit 3\n')
-		chmodSync(quiet, 0o755)
 		expect(() => run('quiet', [])).toThrow(new MotionError('quiet failed: '))
 	})
 })
@@ -45,9 +42,6 @@ describe('which', () => {
 		const platform = Object.getOwnPropertyDescriptor(process, 'platform')
 		Object.defineProperty(process, 'platform', { value: 'win32' })
 		try {
-			const where = join(t.bin, 'where')
-			writeFileSync(where, '#!/bin/sh\n[ "$1" = ffmpeg ]\n')
-			chmodSync(where, 0o755)
 			expect(which('ffmpeg')).toBe(true)
 			expect(which('nope')).toBe(false)
 		} finally {

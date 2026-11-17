@@ -9,7 +9,7 @@ import { logger, project, put } from './helpers.js'
 import { tools } from './tools.js'
 
 let t
-beforeAll(() => { t = tools() })
+beforeAll(() => { t = tools() }, 60000)
 afterAll(() => { t.restore(); t.remove() })
 beforeEach(() => { t.use(); t.reset() })
 afterEach(() => vi.unstubAllEnvs())

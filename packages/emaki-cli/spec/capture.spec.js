@@ -1,6 +1,7 @@
 // render drives the capture page in a browser and pipes the frames to ffmpeg. Here the browser is a stand-in (the page
 // runs evaluate() against a fake window.__show) and ffmpeg/ffprobe are shell scripts on PATH that log their arguments,
 // so every step render takes, and every line it prints, is pinned without Chromium or ffmpeg.
+import { spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -51,12 +52,13 @@ beforeAll(() => {
 	const script = (name, body) => {
 		writeFileSync(join(bin, name), `#!/bin/sh\necho "${name} $*" >> "${calls}"\n${body}\n`)
 		chmodSync(join(bin, name), 0o755)
+		spawnSync(join(bin, name), [join(bin, 'warm')]) // its slow first start, here rather than in a test
 	}
 	script('ffmpeg', '[ -n "$FAKE_FFMPEG_EARLY" ] && exit 1\ncat > /dev/null\n[ -n "$FAKE_FFMPEG_FAIL" ] && exit 1\nfor a; do last=$a; done\necho FAKE > "$last"')
 	script('ffprobe', 'echo "${FAKE_DUR:-12}"')
 	savedPath = process.env.PATH
 	process.env.PATH = `${bin}:${savedPath}`
-})
+}, 60000)
 afterAll(() => {
 	process.env.PATH = savedPath
 	rmSync(bin, { recursive: true, force: true })

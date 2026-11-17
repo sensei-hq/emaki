@@ -7,11 +7,10 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { MotionError, project as load } from '../src/api.js'
 import { chosen, listVoices, NO_PROVIDER, setVoice, ttsCheck, voice } from '../src/voice.js'
 import { json, logger, project, put } from './helpers.js'
-
 import { tools } from './tools.js'
 
 let t
-beforeAll(() => { t = tools() })
+beforeAll(() => { t = tools() }, 60000)
 afterAll(() => { t.restore(); t.remove() })
 beforeEach(() => {
 	t.use()

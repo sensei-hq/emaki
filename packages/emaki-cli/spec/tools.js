@@ -2,7 +2,7 @@
 // shell script that appends "<name> <args>" to calls.log and does just enough of the real tool's job: ffmpeg writes
 // its last argument, ffprobe prints $FAKE_DUR. Environment variables switch the failure paths on. The PATH the specs
 // set holds these and `which` only, so no real tool on the machine is ever reached.
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -27,6 +27,8 @@ describe-voices) echo '{"Voices":[{"Id":"Joanna","Gender":"Female"},{"Id":"Matth
 *) for a; do last=$a; done; echo MP3 > "$last" ;;
 esac`,
 	gcloud: 'echo "$FAKE_GCLOUD_TOKEN"',
+	quiet: 'exit 3',
+	where: '[ "$1" = ffmpeg ]',
 	kokoropy: `[ "$2" = "import kokoro, soundfile" ] && exit \${FAKE_KOKORO_MISSING:-0}
 cat > "$(dirname "$0")/kokoro.stdin"
 printf '%s\\n' "$3" >> "$(dirname "$0")/kokoro.args"
@@ -45,8 +47,10 @@ export function tools() {
 		symlinkSync(whichPath.startsWith('/') ? whichPath : '/usr/bin/which', join(d, 'which'))
 	}
 	for (const [name, body] of Object.entries(SCRIPTS)) {
-		writeFileSync(join(bin, name), `#!/bin/sh\nPATH=/bin:/usr/bin\necho "${name} $*" >> "${calls}"\n${body}\n`)
+		writeFileSync(join(bin, name), `#!/bin/sh\n[ "$1" = --warm ] && exit 0\nPATH=/bin:/usr/bin\necho "${name} $*" >> "${calls}"\n${body}\n`)
 		chmodSync(join(bin, name), 0o755)
+		// A new executable can take seconds to start the first time (macOS checks it); pay that here, not in a test.
+		spawnSync(join(bin, name), ['--warm'])
 	}
 	const saved = process.env.PATH
 	return {

@@ -14,7 +14,7 @@ const KEYS = ['ELEVENLABS_API_KEY', 'OPENAI_API_KEY', 'AZURE_OPENAI_ENDPOINT', '
 	'FAKE_SAY_VOICES']
 
 let t
-beforeAll(() => { t = tools() })
+beforeAll(() => { t = tools() }, 60000)
 afterAll(() => { t.restore(); t.remove() })
 beforeEach(() => {
 	t.use()
