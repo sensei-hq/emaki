@@ -7,7 +7,8 @@ export default defineConfig({
 		coverage: {
 			provider: 'v8',
 			include: ['packages/*/src/**/*.{ts,js}'],
-			exclude: ['**/*.d.ts'],
+			// scene-schema.ts is types only: it compiles to nothing, so v8 reports it as 0 of 0 (shown as 0%).
+			exclude: ['**/*.d.ts', 'packages/emaki/src/scene-schema.ts'],
 			reporter: ['text', 'html', 'json-summary'],
 			reportsDirectory: 'coverage'
 		},
