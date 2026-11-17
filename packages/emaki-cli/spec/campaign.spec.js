@@ -24,6 +24,14 @@ describe('calendar', () => {
 	it('parses CSV with quoted commas and doubled quotes', () => {
 		expect(parseCsv('a,b\r\n"x, y","say ""hi"""\n1,\n')).toEqual([{ a: 'x, y', b: 'say "hi"' }, { a: '1', b: '' }])
 	})
+	it('parses CSV edge cases: lone CR, blank lines, short rows, quoted newlines, no final newline', () => {
+		expect(parseCsv(' a ,b\r1,2\n\n,\n3\n"multi\nline",x"y,z"w\n4,5')).toEqual([
+			{ a: '1', b: '2' }, { a: '3', b: '' }, { a: 'multi\nline', b: 'xy,zw' }, { a: '4', b: '5' }
+		])
+		expect(parseCsv('')).toEqual([])
+		expect(parseCsv('a,b')).toEqual([])
+		expect(parseCsv('a\n""')).toEqual([])
+	})
 	it('reads the website\'s columns and the plugin template\'s alike', () => {
 		const d = campaign()
 		const rows = calendarRows(load(d))

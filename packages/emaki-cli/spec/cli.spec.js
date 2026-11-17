@@ -25,6 +25,19 @@ describe('init', () => {
 		writeFileSync(join(d, 'package.json'), JSON.stringify({ dependencies: { next: '15', react: '19' } }))
 		expect(detectFramework(d)).toBe('next')
 	})
+	it('detects each framework in priority order (kit, svelte, next, nuxt, react, vue)', () => {
+		const d = tmp()
+		const fw = (dependencies, devDependencies) => {
+			writeFileSync(join(d, 'package.json'), JSON.stringify({ dependencies, devDependencies }))
+			return detectFramework(d)
+		}
+		expect(fw({ svelte: '5', react: '19' })).toBe('svelte')
+		expect(fw({ nuxt: '3', vue: '3' })).toBe('nuxt')
+		expect(fw(undefined, { react: '19', vue: '3' })).toBe('react')
+		expect(fw({ vue: '3' })).toBe('vue')
+		expect(fw({ lodash: '4' })).toBe('vanilla')
+		expect(fw()).toBe('vanilla')
+	})
 	it('writes the sample, the config, the source and the capture route, and never overwrites', () => {
 		const d = tmp()
 		writeFileSync(join(d, 'package.json'), JSON.stringify({ devDependencies: { '@sveltejs/kit': '2' } }))
@@ -135,6 +148,80 @@ describe('films', () => {
 		writeFileSync(look, css)
 		const f = json(film); delete f.dark; writeFileSync(film, JSON.stringify(f))
 		expect(validate(project(d), 'measure-the-right-work').lines.join('\n')).toMatch(/look\.css styles #stage\[data-mode="dark"\] but film\.json has no dark block/)
+	})
+})
+
+describe('validate', () => {
+	const write = (root, rel, data) => {
+		mkdirSync(join(root, rel, '..'), { recursive: true })
+		writeFileSync(join(root, rel), typeof data === 'string' ? data : JSON.stringify(data))
+	}
+	it('reports every film and story problem, in order', () => {
+		const d = tmp()
+		write(d, 'content/site.json', { locales: ['en', 'es', 'fr'], defaultLocale: 'en' })
+		const F = 'content/films/bad'
+		write(d, `${F}/film.json`, { scenes: [{ id: 'a', dur: 5 }, { id: 'b', dur: 0 }, { id: 'c', dur: 60 }, { id: 'd', dur: 3 }, { id: 'e', dur: 4 }] })
+		write(d, `${F}/scene-a.json`, { portrait: {}, components: [{ id: 'x', text: '{{a.k}}' }, { id: 'x' }] })
+		write(d, `${F}/scene-b.json`, { text: ['{{b.k}}', { deep: '{{ b.j }}' }] })
+		write(d, `${F}/scene-c.js`, 'scene')
+		write(d, `${F}/scene-e.json`, { portrait: null })
+		write(d, `${F}/strings/en.json`, { 'a.k': 'A', 'z.unused': 'Z', 'y.unused': 'Y' })
+		write(d, `${F}/voice/en.json`, [{ scene: 'a' }, { scene: 'c' }])
+		write(d, `${F}/strings/es.json`, Object.fromEntries(Array.from({ length: 11 }, (_, i) => [`u${String(i).padStart(2, '0')}`, 'x'])))
+		const G = 'content/films/plain'
+		write(d, `${G}/film.json`, { cover: { scene: 'a' }, dark: {}, scenes: [{ id: 'a', dur: 1 }] })
+		write(d, `${G}/look.css`, '#stage {}')
+		write(d, `${G}/scene-a.json`, { portrait: {} })
+		write(d, 'content/stories/index.json', [
+			{ slug: 'bad', publish_date: '2026-1-2' },
+			{ slug: 'plain', publish_date: '2026-01-02', film: 'bad' },
+			{ slug: 'lone', publish_date: '2026-01-03' }
+		])
+		write(d, 'content/stories/en/bad.json', { title: 'T', dek: '', sections: [], takeaway: 'x' })
+		write(d, 'content/stories/es/bad.json', { title: 'T', dek: 'D', sections: [{ id: 'a' }, { id: 'zz' }, { id: 'more' }, { id: 'sources' }, { id: 'q', motion: 'a' }, { id: 'r', figure: 'a' }] })
+		write(d, 'content/stories/en/plain.json', { title: 'P', dek: 'D', sections: [{ id: 'nope' }], takeaway: 'y' })
+		write(d, 'content/stories/en/lone.json', { title: 'L', dek: 'D', sections: [{ id: 'nope' }] })
+		const r = validate(project(d))
+		expect(r.lines).toEqual([
+			'film bad: look.css is missing',
+			'film bad: scene a: duplicate component ids',
+			'film bad: scene b: no portrait block (needed for 9:16 and article figures)',
+			'film bad: scene b: dur 0 looks wrong',
+			'film bad: scene c: dur 60 looks wrong',
+			'film bad: scene d: no scene-d.json (or .js)',
+			'film bad: the last scene should be "close" (the punchline card is the cover), or film.json should name its cover',
+			'film bad: strings/en.json: missing b.j, b.k',
+			'film bad: strings/en.json: unused y.unused, z.unused',
+			'film bad: voice/en.json: no line for b, d, e',
+			'film bad: strings/es.json: missing a.k, b.j, b.k',
+			'film bad: strings/es.json: unused u00, u01, u02, u03, u04, u05, u06, u07 …',
+			'film bad: strings/fr.json is missing',
+			'film plain: film.json has a dark block but look.css never styles #stage[data-mode="dark"]',
+			'story bad: publish_date must be YYYY-MM-DD',
+			'story bad: en: dek is empty',
+			'story bad: en: sections is empty',
+			'story bad: es: a film story needs a takeaway (the closing line)',
+			'story bad: (info) es: section zz has no figure (no scene of that id)',
+			'story bad: (info) stories/fr/bad.json not translated yet',
+			'story plain: (info) en: section nope has no figure (no scene of that id)',
+			'story plain: (info) stories/es/plain.json not translated yet',
+			'story plain: (info) stories/fr/plain.json not translated yet',
+			'story lone: (info) stories/es/lone.json not translated yet',
+			'story lone: (info) stories/fr/lone.json not translated yet'
+		])
+		expect(r.problems).toBe(18)
+		expect(validate(project(d), 'plain').lines).toEqual([
+			'film plain: film.json has a dark block but look.css never styles #stage[data-mode="dark"]',
+			'story plain: (info) en: section nope has no figure (no scene of that id)',
+			'story plain: (info) stories/es/plain.json not translated yet',
+			'story plain: (info) stories/fr/plain.json not translated yet'
+		])
+		rmSync(join(d, 'content/stories/en/lone.json'))
+		expect(validate(project(d)).lines.slice(-3)).toEqual([
+			'story lone: stories/en/lone.json is missing',
+			'story lone: (info) stories/es/lone.json not translated yet',
+			'story lone: (info) stories/fr/lone.json not translated yet'
+		])
 	})
 })
 
@@ -296,6 +383,46 @@ describe('migrate', () => {
 		expect(r.wrote).toEqual([])
 	})
 	it('refuses a folder that is not the website', () => expect(() => migrate(project(tmp()), tmp())).toThrow(MotionError))
+	it('migrates a partial site: articles only, a missing body, takes for a film it did not move, an existing site.json', () => {
+		const w = tmp(), d = tmp()
+		const put = (root, rel, text) => { mkdirSync(join(root, rel, '..'), { recursive: true }); writeFileSync(join(root, rel), text) }
+		put(w, 'src/lib/content/articles/index.json', JSON.stringify([{ slug: 'a', title: 'A', tags: [] }, { slug: 'gone', title: 'Gone' }]))
+		put(w, 'src/lib/content/articles/a.json', JSON.stringify({ sections: [] }))
+		put(w, 'films/a/film.json', JSON.stringify({ scenes: [{ id: 'hook' }] }))
+		put(w, 'films/a/takes/take-01.wav', 'RIFF')
+		put(w, 'films/a/takes/notes.txt', 'x')
+		put(w, 'films/b/film.json', JSON.stringify({}))
+		put(w, 'films/b/takes/take-01.wav', 'RIFFB')
+		put(w, 'films/stray/readme.md', 'no film.json')
+		put(d, 'content/site.json', JSON.stringify({ name: 'Mine', url: '', locales: ['es'], defaultLocale: 'es' }))
+		const r = migrate(project(d), w, { locale: 'es' })
+		expect(json(join(d, 'content/stories/index.json'))).toEqual([{ slug: 'a', tags: [] }, { slug: 'gone' }])
+		expect(json(join(d, 'content/stories/es/a.json'))).toEqual({ title: 'A', sections: [] })
+		expect(existsSync(join(d, 'content/stories/es/gone.json'))).toBe(false)
+		expect(existsSync(join(d, 'content/films/a/voice/es.json'))).toBe(false)
+		expect(readFileSync(join(d, 'production/a/es/takes/take-01.wav'), 'utf-8')).toBe('RIFF')
+		expect(existsSync(join(d, 'production/a/es/takes/notes.txt'))).toBe(false)
+		expect(readFileSync(join(d, 'production/b/es/takes/take-01.wav'), 'utf-8')).toBe('RIFFB')
+		expect(existsSync(join(d, 'production/stray'))).toBe(false)
+		expect(json(join(d, 'content/site.json')).name).toBe('Mine')
+		expect(r).toEqual({
+			wrote: ['content/stories/index.json', 'content/stories/es/a.json', 'production/a/es/takes/take-01.wav', 'production/b/es/takes/take-01.wav'],
+			kept: []
+		})
+	})
+	it('migrates a site with films and logos but no articles, and writes a site.json', () => {
+		const w = tmp(), d = tmp()
+		const put = (rel, text) => { mkdirSync(join(w, rel, '..'), { recursive: true }); writeFileSync(join(w, rel), text) }
+		put('src/lib/motion/films/x/film.json', JSON.stringify({ scenes: [] }))
+		put('src/lib/motion/films/x/assets/pic.svg', '<svg/>')
+		put('src/lib/motion/films/notafilm/base.css', 'x')
+		const r = migrate(project(d), w, { locale: 'fr' })
+		expect(readFileSync(join(d, 'content/films/x/assets/pic.svg'), 'utf-8')).toBe('<svg/>')
+		expect(existsSync(join(d, 'content/films/notafilm'))).toBe(false)
+		expect(existsSync(join(d, 'content/logos'))).toBe(false)
+		expect(json(join(d, 'content/site.json'))).toEqual({ name: '', url: '', locales: ['fr'], defaultLocale: 'fr' })
+		expect(r.wrote).toEqual(['content/films/x/assets/pic.svg', 'content/films/x/film.json', 'content/site.json'])
+	})
 	it('validate counts an explicit figure as a figure, and lets a film that names its cover end on any scene', () => {
 		const w = website(), d = tmp()
 		init({ cwd: d, framework: 'vanilla', sample: false })
