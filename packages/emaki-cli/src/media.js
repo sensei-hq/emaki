@@ -63,14 +63,14 @@ export function muxArgs(video, audio, t0, dur, dst) {
 /** Runs `fn`; when it fails (the dev server reloaded the page under it), awaits `recover` (the show coming back)
  *  and runs it again, up to `attempts` times in all, then lets the last error through. */
 export async function retrying(fn, recover, attempts = 8) {
-	for (let i = 1; ; i++) {
+	for (let i = 1; i < attempts; i++) {
 		try {
 			return await fn()
 		} catch (e) {
-			if (i >= attempts) throw e
 			await recover(e)
 		}
 	}
+	return fn()
 }
 
 /** A warning when an existing render no longer runs as long as the film (after a retiming): its frames are stale. */
