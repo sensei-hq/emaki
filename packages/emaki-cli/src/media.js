@@ -177,6 +177,11 @@ export function webNote(bytes) {
 	return `${mb.toFixed(1)} MiB${mb > 25 ? ' - OVER 25 MiB, raise -crf' : ''}`
 }
 
+/** One take for the browser (voice-web): mono AAC 64k at -16 LUFS (speech heard on its own, under a ducked score),
+ *  the index up front so it starts streaming at once. */
+export const webVoiceArgs = (src, dst) => ['-y', '-v', 'error', '-i', src, '-vn', '-ac', '1', '-ar', '48000',
+	'-af', 'loudnorm=I=-16:TP=-1.5:LRA=11', '-c:a', 'aac', '-b:a', '64k', '-movflags', '+faststart', dst]
+
 const LOUDNORM = 'loudnorm=I=-14:TP=-1.5:LRA=11'
 
 /** ffmpeg for one final video: the rendered picture (`pic`, its own audio track the music when `music`), the voice

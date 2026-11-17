@@ -1,10 +1,10 @@
 // The narration: choose a voice per locale, synthesise takes, fit scene times to them, and build the final videos
 // (voice + score + captions, -14 LUFS).
-import { copyFileSync, existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { SUFFIX } from './config.js'
 import {
-	buildArgs, buildPlan, chaptersText, description, ffmeta, planTable, posterSteps, storyLink, webArgs, webNote, ytChapters
+	buildArgs, buildPlan, chaptersText, description, ffmeta, planTable, posterSteps, storyLink, webArgs, webNote, webVoiceArgs, ytChapters
 } from './media.js'
 import { OFFLINE, provider, TTSError, voiceConfig } from './tts.js'
 import { die, hasAudio, load, mediaLength, pad2, run, save } from './util.js'
@@ -115,6 +115,36 @@ export function takesFor(p, slug, locale) {
 		}
 	})
 	return out
+}
+
+/** The narration for the browser: each take as voice/<locale>/<scene>.m4a beside the film, and in timing.<locale>.json
+ *  each narrated scene's `voice` start (the same lead the videos use), so the story player and article figures speak
+ *  in step with the picture. A scene whose take is gone loses its file and its start. Run after `fit`. */
+export function voiceWeb(p, slug, { locale, encode = (src, dst) => run('ffmpeg', webVoiceArgs(src, dst)), log = () => {} } = {}) {
+	const d = p.filmDir(slug), takes = takesFor(p, slug, locale)
+	if (!takes.size) die(`${slug} has no takes for ${locale}: record or synthesise them first (emaki voice ${slug} --locale ${locale})`)
+	const film = load(join(d, 'film.json')), dir = join(d, 'voice', locale), tp = join(d, `timing.${locale}.json`)
+	const timing = existsSync(tp) ? load(tp) : { scenes: {} }
+	const tsc = (timing.scenes ??= {})
+	mkdirSync(dir, { recursive: true })
+	const wrote = [], removed = []
+	for (const s of film.scenes) {
+		const dst = join(dir, `${s.id}.m4a`), c = tsc[s.id] ?? {}
+		if (takes.has(s.id)) {
+			encode(takes.get(s.id)[0], dst)
+			wrote.push(p.rel(dst))
+			log(`${p.rel(dst)}`)
+			c.voice = p.lead
+		} else {
+			if (existsSync(dst)) { rmSync(dst); removed.push(p.rel(dst)) }
+			delete c.voice
+		}
+		if (Object.keys(c).length) tsc[s.id] = c
+		else delete tsc[s.id]
+	}
+	if (!readdirSync(dir).length) rmSync(dir, { recursive: true })
+	save(tp, timing)
+	return { wrote, removed, timing: p.rel(tp) }
 }
 
 /** timing.<locale>.json: each scene runs at least lead + take + tail; shorter takes keep the design time. */

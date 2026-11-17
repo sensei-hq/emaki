@@ -184,6 +184,17 @@ prog.command('fit <slug>')
 		console.info(`total ${r.total.toFixed(1)} s (${loc(o, p)})${r.written ? `\nwrote ${r.path}` : ''}`)
 	}))
 
+prog.command('voice-web <slug>')
+	.describe('Narration for the browser: each take as voice/<locale>/<scene>.m4a, and its start in timing.<locale>.json (needs ffmpeg).')
+	.option('--locale', 'Locale (default: the site default)')
+	.action(act(async (slug, o) => {
+		const { voiceWeb } = await import('./voice.js')
+		const p = P()
+		const r = voiceWeb(p, slug, { locale: loc(o, p), log: (l) => console.info(`wrote ${l}`) })
+		for (const f of r.removed) console.info(`removed ${f} (no take)`)
+		console.info(`wrote ${r.timing}`)
+	}))
+
 prog.command('render <slug>')
 	.describe('Capture the picture frame by frame (with the score) and the covers (needs Playwright + ffmpeg).')
 	.option('--locale', 'Locale (default: the site default)')
