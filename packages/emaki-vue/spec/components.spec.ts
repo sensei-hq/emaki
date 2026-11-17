@@ -1,6 +1,6 @@
 // The Vue components over the core: each mounts the core's DOM side (attachScene, createShow, installCapture) into
 // its element, forwards prop changes to it, renders chrome from the core's state, and tears it down on unmount.
-import { createApp, h, nextTick, shallowReactive, type App, type Component } from 'vue';
+import { createApp, h, nextTick, ref, shallowReactive, toRaw, type App, type Component } from 'vue';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { attachScene, createShow, figurePlayer, installCapture, ScenePlayerState } from '@senseihq/emaki';
 import { MotionScene, MotionShow, ScenePlayer, ShowPage } from '../src/index.js';
@@ -105,6 +105,18 @@ describe('ScenePlayer', () => {
     player.markReady(4);
     await mount(ScenePlayer, { player });
     expect(el.textContent).toBe('');
+  });
+
+  it('takes a player kept in a Vue ref (a reactive proxy, which cannot reach the class\'s private fields)', async () => {
+    const held = ref(new ScenePlayerState()), raw = toRaw(held.value);
+    raw.load({ film: 'f', scene: 'a', layout: 'landscape' });
+    await mount(ScenePlayer, { player: held.value as unknown as ScenePlayerState, controls: true });
+    expect(vi.mocked(attachScene).mock.calls[0][1]).toBe(raw);
+    raw.markReady(4);
+    await settle();
+    await click('Play');
+    expect(raw.playing).toBe(true);
+    expect(button('Pause')).toBeDefined();
   });
 });
 

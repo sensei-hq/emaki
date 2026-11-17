@@ -1,6 +1,6 @@
 // The Vue composables: the core's ScenePlayerState and story controller notify, refs update and the view re-renders;
 // listeners and ResizeObservers are let go when the component unmounts.
-import { createApp, defineComponent, h, nextTick, ref, shallowRef, type App, type Ref } from 'vue';
+import { createApp, defineComponent, h, nextTick, ref, shallowRef, toRaw, type App, type Ref } from 'vue';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as pkg from '../src/index.js';
 import { useScenePlayer, useShowState, useSize, type Show } from '../src/composables.js';
@@ -45,6 +45,18 @@ describe('useScenePlayer', () => {
     player.seek(1);
     await nextTick();
     expect(state.value.version).toBe(v);
+  });
+});
+
+describe('useScenePlayer with a player kept in a Vue ref', () => {
+  it('follows the player behind the reactive proxy', async () => {
+    const held = ref(new ScenePlayerState());
+    let state!: ReturnType<typeof useScenePlayer>;
+    mount(() => { state = useScenePlayer(held.value as unknown as ScenePlayerState); return () => h('p', state.value.status); });
+    toRaw(held.value).load({ film: 'f', scene: 's', layout: 'figure' });
+    toRaw(held.value).markReady(4);
+    await nextTick();
+    expect(el.textContent).toBe('ready');
   });
 });
 
