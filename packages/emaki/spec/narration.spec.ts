@@ -184,3 +184,50 @@ describe('loaders', () => {
     expect(await fetchFilmSource('/c').voice!('f', 'es', 'a')).toBe('/c/films/f/voice/es/a.m4a');
   });
 });
+
+describe('figure sound follows the figure', () => {
+  it('toggle(at) and cue(at) pick the narration up where the picture is', async () => {
+    const s = sceneSound('f', 'b');
+    await s.toggle(1.5);
+    await vi.waitFor(() => expect(playing()[0]).toMatchObject({ src: '/v/f/en/b.m4a', currentTime: 1 }));
+    s.destroy();
+  });
+
+  it('setLocale() switches to that language\'s take', async () => {
+    const s = sceneSound('f', 'b');
+    await s.toggle(1);
+    s.setLocale('es');
+    await s.cue(1);
+    expect(playing().map((a) => a.src)).toEqual(['/v/f/es/b.m4a']);
+    s.destroy();
+  });
+
+  it('attachScene passes a language change on to the figure\'s sound', async () => {
+    const { attachScene, ScenePlayerState } = await import('../src/index.js');
+    const p = new ScenePlayerState();
+    p.load({ film: 'f', scene: 'b', layout: 'figure' });
+    const sound = { cue: vi.fn(), stop: vi.fn(), destroy: vi.fn(), setLocale: vi.fn() };
+    const view = attachScene(box(), p, { sound });
+    view.setLocale('es');
+    expect(sound.setLocale).toHaveBeenCalledWith('es');
+    view.destroy();
+  });
+
+  it('<motion-scene> offers sound for a narrated scene and plays its take', async () => {
+    class Watch { observe() {} disconnect() {} }
+    vi.stubGlobal('ResizeObserver', Watch);
+    vi.stubGlobal('IntersectionObserver', Watch);
+    const { defineMotionElements } = await import('../src/elements/index.js');
+    defineMotionElements();
+    const el = document.createElement('motion-scene');
+    el.setAttribute('film', 'f'); el.setAttribute('scene', 'b');
+    document.body.appendChild(el);
+    const btn = el.querySelector('button')!;
+    await vi.waitFor(() => expect(btn.hidden).toBe(false));
+    btn.click();
+    await vi.waitFor(() => expect(playing().map((a) => a.src)).toEqual(['/v/f/en/b.m4a']));
+    btn.click();
+    expect(playing()).toHaveLength(0);
+    el.remove();
+  });
+});
