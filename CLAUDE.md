@@ -24,6 +24,7 @@ docs/llms                the reference corpus named by sensei.library.json
 ## Commands
 
 ```sh
+bun run build            # every package, then the site (what Workers Builds runs; deploy: wrangler deploy -c site/wrangler.jsonc)
 bun run check            # tsc per package, build all, vitest (projects: config, emaki, posting, cli)
 cd packages/emaki-svelte && bun run check   # svelte-check
 bun run test:browser     # build + run the example in Chromium
