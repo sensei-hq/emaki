@@ -61,6 +61,24 @@ describe('useScenePlayer with a player kept in a Vue ref', () => {
 });
 
 describe('useShowState', () => {
+  it('follows the playhead once a frame, says whether the show has started, and stops following on unmount', async () => {
+    const frames = new Map<number, FrameRequestCallback>();
+    let n = 0;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => { frames.set(++n, cb); return n; });
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => { frames.delete(id); });
+    const s = fakeShow(3, false);
+    let state!: ReturnType<typeof useShowState>;
+    mount(() => { state = useShowState(shallowRef(s as unknown as Show)); return () => h('p', `${state.value?.started} ${state.value?.local}`); });
+    expect(el.textContent).toBe('false 0');
+    s.advance(1.5);
+    [...frames.values()].forEach((f) => { frames.clear(); f(0); });
+    await nextTick();
+    expect(el.textContent).toBe('false 1.5');
+    expect(frames.size).toBe(1);
+    unmount();
+    expect(frames.size).toBe(0);
+  });
+
   it('follows whichever controller the ref holds, swapping listeners with it', async () => {
     const show = shallowRef<FakeShow | null>(null), a = fakeShow(), b = fakeShow();
     let state!: ReturnType<typeof useShowState>;

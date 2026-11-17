@@ -97,6 +97,25 @@ describe('useShowState', () => {
     root = createRoot(el);
   });
 
+  it('follows the playhead once a frame, says whether the show has started, and stops following on unmount', () => {
+    const frames = new Map<number, FrameRequestCallback>();
+    let n = 0;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => { frames.set(++n, cb); return n; });
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => { frames.delete(id); });
+    const frame = () => act(() => { const due = [...frames.values()]; frames.clear(); due.forEach((f) => f(0)); });
+    const s = fakeShow(3, false);
+    function Head() { const st = useShowState(asShow(s)); return h('p', null, `${st?.started} ${st?.local}`); }
+    render(h(Head));
+    expect(el.textContent).toBe('false 0');
+    s.advance(1.5);
+    frame();
+    expect(el.textContent).toBe('false 1.5');
+    expect(frames.size).toBe(1);
+    act(() => root.unmount());
+    expect(frames.size).toBe(0);
+    root = createRoot(el);
+  });
+
   it('starts empty without a controller', () => {
     render(h(View, { show: null }));
     expect(el.textContent).toBe('none');
