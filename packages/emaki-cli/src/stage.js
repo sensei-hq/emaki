@@ -68,40 +68,53 @@ export function postsFor(p, slug, locale) {
 
 const sha = (bytes) => createHash('sha256').update(bytes).digest('hex')
 
-export async function stage(p, slug, { locale, channels, dryRun = false, env = process.env, fetch = globalThis.fetch, log = console.info, toJpeg = pngToJpeg } = {}) {
-	locale ??= p.site.defaultLocale
+/** --channels (a list, or comma-separated) or every channel; an unknown name is refused. */
+function wantedChannels(channels) {
 	const want = channels ? [channels].flat().flatMap((c) => String(c).split(',')).map((c) => c.trim()).filter(Boolean) : [...CHANNELS]
 	for (const c of want) if (!CHANNELS.includes(c)) die(`unknown channel "${c}" (${CHANNELS.join(', ')})`)
+	return want
+}
+
+/** Uploads a channel's files to the desk (once per key across channels; PNG as JPEG) and lists them with their hashes.
+ *  Without a desk (dry run) nothing is sent and each hash is computed here. */
+async function channelMedia(files, { slug, channel, desk, uploaded, toJpeg }) {
+	const media = []
+	for (const x of files) {
+		const path = x.path.endsWith('.png') ? toJpeg(x.path) : x.path
+		const name = (x.name ?? basename(path)).toLowerCase(), type = typeOf(path)
+		const key = `${slug}/${type === 'image/jpeg' ? `${channel.split('_')[0]}-${name}` : name}`
+		const bytes = readFileSync(path)
+		if (desk && !uploaded.has(key)) uploaded.set(key, await desk.putMedia(key, bytes, type))
+		media.push({ key, sha256: uploaded.get(key) ?? sha(bytes), type })
+	}
+	return media
+}
+
+/** One channel: skipped when a file is missing, printed on a dry run (no desk), else staged on the desk. */
+async function stageChannel(p, slug, channel, [text, files], ctx) {
+	const { desk, log, result } = ctx
+	const missing = files.filter((x) => !x.path).map((x) => p.rel(x.expect))
+	if (missing.length) {
+		log(`  ${channel}: skipped, missing ${missing.join(', ')}`)
+		result.skipped.push({ channel, missing })
+		return
+	}
+	const media = await channelMedia(files, { slug, channel, ...ctx })
+	const post = { ...text, media }
+	result.posts[channel] = post
+	if (!desk) return log(`--- ${channel}\n${JSON.stringify(post, null, 2)}`)
+	const r = await desk.stage(slug, channel, post)
+	log(`  ${channel}: staged (${String(r.content_sha).slice(0, 10)}), ${media.length} file(s)`)
+	result.staged.push({ channel, content_sha: r.content_sha, files: media.length })
+}
+
+export async function stage(p, slug, { locale, channels, dryRun = false, env = process.env, fetch = globalThis.fetch, log = console.info, toJpeg = pngToJpeg } = {}) {
+	locale ??= p.site.defaultLocale
+	const want = wantedChannels(channels)
 	const posts = postsFor(p, slug, locale)
 	const desk = dryRun ? null : deskClient(p, { env, fetch })
-	const uploaded = new Map(), result = { staged: [], skipped: [], posts: {} }
-	for (const channel of CHANNELS.filter((c) => want.includes(c) && posts[c])) {
-		const [text, files] = posts[channel]
-		const missing = files.filter((x) => !x.path).map((x) => p.rel(x.expect))
-		if (missing.length) {
-			log(`  ${channel}: skipped, missing ${missing.join(', ')}`)
-			result.skipped.push({ channel, missing })
-			continue
-		}
-		const media = []
-		for (const x of files) {
-			const path = x.path.endsWith('.png') ? toJpeg(x.path) : x.path
-			const name = (x.name ?? basename(path)).toLowerCase(), type = typeOf(path)
-			const key = `${slug}/${type === 'image/jpeg' ? `${channel.split('_')[0]}-${name}` : name}`
-			const bytes = readFileSync(path)
-			if (desk && !uploaded.has(key)) uploaded.set(key, await desk.putMedia(key, bytes, type))
-			media.push({ key, sha256: uploaded.get(key) ?? sha(bytes), type })
-		}
-		const post = { ...text, media }
-		result.posts[channel] = post
-		if (!desk) {
-			log(`--- ${channel}\n${JSON.stringify(post, null, 2)}`)
-			continue
-		}
-		const r = await desk.stage(slug, channel, post)
-		log(`  ${channel}: staged (${String(r.content_sha).slice(0, 10)}), ${media.length} file(s)`)
-		result.staged.push({ channel, content_sha: r.content_sha, files: media.length })
-	}
+	const ctx = { desk, log, toJpeg, uploaded: new Map(), result: { staged: [], skipped: [], posts: {} } }
+	for (const channel of CHANNELS.filter((c) => want.includes(c) && posts[c])) await stageChannel(p, slug, channel, posts[channel], ctx)
 	if (desk) log(`Review and approve on ${desk.origin}/admin`)
-	return result
+	return ctx.result
 }

@@ -34,38 +34,45 @@ function ytClient(env, fetch, log) {
 	return youtube({ clientId: env.YT_CLIENT_ID, clientSecret: env.YT_CLIENT_SECRET, refreshToken: env.YT_REFRESH_TOKEN, fetch, log })
 }
 
-async function publishYoutube(p, slug, { locale, verify, dryRun, privacy = 'unlisted', update, forceNew, descriptionMode = 'prepend', env = process.env, fetch = globalThis.fetch, log = console.info } = {}) {
-	if (verify) return log(`YouTube posts as: ${await ytClient(env, fetch, log).verify()}`)
-	if (!PRIVACY.includes(privacy)) die('--privacy: public, unlisted or private')
-	if (!['prepend', 'replace'].includes(descriptionMode)) die('--description-mode: prepend or replace')
-	locale ??= p.site.defaultLocale
-	const yt = dryRun ? null : ytClient(env, fetch, log)
+const DESCRIPTION_MODES = ['prepend', 'replace']
+const chapterCount = (desc) => desc.split('\n').filter((l) => /^\d+:\d\d /.test(l)).length
+
+/** What a YouTube post carries: the built 16:9 film, the description, the story's tags, captions and thumbnail. */
+function youtubePiece(p, slug, locale) {
 	const story = storyFor(p, slug, locale), f = filmFiles(p, slug, locale)
 	if (!f.wide) die(`${slug}: no built 16:9 video (${p.rel(f.expect.wide)}); run \`emaki render ${slug}\` and \`emaki build ${slug}\` first`)
-	const desc = youtubeDescription(p, slug, locale, story.title), tags = story.tags
-	const srt = f.srt ? readFileSync(f.srt) : null, thumb = f.thumb ? readFileSync(f.thumb) : null
-	if (update) {
-		const remote = dryRun ? null : (await yt.getVideo(update)).snippet
-		const merged = remote ? mergeDescription(remote.description ?? '', desc, descriptionMode) : desc
-		log(`YouTube update · ${story.title} · https://www.youtube.com/watch?v=${update}`)
-		log(`  title:   ${remote ? JSON.stringify(remote.title) : '(remote)'} → ${JSON.stringify(story.title)}`)
-		log(`  desc:    ${descriptionMode}, ${merged.length} chars`)
-		log(`  tags:    ${tags.length ? tags.join(', ') : '(keep remote)'}`)
-		log(`  captions: ${f.srt ? `replace uploaded tracks with ${basename(f.srt)}` : 'none (skipped)'}`)
-		log(`  thumb:   ${f.thumb ? `set ${basename(f.thumb)}` : 'skipped (none rendered)'}`)
-		if (dryRun) return log('dry run: nothing changed'), { dryRun: true }
-		await yt.updateMetadata(update, { title: story.title, description: merged, tags: tags.length ? tags : undefined })
-		if (srt) await yt.replaceCaptions(update, srt, locale)
-		if (thumb) await yt.setThumbnail(update, thumb)
-		recordLinks(p, slug, { youtube: update })
-		log(`updated; recorded in ${p.rel(storiesIndex(p))}`)
-		return { id: update, updated: true }
+	return {
+		story, f, desc: youtubeDescription(p, slug, locale, story.title), tags: story.tags,
+		srt: f.srt ? readFileSync(f.srt) : null, thumb: f.thumb ? readFileSync(f.thumb) : null
 	}
+}
+
+/** --update: refreshes the uploaded video's title, description (merged with the remote one), tags, captions, thumbnail. */
+async function updateYoutube(p, slug, yt, { story, f, desc, tags, srt, thumb }, { update, dryRun, descriptionMode, locale, log }) {
+	const remote = dryRun ? null : (await yt.getVideo(update)).snippet
+	const merged = remote ? mergeDescription(remote.description ?? '', desc, descriptionMode) : desc
+	log(`YouTube update · ${story.title} · https://www.youtube.com/watch?v=${update}`)
+	log(`  title:   ${remote ? JSON.stringify(remote.title) : '(remote)'} → ${JSON.stringify(story.title)}`)
+	log(`  desc:    ${descriptionMode}, ${merged.length} chars`)
+	log(`  tags:    ${tags.length ? tags.join(', ') : '(keep remote)'}`)
+	log(`  captions: ${f.srt ? `replace uploaded tracks with ${basename(f.srt)}` : 'none (skipped)'}`)
+	log(`  thumb:   ${f.thumb ? `set ${basename(f.thumb)}` : 'skipped (none rendered)'}`)
+	if (dryRun) return log('dry run: nothing changed'), { dryRun: true }
+	await yt.updateMetadata(update, { title: story.title, description: merged, tags: tags.length ? tags : undefined })
+	if (srt) await yt.replaceCaptions(update, srt, locale)
+	if (thumb) await yt.setThumbnail(update, thumb)
+	recordLinks(p, slug, { youtube: update })
+	log(`updated; recorded in ${p.rel(storiesIndex(p))}`)
+	return { id: update, updated: true }
+}
+
+/** A new upload; refused when the story already has a video, unless --force-new. */
+async function uploadYoutube(p, slug, yt, { story, f, desc, tags, srt, thumb }, { privacy, forceNew, dryRun, locale, log }) {
 	if (story.youtube && !forceNew)
 		die(`${slug} is already on YouTube as ${story.youtube}; pass --update ${story.youtube} to refresh it, or --force-new to upload again`)
 	log(`YouTube · ${story.title} · privacy ${privacy}`)
 	log(`  video:   ${basename(f.wide)} (${kb(f.wide)})`)
-	log(`  desc:    ${desc.length} chars, ${desc.split('\n').filter((l) => /^\d+:\d\d /.test(l)).length} chapters`)
+	log(`  desc:    ${desc.length} chars, ${chapterCount(desc)} chapters`)
 	log(`  tags:    ${tags.slice(0, 10).join(', ')}`)
 	log(`  captions: ${f.srt ? basename(f.srt) : 'none (continues without)'}`)
 	log(`  thumb:   ${f.thumb ? basename(f.thumb) : 'none (continues without)'}`)
@@ -74,6 +81,17 @@ async function publishYoutube(p, slug, { locale, verify, dryRun, privacy = 'unli
 	recordLinks(p, slug, { youtube: r.id })
 	log(`posted: ${r.url}\nrecorded in ${p.rel(storiesIndex(p))}`)
 	return r
+}
+
+async function publishYoutube(p, slug, { locale, verify, dryRun, privacy = 'unlisted', update, forceNew, descriptionMode = 'prepend', env = process.env, fetch = globalThis.fetch, log = console.info } = {}) {
+	if (verify) return log(`YouTube posts as: ${await ytClient(env, fetch, log).verify()}`)
+	if (!PRIVACY.includes(privacy)) die('--privacy: public, unlisted or private')
+	if (!DESCRIPTION_MODES.includes(descriptionMode)) die('--description-mode: prepend or replace')
+	locale ??= p.site.defaultLocale
+	const yt = dryRun ? null : ytClient(env, fetch, log)
+	const piece = youtubePiece(p, slug, locale)
+	if (update) return updateYoutube(p, slug, yt, piece, { update, dryRun, descriptionMode, locale, log })
+	return uploadYoutube(p, slug, yt, piece, { privacy, forceNew, dryRun, locale, log })
 }
 
 /** Public URLs Meta can fetch: the flags, else the files staged on the desk and signed for an hour. */

@@ -3,8 +3,10 @@
 import { readdirSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { KEY } from './config.js'
+import { keysIn, validateFilm, validateStory } from './film-checks.js'
 import { die, exists, load, save, today } from './util.js'
+
+export { keysIn, validateFilm, validateStory }
 
 export const TEMPLATES = fileURLToPath(new URL('../templates/', import.meta.url))
 
@@ -16,83 +18,6 @@ export function manifest(p) {
 	const slugs = filmSlugs(p)
 	save(join(p.films, 'index.json'), slugs)
 	return { count: slugs.length, path: p.rel(join(p.films, 'index.json')) }
-}
-
-/** Every {{key}} a scene uses. */
-export function keysIn(obj, out = new Set()) {
-	if (typeof obj === 'string') for (const m of obj.matchAll(KEY)) out.add(m[1])
-	else if (Array.isArray(obj)) obj.forEach((x) => keysIn(x, out))
-	else if (obj && typeof obj === 'object') Object.values(obj).forEach((x) => keysIn(x, out))
-	return out
-}
-
-const list = (xs) => xs.slice(0, 8).join(', ') + (xs.length > 8 ? ' …' : '')
-
-export function validateFilm(p, slug) {
-	const issues = [], d = p.filmDir(slug), film = load(join(d, 'film.json')), used = new Set()
-	if (!exists(join(d, 'look.css'))) issues.push('look.css is missing')
-	else {
-		// Dark is opt-in: film.json's dark block turns it on, look.css draws it. One without the other is a mistake.
-		const styled = readFileSync(join(d, 'look.css'), 'utf-8').includes('#stage[data-mode="dark"]')
-		if (film.dark && !styled) issues.push('film.json has a dark block but look.css never styles #stage[data-mode="dark"]')
-		if (!film.dark && styled) issues.push('look.css styles #stage[data-mode="dark"] but film.json has no dark block (those styles never apply)')
-	}
-	for (const s of film.scenes) {
-		const sj = join(d, `scene-${s.id}.json`), js = join(d, `scene-${s.id}.js`)
-		if (!exists(sj) && !exists(js)) {
-			issues.push(`scene ${s.id}: no scene-${s.id}.json (or .js)`)
-			continue
-		}
-		if (exists(sj)) {
-			const spec = load(sj)
-			keysIn(spec, used)
-			if (!('portrait' in spec)) issues.push(`scene ${s.id}: no portrait block (needed for 9:16 and article figures)`)
-			const ids = (spec.components ?? []).map((c) => c.id)
-			if (ids.length !== new Set(ids).size) issues.push(`scene ${s.id}: duplicate component ids`)
-		}
-		if (!(s.dur > 0 && s.dur < 60)) issues.push(`scene ${s.id}: dur ${s.dur} looks wrong`)
-	}
-	if (!film.cover && film.scenes.at(-1)?.id !== 'close') issues.push('the last scene should be "close" (the punchline card is the cover), or film.json should name its cover')
-	for (const loc of p.site.locales) {
-		const sp = join(d, 'strings', `${loc}.json`)
-		if (!exists(sp)) {
-			if (used.size) issues.push(`strings/${loc}.json is missing`)
-			continue
-		}
-		const st = load(sp)
-		const missing = [...used].filter((k) => !(k in st)).sort()
-		const unused = Object.keys(st).filter((k) => !used.has(k)).sort()
-		if (missing.length) issues.push(`strings/${loc}.json: missing ${list(missing)}`)
-		if (unused.length) issues.push(`strings/${loc}.json: unused ${list(unused)}`)
-		const vp = join(d, 'voice', `${loc}.json`)
-		if (exists(vp)) {
-			const v = new Set(load(vp).map((x) => x.scene))
-			const gap = film.scenes.map((s) => s.id).filter((id) => !v.has(id))
-			if (gap.length) issues.push(`voice/${loc}.json: no line for ${gap.join(', ')}`)
-		}
-	}
-	return issues
-}
-
-export function validateStory(p, entry) {
-	const issues = [], slug = entry.slug
-	if (!/^\d{4}-\d{2}-\d{2}$/.test(entry.publish_date ?? '')) issues.push('publish_date must be YYYY-MM-DD')
-	const film = entry.film ?? (exists(join(p.films, slug, 'film.json')) ? slug : null)
-	const sceneIds = new Set(film ? load(join(p.films, film, 'film.json')).scenes.map((s) => s.id) : [])
-	for (const loc of p.site.locales) {
-		const f = join(p.content, 'stories', loc, `${slug}.json`)
-		if (!exists(f)) {
-			issues.push(loc === p.site.defaultLocale ? `stories/${loc}/${slug}.json is missing` : `(info) stories/${loc}/${slug}.json not translated yet`)
-			continue
-		}
-		const b = load(f)
-		for (const k of ['title', 'dek', 'sections']) if (!b[k] || (Array.isArray(b[k]) && !b[k].length)) issues.push(`${loc}: ${k} is empty`)
-		if (film && !b.takeaway) issues.push(`${loc}: a film story needs a takeaway (the closing line)`)
-		for (const s of b.sections ?? [])
-			if (s.motion == null && s.figure == null && film && !sceneIds.has(s.id) && !['more', 'sources'].includes(s.id))
-				issues.push(`(info) ${loc}: section ${s.id} has no figure (no scene of that id)`)
-	}
-	return issues
 }
 
 /** All problems (lines prefixed "(info)" are notes, not failures). */

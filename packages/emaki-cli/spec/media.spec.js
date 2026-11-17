@@ -205,6 +205,28 @@ describe('build: ffmpeg arguments', () => {
 		expect(fc).toContain('[3:a]loudnorm=I=-14:TP=-1.5:LRA=11[a]')
 		expect(a.join(' ')).toContain('-map [v] -map [a]')
 	})
+	it('the whole command line, in order, for each mix of freeze, music, captions and chapters', () => {
+		const two = { scenes: [{ id: 'a', dur: 4 }, { id: 'b', dur: 5 }] }
+		const flat = buildPlan(two, {}, new Map([['a', { file: 'a.wav', seconds: 1 }]]), LT)
+		const ext = buildPlan(two, {}, new Map([['a', { file: 'a.wav', seconds: 3.5 }]]), LT)
+		const io = { pic: 'p.mp4', voice: 'v.wav', dst: 'o.mp4' }
+		const out = ' -c:v libx264 -crf 18 -preset medium -pix_fmt yuv420p -c:a aac -b:a 192k'
+		const duck = (vo) => `[mu]volume=0.55[sc];[${vo}:a]aresample=48000,asplit=2[vo][key];[sc][key]sidechaincompress=threshold=0.05:ratio=6:release=400[duck];[duck][vo]amix=inputs=2:normalize=0,loudnorm=I=-14:TP=-1.5:LRA=11[a]`
+		expect(buildArgs({ ...io, plan: flat, music: true, subtitles: 'subtitles=s.srt' }).join(' ')).toBe(
+			`-y -v error -i p.mp4 -i v.wav -filter_complex [0:a]aresample=48000,aformat=channel_layouts=stereo[mu];${duck(1)};[0:v]subtitles=s.srt[v] -map [v] -map [a]${out} -t 9.000 -movflags +faststart o.mp4`)
+		expect(buildArgs({ ...io, plan: flat, music: false, chapters: 'c.ffmeta', scoreLevel: 0.4 }).join(' ')).toBe(
+			`-y -v error -i p.mp4 -i v.wav -i c.ffmeta -filter_complex [1:a]loudnorm=I=-14:TP=-1.5:LRA=11[a] -map 0:v -map [a] -map_metadata 2 -map_chapters 2${out} -t 9.000 -movflags +faststart o.mp4`)
+		expect(buildArgs({ ...io, plan: ext, music: true, chapters: 'c.ffmeta' }).join(' ')).toBe(
+			'-y -v error -ss 0.000 -t 4.000 -i p.mp4 -ss 4.000 -t 5.000 -i p.mp4 -i v.wav -i c.ffmeta -filter_complex ' +
+			'[0:v]tpad=stop_mode=clone:stop_duration=1.300,setpts=PTS-STARTPTS[v0];' +
+			'[0:a]aresample=48000,aformat=channel_layouts=stereo,afade=t=in:st=0:d=0.005,afade=t=out:st=3.995:d=0.005,aloop=loop=-1:size=2e9,apad,atrim=0:5.300,asetpts=PTS-STARTPTS[m0];' +
+			'[1:v]setpts=PTS-STARTPTS[v1];[1:a]aresample=48000,aformat=channel_layouts=stereo,apad,atrim=0:5.000,asetpts=PTS-STARTPTS[m1];' +
+			`[v0][v1]concat=n=2:v=1:a=0[pv];[m0][m1]concat=n=2:v=0:a=1[mu];${duck(2)} -map [pv] -map [a] -map_metadata 3 -map_chapters 3${out} -t 10.300 -movflags +faststart o.mp4`)
+		expect(buildArgs({ ...io, plan: ext, music: false, subtitles: 'subtitles=s.srt' }).join(' ')).toBe(
+			'-y -v error -ss 0.000 -t 4.000 -i p.mp4 -ss 4.000 -t 5.000 -i p.mp4 -i v.wav -filter_complex ' +
+			'[0:v]tpad=stop_mode=clone:stop_duration=1.300,setpts=PTS-STARTPTS[v0];[1:v]setpts=PTS-STARTPTS[v1];[v0][v1]concat=n=2:v=1:a=0[pv];' +
+			`[2:a]loudnorm=I=-14:TP=-1.5:LRA=11[a];[pv]subtitles=s.srt[v] -map [v] -map [a]${out} -t 10.300 -movflags +faststart o.mp4`)
+	})
 })
 
 describe('build: chapters', () => {
