@@ -1,7 +1,7 @@
 <script lang="ts">
   // An article figure: one scene, looping while it is on screen with a `hold` s rest on its last frame, or a still
-  // under reduced motion. Pass `t` to drive it yourself. When the film has a score, a speaker button plays the
-  // scene's slice of it in step with the loop (off until the reader turns it on). <MotionScene film="..." scene="..." />
+  // under reduced motion. Pass `t` to drive it yourself. When the scene has sound (its slice of the film's score, its
+  // narration, or both), a speaker button plays it in step with the loop (off until the reader turns it on). <MotionScene film="..." scene="..." />
   import { onMount, untrack } from 'svelte';
   import { attachScene, figurePlayer, sceneSound, type Layout, type Mode } from '@senseihq/emaki';
 
@@ -32,7 +32,7 @@
 
   async function toggleSound() {
     if (!sound) return;
-    await sound.toggle();
+    await sound.toggle(player.t);
     soundOn = sound.on;
   }
 </script>

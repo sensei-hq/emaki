@@ -91,23 +91,25 @@ export function narration(f: FilmMeta, locale: string) {
 }
 
 /** One scene's sound for an article figure: its slice of the film's score and its narration. Off until toggled on,
- *  then cue() restarts both in step with the scene (call it whenever the scene starts over) and stop() silences them
- *  (call it when the figure scrolls away). `available` resolves false when the scene has neither, so the button can
- *  stay hidden. */
+ *  then cue(at) restarts both at `at` seconds into the scene (call it whenever the scene starts over, with 0) and
+ *  stop() silences them (call it when the figure scrolls away). `available` resolves false when the scene has
+ *  neither, so the button can stay hidden; setLocale() follows the figure into another language. */
 export function sceneSound(film: string, scene: string, locale = 'en') {
   let ctx: AudioContext | null = null, bus: GainNode | null = null, voice: { stop: () => void } | null = null;
   let from = 0, to = 0, end = 0, words: ReturnType<typeof narration> | null = null;
-  const ready = loadFilm(film, locale).then(async (f) => {
+  const load = (l: string) => loadFilm(film, l).then(async (f) => {
     const tl = f && timeline(f), s = tl?.scenes.find((x) => x.id === scene);
     if (!f || !s || !tl) return { score: null, spoken: false };
     from = s.start; to = s.start + s.dur; end = tl.duration;
-    words = narration(f, locale);
+    words?.stop();
+    words = narration(f, l);
     return { score: await filmScore(f), spoken: words.has(scene) };
   });
+  let ready = load(locale);
   const api = {
-    available: ready.then((r) => !!r.score || r.spoken),
+    get available() { return ready.then((r) => !!r.score || r.spoken); },
     on: false,
-    async toggle() {
+    async toggle(at = 0) {
       api.on = !api.on;
       if (!api.on) return api.stop();
       const { score } = await ready;
@@ -115,20 +117,21 @@ export function sceneSound(film: string, scene: string, locale = 'en') {
         ctx ??= new AudioContext();
         await ctx.resume();
       }
-      await api.cue();
+      await api.cue(at);
     },
-    async cue() {
+    async cue(at = 0) {
       api.stop();
       const { score, spoken } = await ready;
       if (!api.on) return;
-      const speaking = spoken && words ? words.start(scene, 0) : Promise.resolve(false);
+      const speaking = spoken && words ? words.start(scene, at) : Promise.resolve(false);
       if (score && ctx) {
         if (!bus) { bus = ctx.createGain(); bus.connect(ctx.destination); }
         bus.gain.value = spoken ? DUCK : 1;
-        voice = play(ctx, bus, score, from, to, ctx.currentTime + 0.03, end);
+        voice = play(ctx, bus, score, from + at, to, ctx.currentTime + 0.03, end);
       }
       await speaking;
     },
+    setLocale(l: string) { if (l === locale) return; locale = l; api.stop(); ready = load(l); },
     stop() { voice?.stop(); voice = null; words?.stop(); },
     destroy() { api.on = false; api.stop(); ctx?.close(); ctx = null; },
   };

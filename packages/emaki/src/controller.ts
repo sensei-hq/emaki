@@ -16,7 +16,7 @@ export interface AttachOptions {
   /** A still: never plays, shows the scene near its end. Defaults to the reader's prefers-reduced-motion. */
   still?: boolean;
   /** The scene's slice of the score (sceneSound): cued each time the scene starts over, stopped off screen. */
-  sound?: { cue(): void; stop(): void; destroy(): void };
+  sound?: { cue(at?: number): void; stop(): void; destroy(): void; setLocale?(locale: string): void };
 }
 
 export interface AttachedScene {
@@ -100,7 +100,7 @@ export function attachScene(host: HTMLElement, player: ScenePlayerState, opts: A
   return {
     fit(w) { width = w; scale(); },
     setMode(md) { if (md !== mode) { mode = md; seenKey = keyOf(); sync(); } },
-    setLocale(l) { if (l !== locale) { locale = l; seenKey = keyOf(); sync(); } },
+    setLocale(l) { if (l !== locale) { locale = l; opts.sound?.setLocale?.(l); seenKey = keyOf(); sync(); } },
     destroy() { alive = false; cancelAnimationFrame(raf); off(); io?.disconnect(); opts.sound?.destroy(); m?.destroy(); m = null; },
   };
 }

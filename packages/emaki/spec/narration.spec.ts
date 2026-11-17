@@ -220,9 +220,10 @@ describe('figure sound follows the figure', () => {
     const { defineMotionElements } = await import('../src/elements/index.js');
     defineMotionElements();
     const el = document.createElement('motion-scene');
-    el.setAttribute('film', 'f'); el.setAttribute('scene', 'b');
+    el.setAttribute('film', 'f'); el.setAttribute('scene', 'b'); el.setAttribute('layout', 'landscape');
     document.body.appendChild(el);
     const btn = el.querySelector('button')!;
+    expect(btn.hidden).toBe(true);
     await vi.waitFor(() => expect(btn.hidden).toBe(false));
     btn.click();
     await vi.waitFor(() => expect(playing().map((a) => a.src)).toEqual(['/v/f/en/b.m4a']));
