@@ -38,61 +38,84 @@ export interface MediaStore {
 
 const now = () => new Date().toISOString();
 
+type ProductionRow = { slug: string; script: string | null; status: Production; updated_at: string };
+type RecordedPost = Parameters<PostingStore['recordPost']>[1];
+
+/** Media files in a map. Its methods are own properties, so they work taken off the object. */
+class MemoryMedia implements MediaStore {
+  #files = new Map<string, { bytes: ArrayBuffer; contentType: string; sha256: string }>();
+  get = async (key: string): Promise<MediaObject | null> => {
+    const f = this.#files.get(key);
+    return f ? { body: f.bytes, size: f.bytes.byteLength, contentType: f.contentType, sha256: f.sha256 } : null;
+  };
+  head = async (key: string) => {
+    const f = this.#files.get(key);
+    return f ? { size: f.bytes.byteLength, sha256: f.sha256 } : null;
+  };
+  put = async (key: string, bytes: ArrayBuffer, o: { contentType: string; sha256: string }) => { this.#files.set(key, { bytes, ...o }); };
+}
+
+/**
+ * The desk's rows in memory. Its methods are own properties (no private state shows), so they work taken off the
+ * object; each one audits through `this.audit`, the store's own. One id sequence numbers every row.
+ */
+class MemoryStore implements PostingStore {
+  #s: DeskState = { staged: [], approvals: [], posts: [], paused: true, schedule: [] };
+  #log: AuditRow[] = [];
+  #production = new Map<string, ProductionRow>();
+  #requests: RequestRow[] = [];
+  #id = 0;
+
+  readAll = async () => structuredClone(this.#s);
+  recentAudit = async (n = 40) => this.#log.slice(-n).reverse();
+  audit = async (actor: string, action: string, slug: string | null = null, channel: string | null = null, detail?: string) => {
+    this.#log.push({ id: ++this.#id, at: now(), actor, action, slug, channel, detail: detail ?? null });
+  };
+  stage = async (actor: string, slug: string, channel: Channel, post: StagedPost) => {
+    const sha = await contentSha(channel, post);
+    this.#s.staged = this.#s.staged.filter((r) => !(r.slug === slug && r.channel === channel));
+    this.#s.staged.push({ slug, channel, post: structuredClone(post), content_sha: sha, staged_by: actor, staged_at: now() });
+    await this.audit(actor, 'stage', slug, channel, sha.slice(0, 12));
+    return sha;
+  };
+  approve = async (actor: string, slug: string, channel: Channel, seen: string) => {
+    const row = this.#s.staged.find((r) => r.slug === slug && r.channel === channel);
+    if (!row || row.content_sha !== seen) return false;
+    this.#s.approvals.push({ id: ++this.#id, slug, channel, content_sha: seen, approved_by: actor, approved_at: now(), revoked_at: null });
+    await this.audit(actor, 'approve', slug, channel, seen.slice(0, 12));
+    return true;
+  };
+  revoke = async (actor: string, slug: string, channel: Channel) => {
+    const live = this.#s.approvals.filter((a) => a.slug === slug && a.channel === channel && !a.revoked_at);
+    for (const a of live) a.revoked_at = now();
+    await this.audit(actor, 'revoke', slug, channel);
+  };
+  setPaused = async (actor: string, paused: boolean) => { this.#s.paused = paused; await this.audit(actor, paused ? 'pause' : 'resume'); };
+  recordPost = async (actor: string, p: RecordedPost) => {
+    this.#s.posts.push({ id: ++this.#id, slug: p.slug, channel: p.channel, content_sha: p.content_sha, status: p.status, url: p.url ?? null, external_id: p.external_id ?? null, detail: p.detail ?? null, run: p.run ?? null, at: now() });
+    await this.audit(actor, p.status, p.slug, p.channel, p.url ?? p.detail);
+  };
+  readSchedule = async () => structuredClone(this.#s.schedule);
+  setDates = async (actor: string, moved: Map<string, string>, why: string) => {
+    if (!moved.size) return;
+    for (const [slug, d] of moved) { this.#s.schedule = this.#s.schedule.filter((x) => x.slug !== slug); this.#s.schedule.push({ slug, publish_date: d }); }
+    await this.audit(actor, 'reorder', null, null, `${why}: ${[...moved].map(([x, d]) => `${x}→${d}`).join(', ')}`);
+  };
+  readProduction = async () => [...this.#production.values()];
+  saveProduction = async (slug: string, script: string | null, status: Production) => { this.#production.set(slug, { slug, script, status, updated_at: now() }); };
+  readRequests = async (openOnly = false) => this.#requests.filter((r) => !openOnly || (!r.parent && r.status !== 'done'));
+  addRequest = async (actor: string, slug: string, kind: string, body: string, parent: number | null = null) => {
+    this.#requests.push({ id: ++this.#id, slug, kind, body: body.slice(0, 4000), author: actor, at: now(), status: 'open', parent });
+    await this.audit(actor, parent ? 'reply' : `request:${kind}`, slug, null, body.slice(0, 200));
+  };
+  setRequestStatus = async (actor: string, rid: number, status: string) => {
+    const r = this.#requests.find((x) => x.id === rid); if (r) r.status = status;
+    await this.audit(actor, `request:${status}`, null, null, `#${rid}`);
+  };
+  media: MediaStore = new MemoryMedia();
+}
+
 /** Everything in memory. Starts paused, like the real one. */
 export function memoryStore(): PostingStore & { media: MediaStore } {
-  const s: DeskState = { staged: [], approvals: [], posts: [], paused: true, schedule: [] };
-  const log: AuditRow[] = [], production = new Map<string, { slug: string; script: string | null; status: Production; updated_at: string }>();
-  const requests: RequestRow[] = [], files = new Map<string, { bytes: ArrayBuffer; contentType: string; sha256: string }>();
-  let id = 0;
-  const store: PostingStore & { media: MediaStore } = {
-    async readAll() { return structuredClone(s); },
-    async recentAudit(n = 40) { return log.slice(-n).reverse(); },
-    async audit(actor, action, slug = null, channel = null, detail) { log.push({ id: ++id, at: now(), actor, action, slug, channel, detail: detail ?? null }); },
-    async stage(actor, slug, channel, post) {
-      const sha = await contentSha(channel, post);
-      s.staged = s.staged.filter((r) => !(r.slug === slug && r.channel === channel));
-      s.staged.push({ slug, channel, post: structuredClone(post), content_sha: sha, staged_by: actor, staged_at: now() });
-      await store.audit(actor, 'stage', slug, channel, sha.slice(0, 12));
-      return sha;
-    },
-    async approve(actor, slug, channel, seen) {
-      const row = s.staged.find((r) => r.slug === slug && r.channel === channel);
-      if (!row || row.content_sha !== seen) return false;
-      s.approvals.push({ id: ++id, slug, channel, content_sha: seen, approved_by: actor, approved_at: now(), revoked_at: null });
-      await store.audit(actor, 'approve', slug, channel, seen.slice(0, 12));
-      return true;
-    },
-    async revoke(actor, slug, channel) {
-      for (const a of s.approvals) if (a.slug === slug && a.channel === channel && !a.revoked_at) a.revoked_at = now();
-      await store.audit(actor, 'revoke', slug, channel);
-    },
-    async setPaused(actor, paused) { s.paused = paused; await store.audit(actor, paused ? 'pause' : 'resume'); },
-    async recordPost(actor, p) {
-      s.posts.push({ id: ++id, slug: p.slug, channel: p.channel, content_sha: p.content_sha, status: p.status, url: p.url ?? null, external_id: p.external_id ?? null, detail: p.detail ?? null, run: p.run ?? null, at: now() });
-      await store.audit(actor, p.status, p.slug, p.channel, p.url ?? p.detail);
-    },
-    async readSchedule() { return structuredClone(s.schedule); },
-    async setDates(actor, moved, why) {
-      if (!moved.size) return;
-      for (const [slug, d] of moved) { s.schedule = s.schedule.filter((x) => x.slug !== slug); s.schedule.push({ slug, publish_date: d }); }
-      await store.audit(actor, 'reorder', null, null, `${why}: ${[...moved].map(([x, d]) => `${x}→${d}`).join(', ')}`);
-    },
-    async readProduction() { return [...production.values()]; },
-    async saveProduction(slug, script, status) { production.set(slug, { slug, script, status, updated_at: now() }); },
-    async readRequests(openOnly = false) { return requests.filter((r) => !openOnly || (!r.parent && r.status !== 'done')); },
-    async addRequest(actor, slug, kind, body, parent = null) {
-      requests.push({ id: ++id, slug, kind, body: body.slice(0, 4000), author: actor, at: now(), status: 'open', parent });
-      await store.audit(actor, parent ? 'reply' : `request:${kind}`, slug, null, body.slice(0, 200));
-    },
-    async setRequestStatus(actor, rid, status) {
-      const r = requests.find((x) => x.id === rid); if (r) r.status = status;
-      await store.audit(actor, `request:${status}`, null, null, `#${rid}`);
-    },
-    media: {
-      async get(key) { const f = files.get(key); return f ? { body: f.bytes, size: f.bytes.byteLength, contentType: f.contentType, sha256: f.sha256 } : null; },
-      async head(key) { const f = files.get(key); return f ? { size: f.bytes.byteLength, sha256: f.sha256 } : null; },
-      async put(key, bytes, o) { files.set(key, { bytes, ...o }); },
-    },
-  };
-  return store;
+  return new MemoryStore();
 }
