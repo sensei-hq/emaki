@@ -1,7 +1,7 @@
 // emaki publish youtube|instagram <slug>: post a finished, checked film straight to a platform (no desk approval),
 // then write the link into the story's index entry. Ported from films/tools/publish.py.
 import { createHmac } from 'node:crypto'
-import { readFileSync } from 'node:fs'
+import { readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { chapters, mergeDescription, MotionError, project as load, publish } from '../src/api.js'
@@ -109,6 +109,63 @@ describe('publish youtube', () => {
 		expect(fetch.calls.some((c) => c.url.includes('/captions?part=snippet') && c.method === 'POST')).toBe(true)
 		expect(fetch.calls.some((c) => c.url.includes('thumbnails/set?videoId=vid9'))).toBe(true)
 		expect(index(d).youtube).toBe('vid9')
+	})
+
+	it('prints the same lines for an upload and an update, dry or live, with and without captions and thumbnail', async () => {
+		const d = project()
+		const dry = logger()
+		expect(await publish(load(d), 'youtube', 'demo', { dryRun: true, env: {}, log: dry })).toEqual({ dryRun: true })
+		expect(dry.lines).toEqual([
+			'YouTube · Demo story · privacy unlisted',
+			'  video:   demo-en-16x9.mp4 (0 KB)',
+			'  desc:    69 chars, 2 chapters',
+			'  tags:    data-quality, ai, metrics',
+			'  captions: demo-en.srt',
+			'  thumb:   demo-en-cover-16x9.jpg',
+			'dry run: nothing posted'
+		])
+		const dryUpdate = logger()
+		expect(await publish(load(d), 'youtube', 'demo', { update: 'vid9', dryRun: true, env: {}, log: dryUpdate })).toEqual({ dryRun: true })
+		expect(dryUpdate.lines).toEqual([
+			'YouTube update · Demo story · https://www.youtube.com/watch?v=vid9',
+			'  title:   (remote) → "Demo story"',
+			'  desc:    prepend, 69 chars',
+			'  tags:    data-quality, ai, metrics',
+			'  captions: replace uploaded tracks with demo-en.srt',
+			'  thumb:   set demo-en-cover-16x9.jpg',
+			'dry run: nothing changed'
+		])
+		const bare = project()
+		rmSync(join(bare, 'production/demo/en/out/demo-en.srt'))
+		rmSync(join(bare, 'production/demo/en/render/demo-en-cover-16x9.jpg'))
+		put(bare, 'content/stories/index.json', [{ slug: 'demo', publish_date: '2026-11-16', tags: [] }])
+		const fetch = ytApi({ remote: { title: 'Old', description: 'Theirs.', tags: ['keep'], categoryId: '28' } }), live = logger()
+		expect(await publish(load(bare), 'youtube', 'demo', { update: 'vid9', descriptionMode: 'replace', env: ENV, fetch, log: live })).toEqual({ id: 'vid9', updated: true })
+		expect(live.lines).toEqual([
+			'YouTube update · Demo story · https://www.youtube.com/watch?v=vid9',
+			'  title:   "Old" → "Demo story"',
+			'  desc:    replace, 69 chars',
+			'  tags:    (keep remote)',
+			'  captions: none (skipped)',
+			'  thumb:   skipped (none rendered)',
+			'updated; recorded in content/stories/index.json'
+		])
+		expect(fetch.calls.some((c) => /captions|thumbnails/.test(c.url))).toBe(false)
+		expect(JSON.parse(fetch.calls.find((c) => c.method === 'PUT').body).snippet.tags).toEqual(['keep'])
+		put(bare, 'content/stories/index.json', [{ slug: 'demo', publish_date: '2026-11-16', tags: [] }])
+		const up = logger(), upFetch = ytApi()
+		expect(await publish(load(bare), 'youtube', 'demo', { env: ENV, fetch: upFetch, log: up })).toMatchObject({ id: 'vid123' })
+		expect(up.lines).toEqual([
+			'YouTube · Demo story · privacy unlisted',
+			'  video:   demo-en-16x9.mp4 (0 KB)',
+			'  desc:    69 chars, 2 chapters',
+			'  tags:    ',
+			'  captions: none (continues without)',
+			'  thumb:   none (continues without)',
+			'posted: https://www.youtube.com/watch?v=vid123\nrecorded in content/stories/index.json'
+		])
+		expect(lines(upFetch)).toEqual(['POST https://oauth2.googleapis.com/token', 'POST https://www.googleapis.com/upload/youtube/v3/videos', 'PUT https://upload.example/s1'])
+		await expect(publish(load(d), 'youtube', 'demo', { descriptionMode: 'append', dryRun: true, env: {}, log: logger() })).rejects.toThrow(/--description-mode: prepend or replace/)
 	})
 
 	it('without credentials it names the variables and sends nothing; without a build it says what to run', async () => {
