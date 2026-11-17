@@ -1,29 +1,30 @@
 # Checkpoint
 
-**Slice:** feat/dark-scenes-and-site (stacked on fix/publish-order-and-ci) — dark scenes + emaki.sensei-hq.com
+**Slice:** feat/web-narration (on feat/issue-1-adoption): narration plays on the site, in step with the scenes
 
 ## Done
-- fix branch: publish order spec + fix, Playwright pin in CI, browser diagnostics (emaki-ci.patch minus the
-  NPM_TOKEN bootstrap), config/publish-all.sh (core first, skips versions on npm, stops on failure)
-- Dark scenes: film.json `dark` + look.css `#stage[data-mode="dark"]`; mode light|dark|auto on mountScene,
-  createShow, attachScene (+setMode), <motion-scene>/<motion-show>, Svelte/React/Vue props; auto follows the
-  nearest data-mode (rokkit's) through shadow roots, else prefers-color-scheme; capture defaults to light;
-  sample + template films have a dark look; `emaki validate` checks dark block vs look.css; docs + skill refs
-- site/: landing (live film, dot grid, showcase), /docs from docs/llms (copies spec-checked), llms.txt,
-  Cloudflare config, 27 browser/server specs, CI `site` job
+- Core: timing.<locale>.json `voice` (narration start per scene) → SceneMeta.voice; FilmSource.voice(slug, locale,
+  scene) → URL; `narration(f, locale)` (start at the playhead or wait for the voice start, stop, stale starts lose);
+  scorePlayer.duck (score at 0.35 under the voice); createShow narrates the scene on screen while sound is on;
+  sceneSound = score slice + narration, cue(at)/toggle(at) at the playhead, setLocale (attachScene passes it on)
+- Loaders: vite `voice` glob (?url), fetch `voice/<locale>/<scene>.m4a`; init writes the glob; example + site glob it
+- `<motion-scene>` uses sceneSound; its button stays hidden until the scene is known to have sound
+- CLI `emaki voice-web <slug> --locale`: takes → voice/<locale>/<scene>.m4a (mono AAC 64k, -16 LUFS, faststart),
+  `voice` start = lead; drops the file and start of a scene whose take is gone
+- Example: macOS-say narration for the sample film (en); browser.mjs proves the player and a figure speak in Chromium
+- Docs: core/cli/svelte READMEs, docs/llms + site copies, plugin references 03/05, story-media skill, timing schema
+- Verified: bun run check (235 tests), test:browser (narration ✓, no page errors), site check/test (27)/build
 
 ## Remaining
-- emaki-react@0.1.0 and emaki-vue@0.1.0 are still 404 on npm after a publish:all run (auth + dry-run fine);
-  rerun `bun run publish:all` and read its output, then add their trusted publishers
-- Branches pushed; open PRs, CI green, merge
-- Cloudflare: connect the repo in Workers Builds (root dir = repo root) and add the custom domain
-- Not built: `emaki render --mode dark` (videos render light; installCapture takes a mode)
+- Not pushed; no PR yet (feat/issue-1-adoption PR still pending the user's answer)
+- Site landing film is silent: the CLI template has no takes (needs a real voice; macOS say is drafts only)
+- React/Vue figures have no sound button (story players narrate via createShow)
 
 ## Next command
-`bun run publish:all`  (needs `bunx npm login`; skips the four already published)
+`git push -u origin feat/web-narration`
 
 ## Open questions
-- None
+- Ship narration for the template film (site demo + every `emaki init`)? Which voice provider?
 
 ## Known broken
-- React/Vue mode props have no tests (no harness exists for those wrappers); types only
+- show.seek() does not re-sync sound while playing (score and narration; capture does not need it)
