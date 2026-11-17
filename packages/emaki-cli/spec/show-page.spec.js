@@ -73,7 +73,9 @@ describe('openSite', () => {
 
 	it('stops the dev server process itself where its process group cannot be signalled (Windows)', async () => {
 		const port = await freePort()
-		const devCommand = `"${process.execPath}" -e "require('net').createServer().listen({port},'127.0.0.1')"`
+		// `exec`: the shell becomes the server, so stopping the process stops the server (as a Windows shell's child
+		// would be); without it Linux's dash keeps the shell as the server's parent and only the shell dies.
+		const devCommand = `exec "${process.execPath}" -e "require('net').createServer().listen({port},'127.0.0.1')"`
 		const s = await openSite(site({ port, devCommand }))
 		const kill = process.kill.bind(process)
 		const groups = vi.spyOn(process, 'kill').mockImplementation((pid, sig) => {
@@ -87,7 +89,7 @@ describe('openSite', () => {
 			groups.mockRestore()
 		}
 		let up = true
-		for (let i = 0; i < 50 && up; i++) {
+		for (let i = 0; i < 30 && up; i++) {
 			await new Promise((r) => setTimeout(r, 100))
 			up = await answers(port)
 		}
