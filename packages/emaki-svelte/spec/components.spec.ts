@@ -72,4 +72,20 @@ describe('MotionShow', () => {
     expect(show.destroy).toHaveBeenCalled();
     expect(show.listeners.size).toBe(0);
   });
+
+  it('with a cover, paints the image and creates nothing until the first click, which plays it with sound on', async () => {
+    app = mount(pkg.MotionShow, { target: el, props: { film: 'f', cover: '/covers/f.jpg', title: 'F', length: '1 min' } });
+    await settle();
+    expect(createShow).not.toHaveBeenCalled();
+    const img = el.querySelector('img')!;
+    expect(img.getAttribute('src')).toBe('/covers/f.jpg');
+    expect(button('Play the film: F').textContent).toContain('Play the film · 1 min');
+
+    await click('Play the film: F');
+    expect(createShow).toHaveBeenCalledOnce();
+    expect(vi.mocked(createShow).mock.calls[0][2]).toMatchObject({ poster: true });
+    expect(shows[0].start).toHaveBeenCalledOnce();
+    expect(el.querySelector('img')).toBeNull();
+    expect(el.textContent).toContain('1 / 3');
+  });
 });
