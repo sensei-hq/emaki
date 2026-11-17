@@ -137,6 +137,13 @@ describe('narration', () => {
     expect(narration(f, 'en').has('b')).toBe(false);
   });
 
+  it('stays silent when the source serves no voice at all', async () => {
+    const f = (await loadFilm('f'))!;
+    voice = undefined;
+    expect(await narration(f, 'en').start('b', 1)).toBe(false);
+    expect(playing()).toHaveLength(0);
+  });
+
   it('stays silent when the take fails to load', async () => {
     const f = (await loadFilm('f'))!;
     voice = async () => { throw new Error('offline'); };

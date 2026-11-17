@@ -91,8 +91,10 @@ function sync(v: View) {
     const ref: SceneRef | null = v.player.ref;
     if (!ref || !v.alive) return;
     if (v.mountedKey !== keyOf(v) && !(await remount(v, ref))) return;
+    // A mount is on stage here: mountedKey only matches once one was adopted, and remount() adopts one or bails.
+    const m = v.m!;
     scale(v);
-    v.m?.render(Math.min(v.player.t, Math.max(0, (v.m?.dur ?? 0) - 1e-3)));
+    m.render(Math.min(v.player.t, Math.max(0, m.dur - 1e-3)));
   });
 }
 function resync(v: View) { v.seenKey = keyOf(v); sync(v); }

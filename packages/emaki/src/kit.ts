@@ -82,7 +82,7 @@ const MATH = {
 function words(el: HTMLElement): HTMLElement[] {
   const cached = (el as unknown as { __words?: HTMLElement[] }).__words;
   if (cached) return cached;
-  const text = el.textContent ?? '';
+  const text = el.textContent!; // never null on an element
   el.textContent = '';
   const spans = text.split(' ').map((w, i, all) => {
     const s = document.createElement('span');
