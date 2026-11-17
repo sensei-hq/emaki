@@ -7,7 +7,7 @@
 	<div class="mx-auto grid max-w-content gap-10 px-6 py-14 md:grid-cols-[1.5fr_1fr_1fr]">
 		<div class="flex flex-col gap-3">
 			<a href="/#top" class="inline-flex items-center gap-2.5 text-ink" aria-label="{brand.name} home">
-				<BrandMark class="h-6 w-6" />
+				<BrandMark class="h-6 w-auto" />
 				<span class="font-display font-medium text-lg tracking-tight">{brand.name}</span>
 			</a>
 			<p class="max-w-xs text-sm text-ink-mute text-pretty">{footer.tagline}</p>

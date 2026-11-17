@@ -4,7 +4,7 @@
 //   favicon.ico           16, 32 and 48 px on a paper tile, for browsers without SVG icons
 //   apple-touch-icon.png  180 px, full paper square (iOS rounds it)
 //   icon-192.png, icon-512.png   manifest icons; icon-512 is also the social share image
-//   icon-maskable-512.png the mark inside the 80% safe zone, for launchers that crop to a circle or squircle
+//   icon-maskable-512.png the mark inside the safe zone (a circle of 40% radius), for launchers that crop to a circle or squircle
 //   site.webmanifest
 // PNGs are drawn by Chromium (Playwright, already here for the browser tests), so no image tools are needed.
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -16,10 +16,15 @@ const paths = [...logo.matchAll(/<path\b[^>]*\/>/g)].map((m) => m[0].replace(/\s
 if (!paths) throw new Error('emaki.svg has no <path> elements');
 const INK = logo.match(/fill="(#[0-9a-fA-F]{6})"/)?.[1] ?? '#100F0D';
 const ACCENT = '#C25237'; // the brand accent (theme-color in app.html)
-const svg = (fill) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="${fill}">${paths}</svg>`;
-
 const browser = await chromium.launch();
 const page = await browser.newPage();
+// The logo's 512 box leaves a wide margin; the icons use a square cropped to the artwork (6 units clear).
+await page.setContent(logo);
+const box = await page.evaluate(() => { const r = document.querySelector('svg').getBBox(); return { x: r.x, y: r.y, w: r.width, h: r.height }; });
+const side = Math.ceil(Math.max(box.w, box.h) + 12);
+const r1 = (v) => Math.round(v * 10) / 10;
+const VIEW = `${r1(box.x + box.w / 2 - side / 2)} ${r1(box.y + box.h / 2 - side / 2)} ${side} ${side}`;
+const svg = (fill) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${VIEW}" fill="${fill}">${paths}</svg>`;
 // The site's paper: rokkit's kami 50 (rokkit.config.js), as a hex colour.
 const PAPER = await page.evaluate(() => {
 	const c = document.createElement('canvas').getContext('2d');
@@ -39,14 +44,14 @@ async function png(size, { pad, radius = 0 }) {
 
 const out = (name, data) => { writeFileSync(here(`../static/${name}`), data); console.info(`wrote static/${name}`); };
 
-out('favicon.svg', `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><style>path{fill:${INK}}@media (prefers-color-scheme:dark){path{fill:${PAPER}}}</style>${paths}</svg>\n`);
+out('favicon.svg', `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${VIEW}"><style>path{fill:${INK}}@media (prefers-color-scheme:dark){path{fill:${PAPER}}}</style>${paths}</svg>\n`);
 out('apple-touch-icon.png', await png(180, { pad: 0.08 }));
 out('icon-192.png', await png(192, { pad: 0.06 }));
 out('icon-512.png', await png(512, { pad: 0.06 }));
-out('icon-maskable-512.png', await png(512, { pad: 0.22 }));
+out('icon-maskable-512.png', await png(512, { pad: 0.17 }));
 
 // favicon.ico: an icon directory whose entries are PNGs (supported by every browser that still asks for .ico).
-const tiles = await Promise.all([16, 32, 48].map(async (s) => [s, await png(s, { pad: 0.02, radius: 0.2 })]));
+const tiles = await Promise.all([16, 32, 48].map(async (s) => [s, await png(s, { pad: 0.04, radius: 0.2 })]));
 const head = Buffer.alloc(6 + 16 * tiles.length);
 head.writeUInt16LE(0, 0); head.writeUInt16LE(1, 2); head.writeUInt16LE(tiles.length, 4);
 let offset = head.length;
