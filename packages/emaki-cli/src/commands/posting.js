@@ -4,7 +4,7 @@
 import { MotionError } from '../util.js'
 import { act, P } from './run.js'
 
-const list = (v) => [v ?? []].flat().flatMap((x) => String(x).split(',')).map((x) => x.trim()).filter(Boolean)
+const list = (v) => [v].flat().flatMap((x) => String(x).split(',')).map((x) => x.trim()).filter(Boolean)
 
 /** Staging on the desk, publishing, and the carousel. */
 export function postingCommands(prog) {
