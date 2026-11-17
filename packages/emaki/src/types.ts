@@ -28,11 +28,12 @@ export interface FilmJson {
   cover?: { scene: string; at?: number };
 }
 
-/** timing.json / timing.<locale>.json: per scene, a running time (fitted to the voice) and/or pauses [at, seconds]. */
-export interface TimingJson { scenes?: Record<string, { dur?: number; holds?: [number, number][] }> }
+/** timing.json / timing.<locale>.json: per scene, a running time (fitted to the voice) and/or pauses [at, seconds],
+ *  and `voice`: where its narration starts, in seconds into the scene (written by `emaki voice-web`). */
+export interface TimingJson { scenes?: Record<string, { dur?: number; holds?: [number, number][]; voice?: number }> }
 
-/** A scene with its running time resolved for one locale. */
-export interface SceneMeta extends SceneEntry { design: number; holds: [number, number][] }
+/** A scene with its running time resolved for one locale; `voice` is set when the scene is narrated on the web. */
+export interface SceneMeta extends SceneEntry { design: number; holds: [number, number][]; voice?: number }
 export interface FilmMeta extends Omit<FilmJson, 'scenes'> { slug: string; scenes: SceneMeta[] }
 
 export interface Mounted {
