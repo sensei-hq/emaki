@@ -25,6 +25,7 @@ docs/llms                the reference corpus named by sensei.library.json
 
 ```sh
 bun run check            # tsc per package, build all, vitest (projects: config, emaki, posting, cli)
+bun run coverage         # the same specs with V8 coverage of packages/*/src (table; html in coverage/index.html)
 cd packages/emaki-svelte && bun run check   # svelte-check
 bun run test:browser     # build + run the example in Chromium
 cd site && bun run check && bun run test && bun run build   # the site (needs `bun run build:all` first)
