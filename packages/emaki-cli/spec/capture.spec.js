@@ -205,6 +205,15 @@ describe('render', () => {
 		expect(browser.closed).toBe(true)
 	})
 
+	it('an ffmpeg that quits before reading the frames fails the capture instead of hanging or crashing', async () => {
+		const d = project()
+		show.big = 4 * 1024 * 1024
+		process.env.FAKE_FFMPEG_EARLY = '1'
+		await expect(render(load(d), 'demo', { locale: 'en', ...site, o: 'landscape', fps: 3, music: 'none', log: logger() }))
+			.rejects.toThrow(new MotionError('ffmpeg failed'))
+		expect(browser.closed).toBe(true)
+	}, 5000)
+
 	it('waits for ffmpeg to take in large frames before sending more', async () => {
 		const d = project()
 		show.big = 4 * 1024 * 1024
