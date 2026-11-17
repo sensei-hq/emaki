@@ -1,6 +1,6 @@
 {
   "name": "@senseihq/emaki-vue",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Vue 3 components and composables for motion stories: article figures, the story player, a controlled scene player and the video capture page.",
   "type": "module",
   "license": "MIT",

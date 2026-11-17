@@ -1,6 +1,6 @@
 {
   "name": "emaki",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "description": "Motion stories: articles, story players and narrated videos from one set of JSON scenes, in every language.",
