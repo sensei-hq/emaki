@@ -1,0 +1,24 @@
+{
+  "scenes": {
+    "hook": {
+      "voice": 0.6,
+      "dur": 6.3
+    },
+    "problem": {
+      "voice": 0.6,
+      "dur": 6.3
+    },
+    "pair": {
+      "voice": 0.6,
+      "dur": 12.2
+    },
+    "groups": {
+      "voice": 0.6,
+      "dur": 7.4
+    },
+    "close": {
+      "voice": 0.6,
+      "dur": 4.1
+    }
+  }
+}

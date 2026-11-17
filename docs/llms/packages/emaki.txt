@@ -28,6 +28,7 @@ const g = {
   bodies: import.meta.glob('/content/stories/*/*.json', { import: 'default' }),
   logos: import.meta.glob('/content/logos/*.svg', { eager: true, query: '?raw', import: 'default' }),
   site: import.meta.glob('/content/site.json', { eager: true, import: 'default' }),
+  voice: import.meta.glob('/content/films/*/voice/*/*.m4a', { eager: true, query: '?url', import: 'default' }),
 };
 export const { filmSource, contentSource, logos, site } = viteSource(g);
 setupMotion({ source: filmSource, site, logos });
@@ -40,7 +41,7 @@ them into sources. Paths are matched by their tail, so the content folder can be
 
 | Path | What |
 |---|---|
-| `@senseihq/emaki` | `setupMotion`, `useSource`, `loadFilm`, `listFilms`, `timeline`, `coverTime`, `warp`/`unwarp`; `mountScene`; `createShow` (the player controller: `poster`, `start`, `replay`, `restart`), `showKey` (its keys), `ticks` (progress) and `installCapture` (the video contract); `sceneSound` (a figure's slice of the score); `ScenePlayerState` + `attachScene` (a scene you drive); `evaluateScene`, `validateScene`, `localizeScene`, `sceneKeys`, `registerLogo`; i18n (`configureLocales`, `fallbackChain`, `negotiate`, `dirOf`, `t`, `formatDate`); content (`loadStory`, `listStories`, `today`); sound (`filmScore`, `playScore`, `collectScore`); types |
+| `@senseihq/emaki` | `setupMotion`, `useSource`, `loadFilm`, `listFilms`, `timeline`, `coverTime`, `warp`/`unwarp`; `mountScene`; `createShow` (the player controller: `poster`, `start`, `replay`, `restart`), `showKey` (its keys), `ticks` (progress) and `installCapture` (the video contract); `sceneSound` (a figure's sound: its slice of the score and its narration), `narration` (a film's takes, in step with the picture); `ScenePlayerState` + `attachScene` (a scene you drive); `evaluateScene`, `motionEnd` (when a scene's content settles, for `emaki fit`), `validateScene`, `localizeScene`, `sceneKeys`, `registerLogo`; i18n (`configureLocales`, `fallbackChain`, `negotiate`, `dirOf`, `t`, `formatDate`); content (`loadStory`, `listStories`, `today`); sound (`filmScore`, `playScore`, `collectScore`); types |
 | `@senseihq/emaki/elements` | `defineMotionElements()`: `<motion-scene film scene layout locale mode>` and `<motion-show film locale layout mode>` web components, for plain HTML, Astro, Eleventy |
 | `@senseihq/emaki/loaders/vite` | `viteSource(globs)` → `{ filmSource, contentSource, logos, site }` |
 | `@senseihq/emaki/loaders/fetch` | `fetchFilmSource(base)`, `fetchContentSource(base)`: static files at runtime (`emaki manifest` writes `films/index.json`) |
@@ -57,12 +58,21 @@ content/
   films/<slug>/scene-<id>.json components + tracks (pure function of time), portrait block
   films/<slug>/strings/<locale>.json   the scene text, as {{key}} → text
   films/<slug>/look.css · score.js · voice/<locale>.json · timing[.<locale>].json
+  films/<slug>/voice/<locale>/<scene>.m4a     the narration for the site (emaki voice-web)
   logos/<name>.svg
 ```
 
 A section whose `id` matches a scene id gets that scene as its figure. Text falls back `fr-CA → fr → default`.
 Running times come from `timing.<locale>.json` (fitted to that language's narration), so the player, the figures
 and the video stay in step in every language.
+
+## Sound
+
+Sound is off until the reader turns it on. Then the player plays the film's score (`score.js`) from the playhead and,
+for each scene with a `voice` start in `timing.<locale>.json`, that scene's narration from where the picture is, with
+the score ducked under it. A figure's sound button does the same for its one scene. The narration comes from
+`FilmSource.voice(slug, locale, scene)`: a URL to `voice/<locale>/<scene>.m4a`, which `emaki voice-web` encodes
+from the takes the videos use.
 
 ## Layouts
 

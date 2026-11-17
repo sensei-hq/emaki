@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "emaki/timing.schema.json",
-  "title": "content/films/<slug>/timing.<locale>.json (written by motion.py fit; holds by hand)",
+  "title": "content/films/<slug>/timing.<locale>.json (dur by emaki fit, voice by emaki voice-web, holds by hand)",
   "type": "object",
   "properties": {
     "scenes": {
@@ -22,6 +22,11 @@
               "minItems": 2,
               "maxItems": 2
             }
+          },
+          "voice": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Where the scene's narration (voice/<locale>/<scene>.m4a) starts, in seconds into the scene"
           }
         }
       }

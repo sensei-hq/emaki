@@ -23,7 +23,7 @@ render the article text on the server and let the components hydrate.
 
 | Component | Props |
 |---|---|
-| `MotionScene` | `film`, `scene`, `layout` (`figure`), `locale`, `mode` (`auto`), `autoplay` (true), `t` (drive it yourself), `hold` (2 s rest before looping), `label` (alt text); a still under reduced motion; a sound button when the film has a score |
+| `MotionScene` | `film`, `scene`, `layout` (`figure`), `locale`, `mode` (`auto`), `autoplay` (true), `t` (drive it yourself), `hold` (2 s rest before looping), `label` (alt text); a still under reduced motion; a sound button when the scene has sound (its slice of the score, its narration) |
 | `MotionShow` | `film`, `locale`, `layout` (`landscape`), `mode` (`auto`), `poster` (cover first; `title`, `length` on it), `fullscreenHref`, `controls` (true), `slide`, `loop`, `bind:show` (state + controller) |
 | `ScenePlayer` | `player: ScenePlayerState`, `locale`, `mode` (`auto`), `controls` |
 | `ShowPage` | `film`, `layout`, `locale`, `mode` (capture: `light`), `src` (`json`/`js`, forces the scene source), `capture` |

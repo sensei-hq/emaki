@@ -5,6 +5,7 @@
 	"description": "emaki.sensei-hq.com: the landing page, the docs (synced from docs/llms) and llms.txt.",
 	"scripts": {
 		"sync:docs": "node scripts/copy-docs.mjs",
+		"icons": "node scripts/icons.mjs",
 		"predev": "node scripts/copy-docs.mjs",
 		"dev": "vite dev",
 		"prebuild": "node scripts/copy-docs.mjs",

@@ -3,7 +3,7 @@
 // The reference is the sensei-hq.com website's films/tools/render.py and build.py.
 import { join, resolve } from 'node:path'
 import { SUFFIX } from './config.js'
-import { die } from './util.js'
+import { die, runningTime } from './util.js'
 
 /** The frames to capture: from `from` (default 0) to `to` (default and at most the film's end), at least one. */
 export function frameRange(duration, fps, from = 0, to = undefined) {
@@ -76,9 +76,7 @@ export function buildPlan(film, timing, takes, { lead, tail }) {
 	const rows = []
 	let start = 0, at = 0
 	for (const [i, s] of film.scenes.entries()) {
-		const tm = timing?.[s.id] ?? {}
-		const holds = (tm.holds ?? []).reduce((n, h) => n + h[1], 0)
-		const dur = Math.max(s.dur + holds, tm.dur ?? 0)
+		const dur = runningTime(s, timing?.[s.id])
 		const take = takes.get(s.id) ?? null
 		const L = take ? take.seconds : 0
 		let ext = take ? Math.max(0, lead + L + tail - dur) : 0
@@ -176,6 +174,11 @@ export function webNote(bytes) {
 	const mb = bytes / 1048576
 	return `${mb.toFixed(1)} MiB${mb > 25 ? ' - OVER 25 MiB, raise -crf' : ''}`
 }
+
+/** One take for the browser (voice-web): mono AAC 64k at -16 LUFS (speech heard on its own, under a ducked score),
+ *  the index up front so it starts streaming at once. */
+export const webVoiceArgs = (src, dst) => ['-y', '-v', 'error', '-i', src, '-vn', '-ac', '1', '-ar', '48000',
+	'-af', 'loudnorm=I=-16:TP=-1.5:LRA=11', '-c:a', 'aac', '-b:a', '64k', '-movflags', '+faststart', dst]
 
 const LOUDNORM = 'loudnorm=I=-14:TP=-1.5:LRA=11'
 

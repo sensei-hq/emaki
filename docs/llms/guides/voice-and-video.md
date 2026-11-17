@@ -1,7 +1,7 @@
 # Voice, timing and video
 
-Optional module; the site works without it (figures and the player are silent unless the viewer turns on the
-action tones). Needs ffmpeg, Playwright (Chromium), and one voice provider per locale.
+Optional module; the site works without it (figures and the player are silent unless the viewer turns on sound).
+The same takes narrate the site and the videos. Needs ffmpeg, Playwright (Chromium), and one voice provider per locale.
 
 ## Choosing the voice provider
 
@@ -38,7 +38,8 @@ emaki voice <slug> --locale es --provider macos     # one-off override (e.g. a d
 
 ```sh
 emaki voice  <slug> --locale en      # takes from voice/en.json → production/<slug>/en/takes/
-emaki fit    <slug> --locale en      # timing.en.json: scenes stretched to fit their takes
+emaki fit    <slug> --locale en      # timing.en.json: each narrated scene runs for its take
+emaki voice-web <slug> --locale en   # the site's narration: voice/en/<scene>.m4a + each scene's voice start
 emaki render <slug> --locale en      # 16:9 + 9:16 picture with the score, covers
 emaki build  <slug> --locale en      # voice laid at each scene start, score ducked, -14 LUFS, captions
 ```
@@ -57,11 +58,21 @@ A render survives the dev server reloading the page mid-capture (someone saving 
 come back and repeats the frame.
 
 - **Voice script**: 150 words a minute; each line ≤ the scene's length minus 2 s (lead 0.6 s + tail 1.2 s), or the
-  scene stretches. Write for the ear: short sentences, the scene's point first, numbers spoken as words where it helps.
+  scene runs longer. Write for the ear: short sentences, the scene's point first, numbers spoken as words where it helps.
   Put tricky pronunciations in `say` (`"Sen-say"`, `"S-Q-L"`). Same voice per locale across the site.
-- **Fit vs retime**: `fit` lengthens a scene so it holds its last picture until the voice ends (fine for most). When
-  a beat must land on a word, retime the scene's track times (and the matching `T.<scene>` times in score.js) or add
+- **Fit vs retime**: `fit` runs each narrated scene for lead + take + tail: longer than its design (it holds its last
+  picture until the voice ends) or shorter (it ends with the voice), but never before its content has settled, the
+  end of its last track (the camera push and the closing mark's breathing are background and do not count). A JS
+  scene has no tracks to read: give `settle` (seconds) on its film.json entry, or it keeps its design length when
+  the voice is shorter. When a beat must land on a word, retime the scene's track times (and the matching `T.<scene>` times in score.js) or add
   a hold `[[at, seconds]]` in `timing.<locale>.json` to pause the clock at that moment.
+- **Narration on the site**: `voice-web` encodes each take as `content/films/<slug>/voice/<locale>/<scene>.m4a`
+  (mono AAC 64k, -16 LUFS, about 8 KB a second) and records `voice` (the lead, 0.6 s) per scene in
+  `timing.<locale>.json`. With sound on, the story player speaks the scene on screen from where the picture is and
+  ducks the score under it; an article figure's sound button plays its scene's take with its slice of the score.
+  Commit the `.m4a` files with the story; rerun `voice-web` after re-recording a take (a scene whose take is gone
+  loses its file). Vite apps glob them as URLs (`voice` in the source, written by `emaki init`); the fetch loader
+  reads them from the published content folder.
 - **Captions** come from the voice text (`.vtt` for the site player, `.srt` burned into social cuts). Review them in
   every locale.
 - **Freeze, the safety net**: when a take is longer than its scene in the render (a take re-recorded after the render,

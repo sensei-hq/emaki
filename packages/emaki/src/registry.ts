@@ -19,6 +19,9 @@ export interface FilmSource {
   strings?(slug: string, locale: string): Promise<Record<string, string> | null>;
   /** timing.<locale>.json, else timing.json: running times fitted to that language's voice. */
   timing?(slug: string, locale: string): Promise<TimingJson | null>;
+  /** The URL of a scene's narration for the web (voice/<locale>/<scene>.m4a), or null. Asked only for scenes whose
+   *  timing gives a `voice` start. */
+  voice?(slug: string, locale: string, scene: string): Promise<string | null>;
 }
 
 let source: FilmSource | null = null;
@@ -45,8 +48,9 @@ export function loadFilm(slug: string, locale = 'en'): Promise<FilmMeta | undefi
     const tm = (await src.timing?.(slug, locale))?.scenes ?? {};
     const scenes = found.json.scenes.map((s) => {
       const holds = [...(tm[s.id]?.holds ?? [])].sort((a, b) => a[0] - b[0]);
-      const min = s.dur + holds.reduce((n, h) => n + h[1], 0);
-      return { ...s, design: s.dur, holds, dur: Math.max(min, tm[s.id]?.dur ?? 0) };
+      const designed = s.dur + holds.reduce((n, h) => n + h[1], 0);
+      const voice = tm[s.id]?.voice;
+      return { ...s, design: s.dur, holds, dur: tm[s.id]?.dur ?? designed, ...(voice != null && { voice }) };
     });
     return { ...found.json, slug, scenes };
   })());

@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { filmFiles, storyUrl } from './stories.js'
-import { exists, load } from './util.js'
+import { exists, load, runningTime } from './util.js'
 
 /**
  * [[at, name]] for the description: first at 0:00, every chapter at least 10 s (YouTube shows none unless all its
@@ -30,8 +30,7 @@ export function scenePlan(p, slug, locale) {
 	const tp = join(d, `timing.${locale}.json`), tm = exists(tp) ? (load(tp).scenes ?? {}) : {}
 	let at = 0
 	return film.scenes.map((s) => {
-		const holds = (tm[s.id]?.holds ?? []).reduce((n, h) => n + h[1], 0)
-		const dur = Math.max(s.dur + holds, tm[s.id]?.dur ?? 0)
+		const dur = runningTime(s, tm[s.id])
 		const row = { id: s.id, name: s.name ?? s.id, at, dur }
 		at += dur
 		return row

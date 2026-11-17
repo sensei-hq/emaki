@@ -12,7 +12,7 @@
 >
 	<div class="mx-auto flex max-w-content items-center justify-between gap-6 px-6 py-3.5">
 		<a href="/#top" class="inline-flex items-center gap-2.5 text-ink">
-			<BrandMark class="h-7 w-7" />
+			<BrandMark class="h-7 w-auto" />
 			<span class="font-display font-medium text-xl tracking-tight">{brand.name}</span>
 		</a>
 		<nav class="hidden items-center gap-7 md:flex">

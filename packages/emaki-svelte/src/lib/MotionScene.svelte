@@ -1,7 +1,7 @@
 <script lang="ts">
   // An article figure: one scene, looping while it is on screen with a `hold` s rest on its last frame, or a still
-  // under reduced motion. Pass `t` to drive it yourself. When the film has a score, a speaker button plays the
-  // scene's slice of it in step with the loop (off until the reader turns it on). <MotionScene film="..." scene="..." />
+  // under reduced motion. Pass `t` to drive it yourself. When the scene has sound (its slice of the film's score, its
+  // narration, or both), a speaker button plays it in step with the loop (off until the reader turns it on). <MotionScene film="..." scene="..." />
   import { onMount, untrack } from 'svelte';
   import { attachScene, figurePlayer, sceneSound, type Layout, type Mode } from '@senseihq/emaki';
 
@@ -32,7 +32,7 @@
 
   async function toggleSound() {
     if (!sound) return;
-    await sound.toggle();
+    await sound.toggle(player.t);
     soundOn = sound.on;
   }
 </script>
@@ -53,8 +53,10 @@
   .motion-scene { position: relative; width: 100%; }
   .ms-snd {
     position: absolute; right: 10px; bottom: 10px; width: 34px; height: 34px; padding: 6px; border-radius: 50%;
-    border: 1px solid color-mix(in srgb, currentColor 25%, transparent); background: color-mix(in srgb, Canvas 85%, transparent);
-    color: inherit; cursor: pointer; opacity: 0.75; transition: opacity 0.15s;
+    /* Its own colours, like video controls: it sits on the scene, whose mode can differ from the page's, so it must
+       not borrow the page's text colour or system colours (Canvas turns dark with the OS). */
+    border: 1px solid rgb(255 255 255 / 0.3); background: rgb(20 18 15 / 0.7); color: #fff;
+    cursor: pointer; opacity: 0.8; transition: opacity 0.15s;
   }
   .ms-snd:hover, .ms-snd:focus-visible, .ms-snd[aria-pressed='true'] { opacity: 1; }
   .ms-snd svg { width: 100%; height: 100%; fill: currentColor; }

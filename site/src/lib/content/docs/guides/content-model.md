@@ -44,14 +44,15 @@ Rules:
 
 | File | Contents |
 |---|---|
-| `film.json` | `title`, `look` (one paragraph describing the visual language, used by builders), `background`, `palette`, `dark` (`background`, `palette`: the dark look; without it the film is always light), `fonts`, `scenes` [`id`, `name`, `dur` (design seconds incl. a 1.5–2 s end hold), `desc`], optional `cover` {scene, at}. The last scene is `close`. |
+| `film.json` | `title`, `look` (one paragraph describing the visual language, used by builders), `background`, `palette`, `dark` (`background`, `palette`: the dark look; without it the film is always light), `fonts`, `scenes` [`id`, `name`, `dur` (design seconds incl. a 1.5–2 s end hold), `desc`, `settle` (JS scenes: when the motion is over, so `fit` never ends a narrated scene before it)], optional `cover` {scene, at}. The last scene is `close`. |
 | `look.css` | The film's tokens and shared classes (`.card`, `.tag`, `.words`, `.line`, `.sub`, `.eyebrow`, `.ground`, `.cam`, `.art`). Scoped to each scene's shadow root. Dark tokens go under `#stage[data-mode="dark"]` (only with a `dark` block in film.json). One look per site is the norm; copy it per film. |
 | `scene-<id>.json` | The scene as data (components, tracks, css, portrait, locales). See 04-scene-authoring.md. |
 | `scene-<id>.js` + `shared.js` | The escape hatch for a scene the JSON catalogue cannot express yet (procedural drawing). Same rules: pure `render(t)`. Prefer adding a component or effect to the renderer over writing JS. |
 | `score.js` | The sound: action tones timed to scene events (`T.<scene> + seconds`). |
 | `strings/<locale>.json` | Every on-screen word, keyed `scene.part` (`hook.line`, `signs.2`). Inline `<b>`/`<em>` allowed in strings used by `raw`/`html` text. |
 | `voice/<locale>.json` | One line per scene, in order: `{ scene, text, say }`; `say` is the TTS spelling when it differs (acronyms, names). The text is also the caption. |
-| `timing.json` / `timing.<locale>.json` | Written by `emaki fit`: per scene `dur` (stretched to fit that locale's take) and hand-set `holds` [[at, seconds]] (pause the clock at a beat). The site reads the locale's file. |
+| `timing.json` / `timing.<locale>.json` | Written by `emaki fit`: per scene `dur` (that locale's running time: lead + take + tail, never before the scene's content settles; absent means the design time) and hand-set `holds` [[at, seconds]] (pause the clock at a beat); `emaki voice-web` adds `voice`, where the scene's narration starts. The site reads the locale's file. |
+| `voice/<locale>/<scene>.m4a` | The site's narration, encoded from the takes by `emaki voice-web`. A scene with a `voice` start plays it when sound is on. |
 
 ## Production (not deployed)
 

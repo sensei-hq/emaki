@@ -40,6 +40,7 @@ const GLOBS = (content) => `const g = {
   bodies: import.meta.glob('/${content}/stories/*/*.json', { import: 'default' }),
   logos: import.meta.glob('/${content}/logos/*.svg', { eager: true, query: '?raw', import: 'default' }),
   site: import.meta.glob('/${content}/site.json', { eager: true, import: 'default' }),
+  voice: import.meta.glob('/${content}/films/*/voice/*/*.m4a', { eager: true, query: '?url', import: 'default' }),
 };`
 
 const viteSourceFile = (content) => `// Where films and stories come from (written by \`emaki init\`). Vite expands these globs at build time, so every
