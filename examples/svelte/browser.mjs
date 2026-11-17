@@ -1,7 +1,8 @@
 // The example in real Chromium (CI's browser job): build it, serve it, and check the three things the packages promise.
 //   1. the article's figures mount and draw (a scene in each figure's shadow root),
 //   2. the story player mounts, advances and switches language,
-//   3. /show/<film>?capture=1 installs window.__show with a timeline, a cover time, seek() and the score.
+//   3. /show/<film>?capture=1 installs window.__show with a timeline, a cover time, seek() and the score,
+//   4. the narration (content/films/<film>/voice/en/*.m4a, `emaki voice-web`) plays in the player and the figures.
 // Failures print as GitHub annotations (visible on the run without signing in) and leave screenshots in test-results/.
 import { spawn } from 'node:child_process'
 import { mkdirSync } from 'node:fs'
@@ -96,6 +97,32 @@ try {
 	await cap.screenshot({ path: `${out}/capture-cover-es.png` })
 	const wav = await cap.evaluate(() => window.__show.audio())
 	wav === null || wav.length > 1000 ? ok(`score: ${wav ? `${Math.round(wav.length * 0.75 / 1024)} KB WAV` : 'none'}`) : fail('score render failed')
+	// Narration: every Audio the page makes is recorded; with sound on, the scene on screen speaks, in step.
+	const nar = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+	nar.on('pageerror', (e) => errors.push(String(e)))
+	await nar.addInitScript(() => {
+		const A = window.Audio
+		window.__audio = []
+		window.Audio = class extends A { constructor(src) { super(src); window.__audio.push(this) } }
+	})
+	const speaking = (scene) => nar.waitForFunction((id) => window.__audio.some((a) => a.src.includes(`/${id}`) && a.src.endsWith('.m4a') && !a.paused && a.currentTime > 0.2), scene, { timeout: 8000 })
+	await nar.goto(base + '/?locale=en')
+	await nar.click('[data-testid="player"] [aria-label^="Play the film"]')
+	await speaking('hook').then(async () => {
+		const a = await nar.evaluate(() => { const x = window.__audio.find((a) => !a.paused); return { src: x.src.split('/').pop(), t: x.currentTime, d: x.duration } })
+		ok(`player narrates its scene (${a.src}, ${a.t.toFixed(1)} of ${a.d.toFixed(1)} s)`)
+	}, () => fail('the player is silent: no narration played after Play'))
+	await nar.click('[data-testid="player"] [aria-label="Pause"]').catch(() => {})
+	await nar.waitForFunction(() => window.__audio.length > 0 && window.__audio.every((a) => a.paused), null, { timeout: 3000 })
+		.then(() => ok('pause silences the narration'), () => fail('narration kept playing after pause'))
+	const fig = (await nar.$$eval('[data-testid^="figure-"]', (els) => els.map((e) => e.getAttribute('data-testid').slice(7))))[1]
+	await nar.locator(`[data-testid="figure-${fig}"]`).scrollIntoViewIfNeeded()
+	await nar.click(`[data-testid="figure-${fig}"] button[aria-label="Turn sound on"]`)
+	await speaking(fig).then(() => ok(`figure "${fig}" narrates its scene`), () => fail(`figure "${fig}" is silent with sound on`))
+	await nar.click(`[data-testid="figure-${fig}"] button[aria-label="Turn sound off"]`)
+	await nar.waitForFunction(() => window.__audio.length > 0 && window.__audio.every((a) => a.paused), null, { timeout: 3000 })
+		.then(() => ok('the figure\'s sound turns off'), () => fail('figure narration kept playing after sound off'))
+
 	errors.length ? fail(`page errors: ${errors.slice(0, 3).join(' | ')}`) : ok('no page errors')
 } catch (e) {
 	fail(e instanceof Error ? e.stack ?? e.message : String(e))
