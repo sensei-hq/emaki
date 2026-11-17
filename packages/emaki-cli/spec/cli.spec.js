@@ -25,6 +25,19 @@ describe('init', () => {
 		writeFileSync(join(d, 'package.json'), JSON.stringify({ dependencies: { next: '15', react: '19' } }))
 		expect(detectFramework(d)).toBe('next')
 	})
+	it('detects each framework in priority order (kit, svelte, next, nuxt, react, vue)', () => {
+		const d = tmp()
+		const fw = (dependencies, devDependencies) => {
+			writeFileSync(join(d, 'package.json'), JSON.stringify({ dependencies, devDependencies }))
+			return detectFramework(d)
+		}
+		expect(fw({ svelte: '5', react: '19' })).toBe('svelte')
+		expect(fw({ nuxt: '3', vue: '3' })).toBe('nuxt')
+		expect(fw(undefined, { react: '19', vue: '3' })).toBe('react')
+		expect(fw({ vue: '3' })).toBe('vue')
+		expect(fw({ lodash: '4' })).toBe('vanilla')
+		expect(fw()).toBe('vanilla')
+	})
 	it('writes the sample, the config, the source and the capture route, and never overwrites', () => {
 		const d = tmp()
 		writeFileSync(join(d, 'package.json'), JSON.stringify({ devDependencies: { '@sveltejs/kit': '2' } }))
@@ -296,6 +309,46 @@ describe('migrate', () => {
 		expect(r.wrote).toEqual([])
 	})
 	it('refuses a folder that is not the website', () => expect(() => migrate(project(tmp()), tmp())).toThrow(MotionError))
+	it('migrates a partial site: articles only, a missing body, takes for a film it did not move, an existing site.json', () => {
+		const w = tmp(), d = tmp()
+		const put = (root, rel, text) => { mkdirSync(join(root, rel, '..'), { recursive: true }); writeFileSync(join(root, rel), text) }
+		put(w, 'src/lib/content/articles/index.json', JSON.stringify([{ slug: 'a', title: 'A', tags: [] }, { slug: 'gone', title: 'Gone' }]))
+		put(w, 'src/lib/content/articles/a.json', JSON.stringify({ sections: [] }))
+		put(w, 'films/a/film.json', JSON.stringify({ scenes: [{ id: 'hook' }] }))
+		put(w, 'films/a/takes/take-01.wav', 'RIFF')
+		put(w, 'films/a/takes/notes.txt', 'x')
+		put(w, 'films/b/film.json', JSON.stringify({}))
+		put(w, 'films/b/takes/take-01.wav', 'RIFFB')
+		put(w, 'films/stray/readme.md', 'no film.json')
+		put(d, 'content/site.json', JSON.stringify({ name: 'Mine', url: '', locales: ['es'], defaultLocale: 'es' }))
+		const r = migrate(project(d), w, { locale: 'es' })
+		expect(json(join(d, 'content/stories/index.json'))).toEqual([{ slug: 'a', tags: [] }, { slug: 'gone' }])
+		expect(json(join(d, 'content/stories/es/a.json'))).toEqual({ title: 'A', sections: [] })
+		expect(existsSync(join(d, 'content/stories/es/gone.json'))).toBe(false)
+		expect(existsSync(join(d, 'content/films/a/voice/es.json'))).toBe(false)
+		expect(readFileSync(join(d, 'production/a/es/takes/take-01.wav'), 'utf-8')).toBe('RIFF')
+		expect(existsSync(join(d, 'production/a/es/takes/notes.txt'))).toBe(false)
+		expect(readFileSync(join(d, 'production/b/es/takes/take-01.wav'), 'utf-8')).toBe('RIFFB')
+		expect(existsSync(join(d, 'production/stray'))).toBe(false)
+		expect(json(join(d, 'content/site.json')).name).toBe('Mine')
+		expect(r).toEqual({
+			wrote: ['content/stories/index.json', 'content/stories/es/a.json', 'production/a/es/takes/take-01.wav', 'production/b/es/takes/take-01.wav'],
+			kept: []
+		})
+	})
+	it('migrates a site with films and logos but no articles, and writes a site.json', () => {
+		const w = tmp(), d = tmp()
+		const put = (rel, text) => { mkdirSync(join(w, rel, '..'), { recursive: true }); writeFileSync(join(w, rel), text) }
+		put('src/lib/motion/films/x/film.json', JSON.stringify({ scenes: [] }))
+		put('src/lib/motion/films/x/assets/pic.svg', '<svg/>')
+		put('src/lib/motion/films/notafilm/base.css', 'x')
+		const r = migrate(project(d), w, { locale: 'fr' })
+		expect(readFileSync(join(d, 'content/films/x/assets/pic.svg'), 'utf-8')).toBe('<svg/>')
+		expect(existsSync(join(d, 'content/films/notafilm'))).toBe(false)
+		expect(existsSync(join(d, 'content/logos'))).toBe(false)
+		expect(json(join(d, 'content/site.json'))).toEqual({ name: '', url: '', locales: ['fr'], defaultLocale: 'fr' })
+		expect(r.wrote).toEqual(['content/films/x/assets/pic.svg', 'content/films/x/film.json', 'content/site.json'])
+	})
 	it('validate counts an explicit figure as a figure, and lets a film that names its cover end on any scene', () => {
 		const w = website(), d = tmp()
 		init({ cwd: d, framework: 'vanilla', sample: false })
