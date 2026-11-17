@@ -18,94 +18,128 @@ export interface ShowOptions {
 }
 export type ShowListener = (s: { index: number; local: number; playing: boolean; sound: boolean; layout: Layout; started: boolean }) => void;
 
+/** A running show: what it plays, where the playhead is, and the stage, clock and sound it drives. */
+interface ShowRun {
+  host: HTMLElement; f: FilmMeta; tl: ReturnType<typeof timeline>; opts: ShowOptions; locale: string; mode: Mode;
+  layout: Layout; index: number; local: number; playing: boolean; sound: boolean; scale: number; started: boolean;
+  dead: boolean; m: Mounted | null; key: string; chain: Promise<void>; raf: number; last: number;
+  audio: ReturnType<typeof scorePlayer>; words: ReturnType<typeof narration>; listeners: Set<ShowListener>;
+}
+
+const snapshot = (r: ShowRun) => ({ index: r.index, local: r.local, playing: r.playing, sound: r.sound, layout: r.layout, started: r.started });
+const emit = (r: ShowRun) => r.listeners.forEach((l) => l(snapshot(r)));
+/** The mount key of the scene and layout on screen. */
+const keyOf = (r: ShowRun) => `${r.index}:${r.layout}`;
+
+/** The scene film time `t` falls in (the first at or before it). */
+function sceneAt(tl: ShowRun['tl'], t: number) {
+  let i = tl.scenes.length - 1;
+  while (i > 0 && t < tl.scenes[i].start) i--;
+  return i;
+}
+/** Puts the playhead at film time `t`. */
+function place(r: ShowRun, t: number) {
+  r.index = sceneAt(r.tl, t);
+  r.local = t - r.tl.scenes[r.index].start;
+}
+
+/** Mounts the scene on screen under `k`; false when the show died meanwhile (the new mount is dropped). */
+async function remount(r: ShowRun, k: string) {
+  r.m?.destroy();
+  const next = await mountScene(r.host, r.f, r.tl.scenes[r.index].id, r.layout, { locale: r.locale, mode: r.mode, src: r.opts.src });
+  if (r.dead) { next.destroy(); return false; }
+  r.m = next; r.key = k;
+  return true;
+}
+/** Draws the playhead, remounting first when the scene or layout changed. Queued: draws never overlap. */
+function draw(r: ShowRun) {
+  r.chain = r.chain.then(async () => {
+    if (r.dead) return;
+    const k = keyOf(r);
+    if (k !== r.key && !(await remount(r, k))) return;
+    r.m!.stage.style.transform = `scale(${r.scale})`;
+    r.m!.render(Math.max(0, Math.min(r.local, r.m!.dur - 1e-3)));
+  });
+  return r.chain;
+}
+
+// Sound follows the picture: the score from the playhead, and the scene's narration over it (the score ducked).
+async function syncAudio(r: ShowRun) {
+  if (!(r.sound && r.playing)) { r.audio.stop(); r.words.stop(); return; }
+  const s = r.tl.scenes[r.index];
+  r.audio.duck(r.words.has(s.id));
+  await Promise.all([r.audio.start(s.start + r.local), r.words.start(s.id, r.local)]);
+}
+/** Changes what the show does and tells the picture, the sound and the listeners. */
+function update(r: ShowRun, change: Partial<Pick<ShowRun, 'index' | 'local' | 'playing' | 'sound' | 'layout' | 'started'>>, redraw = true) {
+  Object.assign(r, change);
+  if (redraw) draw(r);
+  syncAudio(r);
+  emit(r);
+}
+function go(r: ShowRun, i: number) { update(r, { index: (i + r.tl.scenes.length) % r.tl.scenes.length, local: 0 }); }
+
+/** Moves the playhead `dt` on: into the next scene at the end of this one, then round again (loop) or to a stop. */
+function advance(r: ShowRun, dt: number) {
+  r.local += dt;
+  const dur = r.tl.scenes[r.index].dur;
+  if (r.local < dur) r.m!.render(r.local);
+  else if (r.index < r.tl.scenes.length - 1) go(r, r.index + 1);
+  else if (r.opts.loop) go(r, 0);
+  else update(r, { local: dur, playing: false }, false);
+}
+function tick(r: ShowRun, now: number) {
+  const dt = Math.min(0.1, (now - r.last) / 1000); r.last = now;
+  if (r.playing && r.m && r.key === keyOf(r)) advance(r, dt);
+  r.raf = requestAnimationFrame((t) => tick(r, t));
+}
+
+/** Fits the stage into a box of w x h px; the host takes the stage's scaled size. */
+function fitStage(r: ShowRun, w: number, h: number) {
+  const [W, H] = SIZES[r.layout];
+  r.scale = Math.max(0, Math.min(w / W, h / H));
+  r.host.style.width = `${W * r.scale}px`; r.host.style.height = `${H * r.scale}px`;
+  if (r.m) r.m.stage.style.transform = `scale(${r.scale})`;
+}
+
 export async function createShow(host: HTMLElement, slug: string, opts: ShowOptions = {}) {
   const locale = opts.locale ?? 'en', mode: Mode = opts.mode ?? (opts.capture ? 'light' : 'auto');
   const f = await loadFilm(slug, locale);
   if (!f) throw new Error(`emaki: no film "${slug}"`);
   const tl = timeline(f);
-  let layout: Layout = opts.layout ?? 'landscape';
-  let index = Math.max(0, Math.min(tl.scenes.length - 1, (opts.slide ?? 1) - 1));
-  let local = 0, playing = !opts.capture && !opts.poster, sound = false, scale = 1, started = !opts.poster;
-  let dead = false, m: Mounted | null = null, key = '', chain: Promise<void> = Promise.resolve(), raf = 0, last = 0;
-  const audio = scorePlayer(f), words = narration(f, locale), listeners = new Set<ShowListener>();
-  const emit = () => listeners.forEach((l) => l({ index, local, playing, sound, layout, started }));
-
-  function draw() {
-    chain = chain.then(async () => {
-      if (dead) return;
-      const k = `${index}:${layout}`;
-      if (k !== key) {
-        m?.destroy();
-        const next = await mountScene(host, f!, tl.scenes[index].id, layout, { locale, mode, src: opts.src });
-        if (dead) return next.destroy();
-        m = next; key = k;
-      }
-      m!.stage.style.transform = `scale(${scale})`;
-      m!.render(Math.max(0, Math.min(local, m!.dur - 1e-3)));
-    });
-    return chain;
-  }
-  // Sound follows the picture: the score from the playhead, and the scene's narration over it (the score ducked).
-  async function syncAudio() {
-    if (!(sound && playing)) { audio.stop(); words.stop(); return; }
-    const s = tl.scenes[index];
-    audio.duck(words.has(s.id));
-    await Promise.all([audio.start(s.start + local), words.start(s.id, local)]);
-  }
-  function go(i: number) { index = (i + tl.scenes.length) % tl.scenes.length; local = 0; draw(); syncAudio(); emit(); }
-  function tick(now: number) {
-    const dt = Math.min(0.1, (now - last) / 1000); last = now;
-    if (playing && m && key === `${index}:${layout}`) {
-      local += dt;
-      if (local >= tl.scenes[index].dur) {
-        if (index < tl.scenes.length - 1) go(index + 1);
-        else if (opts.loop) go(0);
-        else { local = tl.scenes[index].dur; playing = false; syncAudio(); emit(); }
-      } else m.render(local);
-    }
-    raf = requestAnimationFrame(tick);
-  }
+  const r: ShowRun = {
+    host, f, tl, opts, locale, mode,
+    layout: opts.layout ?? 'landscape', index: Math.max(0, Math.min(tl.scenes.length - 1, (opts.slide ?? 1) - 1)),
+    local: 0, playing: !opts.capture && !opts.poster, sound: false, scale: 1, started: !opts.poster,
+    dead: false, m: null, key: '', chain: Promise.resolve(), raf: 0, last: 0,
+    audio: scorePlayer(f), words: narration(f, locale), listeners: new Set<ShowListener>(),
+  };
   // A poster opens on the cover frame (the closing card by default), paused, until start().
-  if (opts.poster) {
-    const at = coverTime(f);
-    let i = tl.scenes.length - 1;
-    while (i > 0 && at < tl.scenes[i].start) i--;
-    index = i; local = at - tl.scenes[i].start;
-  }
+  if (opts.poster) place(r, coverTime(f));
   await fontsReady(f);
-  await draw();
-  if (!opts.capture) { last = performance.now(); raf = requestAnimationFrame(tick); }
+  await draw(r);
+  if (!opts.capture) { r.last = performance.now(); r.raf = requestAnimationFrame((t) => tick(r, t)); }
 
   const api = {
     film: f as FilmMeta, timeline: tl,
-    get state() { return { index, local, playing, sound, layout, started }; },
+    get state() { return snapshot(r); },
     /** From a poster: play from the first scene with sound on (the click that starts it is the reader's gesture). */
-    async start() { started = true; playing = true; sound = true; index = 0; local = 0; await draw(); syncAudio(); emit(); },
+    async start() { Object.assign(r, { started: true, playing: true, sound: true, index: 0, local: 0 }); await draw(r); syncAudio(r); emit(r); },
     /** R: the current scene again from its start. */
-    replay() { local = 0; playing = true; started = true; draw(); syncAudio(); emit(); },
+    replay() { update(r, { local: 0, playing: true, started: true }); },
     /** Home: the film from the top. */
-    restart() { started = true; go(0); },
+    restart() { r.started = true; go(r, 0); },
     /** Fit the stage into a box of w x h px; the host takes the stage's scaled size (centre it with CSS). */
-    fit(w: number, h: number) {
-      const [W, H] = SIZES[layout];
-      scale = Math.max(0, Math.min(w / W, h / H));
-      host.style.width = `${W * scale}px`; host.style.height = `${H * scale}px`;
-      if (m) m.stage.style.transform = `scale(${scale})`;
-    },
-    go, next: () => go(index + 1), prev: () => go(index - 1),
-    play() { playing = true; syncAudio(); emit(); }, pause() { playing = false; syncAudio(); emit(); },
-    toggle() { playing ? api.pause() : api.play(); },
-    setSound(on: boolean) { sound = on; syncAudio(); emit(); },
-    setLayout(l: Layout) { layout = l; draw(); emit(); },
+    fit(w: number, h: number) { fitStage(r, w, h); },
+    go: (i: number) => go(r, i), next: () => go(r, r.index + 1), prev: () => go(r, r.index - 1),
+    play() { update(r, { playing: true }, false); }, pause() { update(r, { playing: false }, false); },
+    toggle() { r.playing ? api.pause() : api.play(); },
+    setSound(on: boolean) { update(r, { sound: on }, false); },
+    setLayout(l: Layout) { r.layout = l; draw(r); emit(r); },
     /** Seek to film time t (s): picks the scene and draws it. Resolves when drawn. */
-    async seek(t: number) {
-      let i = tl.scenes.length - 1;
-      while (i > 0 && t < tl.scenes[i].start) i--;
-      index = i; local = t - tl.scenes[i].start;
-      await draw();
-    },
-    on(l: ShowListener) { listeners.add(l); return () => listeners.delete(l); },
-    destroy() { dead = true; cancelAnimationFrame(raf); audio.close(); words.stop(); m?.destroy(); listeners.clear(); },
+    async seek(t: number) { place(r, t); await draw(r); },
+    on(l: ShowListener) { r.listeners.add(l); return () => r.listeners.delete(l); },
+    destroy() { r.dead = true; cancelAnimationFrame(r.raf); r.audio.close(); r.words.stop(); r.m?.destroy(); r.listeners.clear(); },
   };
   return api;
 }
@@ -139,22 +173,31 @@ export async function installCapture(host: HTMLElement, slug: string, layout: La
 
 type Show = Awaited<ReturnType<typeof createShow>>;
 
+/** F: leave fullscreen, or put `el` (default the whole page) into it. */
+function toggleFullscreen(el?: Element) {
+  if (typeof document !== 'undefined' && document.fullscreenElement) document.exitFullscreen?.();
+  else (el ?? document.documentElement).requestFullscreen?.();
+}
+
+/** What each key does (by its lower-cased KeyboardEvent.key). */
+const KEYS: Record<string, (show: Show, fullscreen?: Element) => void> = {
+  arrowright: (show) => show.next(),
+  arrowleft: (show) => show.prev(),
+  ' ': (show) => { show.state.started ? show.toggle() : show.start(); },
+  m: (show) => show.setSound(!show.state.sound),
+  o: (show) => show.setLayout(show.state.layout === 'landscape' ? 'portrait' : 'landscape'),
+  r: (show) => show.replay(),
+  home: (show) => show.restart(),
+  f: (_show, fullscreen) => toggleFullscreen(fullscreen),
+};
+
 /** The story player's keys, for every wrapper: ←/→ scene, Space play/pause, M sound, O orientation, R replay the
  *  scene, Home from the top, F fullscreen (on `fullscreen`, default the whole page). True when the key was used, so
  *  the caller can preventDefault. */
 export function showKey(show: Show, e: KeyboardEvent, fullscreen?: Element): boolean {
   const k = e.key.toLowerCase();
-  if (k === 'arrowright') show.next();
-  else if (k === 'arrowleft') show.prev();
-  else if (k === ' ') show.state.started ? show.toggle() : show.start();
-  else if (k === 'm') show.setSound(!show.state.sound);
-  else if (k === 'o') show.setLayout(show.state.layout === 'landscape' ? 'portrait' : 'landscape');
-  else if (k === 'r') show.replay();
-  else if (k === 'home') show.restart();
-  else if (k === 'f') {
-    if (typeof document !== 'undefined' && document.fullscreenElement) document.exitFullscreen?.();
-    else (fullscreen ?? document.documentElement).requestFullscreen?.();
-  } else return false;
+  if (!Object.hasOwn(KEYS, k)) return false;
+  KEYS[k](show, fullscreen);
   return true;
 }
 
