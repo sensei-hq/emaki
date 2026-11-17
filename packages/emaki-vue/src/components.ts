@@ -1,6 +1,6 @@
 // Vue 3 components over @senseihq/emaki, written as render functions so they need no SFC compiler.
 // Client-only (they need the DOM): in Nuxt wrap them in <ClientOnly>. Call setupMotion(...) once on the client first.
-import { defineComponent, h, onBeforeUnmount, onMounted, ref, shallowRef, watch, type PropType } from 'vue';
+import { defineComponent, h, onBeforeUnmount, onMounted, ref, shallowRef, toRaw, watch, type PropType } from 'vue';
 import { attachScene, createShow, figurePlayer, installCapture, showKey, type AttachedScene, type Layout, type Mode, type ScenePlayerState } from '@senseihq/emaki';
 import { useScenePlayer, useShowState, useSize, type Show } from './composables.js';
 
@@ -45,11 +45,12 @@ export const ScenePlayer = defineComponent({
     controls: { type: Boolean, default: false },
   },
   setup(props) {
-    const st = useScenePlayer(props.player);
-    const { box, host } = attach(() => props.player, () => props.locale, () => props.mode, false);
+    const player = () => toRaw(props.player);
+    const st = useScenePlayer(player());
+    const { box, host } = attach(player, () => props.locale, () => props.mode, false);
     const msg = 'position:absolute;inset:0;display:grid;place-items:center;margin:0;font:14px system-ui';
     return () => {
-      const s = st.value, p = props.player;
+      const s = st.value, p = player();
       return h('div', { ref: box, style: 'position:relative;width:100%' }, [
         h('div', { ref: host }),
         s.status === 'error' ? h('p', { role: 'alert', style: msg + ';color:#b42318' }, s.error) : null,
