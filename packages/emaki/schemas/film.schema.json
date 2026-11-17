@@ -86,6 +86,11 @@
           },
           "desc": {
             "type": "string"
+          },
+          "settle": {
+            "type": "number",
+            "minimum": 0,
+            "description": "When the scene's motion is over (seconds). emaki fit never ends a narrated scene before it. JSON scenes need none (their tracks say); JS scenes without it keep their design length."
           }
         }
       }

@@ -208,6 +208,38 @@ export function evaluateScene(spec: SceneSpec, t: number, opts: { locale?: strin
   });
 }
 
+/** When the scene's motion is over: the latest time any track still moves, with the same defaults evaluateScene
+ *  uses (keep the two together). From then on every frame is the final one, except the closing mark's breathing,
+ *  which never stops and is left out. Pass a localised spec: word counts set when text arrives. Scene seconds. */
+export function motionEnd(spec: SceneSpec): number {
+  const after = (n: number | undefined, stagger: number | undefined) => ((n ?? 1) - 1) * (stagger ?? 0);
+  const end = (tr: TrackSpec): number => {
+    if (tr.kind === 'tween') return tr.t1 + after(tr.count, tr.stagger);
+    switch (tr.effect) {
+      case 'push': return tr.t0 + tr.dur;
+      case 'fade': return tr.t0 + after(tr.count, tr.stagger) + (tr.d ?? 0.5);
+      case 'pop': return tr.t0 + after(tr.count, tr.stagger) + 0.4;
+      case 'draw': return tr.t1 + after(tr.count, tr.stagger);
+      case 'counter': return tr.t1 + after(tr.count ?? tr.values.length, tr.stagger);
+      case 'swap': return tr.at;
+      case 'settle': return Math.max(tr.t1, tr.rt1 ?? tr.t1);
+      case 'growBars': return Math.max(...tr.t0s.slice(0, tr.count)) + tr.dur;
+      case 'words': {
+        const txt = tr.count === undefined ? findComponent(spec.components, tr.target.replace(/^\./, '')) : undefined;
+        const n = tr.count ?? (txt?.type === 'text' ? txt.text.trim().split(/\s+/).length : 1);
+        return tr.t0 + (n - 1) * (tr.stagger ?? 0.11) + (tr.dur ?? 0.5);
+      }
+      case 'showHead': {
+        const head = spec.components.find((c) => c.id === tr.target.replace(/^\./, '') && c.type === 'head');
+        if (!head || head.type !== 'head') return tr.t0;
+        const line = 0.15 + (head.line.split(' ').length - 1) * 0.11 + 0.5;
+        return tr.t0 + Math.max(line, head.eyebrow ? 0.5 : 0, head.sub ? 1.4 : 0);
+      }
+    }
+  };
+  return spec.tracks.reduce((m, tr) => Math.max(m, end(tr)), 0);
+}
+
 /** A component by id, searching groups and boxes. */
 function findComponent(cs: ComponentSpec[], id: string): ComponentSpec | undefined {
   for (const c of cs) {

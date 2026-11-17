@@ -48,9 +48,9 @@ export function loadFilm(slug: string, locale = 'en'): Promise<FilmMeta | undefi
     const tm = (await src.timing?.(slug, locale))?.scenes ?? {};
     const scenes = found.json.scenes.map((s) => {
       const holds = [...(tm[s.id]?.holds ?? [])].sort((a, b) => a[0] - b[0]);
-      const min = s.dur + holds.reduce((n, h) => n + h[1], 0);
+      const designed = s.dur + holds.reduce((n, h) => n + h[1], 0);
       const voice = tm[s.id]?.voice;
-      return { ...s, design: s.dur, holds, dur: Math.max(min, tm[s.id]?.dur ?? 0), ...(voice != null && { voice }) };
+      return { ...s, design: s.dur, holds, dur: tm[s.id]?.dur ?? designed, ...(voice != null && { voice }) };
     });
     return { ...found.json, slug, scenes };
   })());

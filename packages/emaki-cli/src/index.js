@@ -180,7 +180,7 @@ prog.command('fit <slug>')
 		const r = fit(p, slug, { locale: loc(o, p), check: o.check })
 		console.info(`${'scene'.padEnd(12)} ${'design'.padStart(6)} ${'holds'.padStart(6)} ${'take'.padStart(6)} ${'runs'.padStart(6)}`)
 		for (const x of r.rows)
-			console.info(`${x.scene.padEnd(12)} ${x.design.toFixed(1).padStart(6)} ${x.holds.toFixed(1).padStart(6)} ${x.take.toFixed(1).padStart(6)} ${x.runs.toFixed(1).padStart(6)}${x.longer ? '  ← longer' : ''}${x.take ? '' : '  (no take)'}`)
+			console.info(`${x.scene.padEnd(12)} ${x.design.toFixed(1).padStart(6)} ${x.holds.toFixed(1).padStart(6)} ${x.take.toFixed(1).padStart(6)} ${x.runs.toFixed(1).padStart(6)}${x.longer ? '  ← longer' : x.shorter ? '  ← shorter' : ''}${x.take ? '' : '  (no take)'}`)
 		console.info(`total ${r.total.toFixed(1)} s (${loc(o, p)})${r.written ? `\nwrote ${r.path}` : ''}`)
 	}))
 
