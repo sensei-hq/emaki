@@ -14,12 +14,15 @@
 - Pushed feat/web-narration; site deployed by hand (wrangler deploy) to emaki.sensei-hq.com
 - Site logo: emaki.svg → BrandMark (currentColor), favicon.svg (OS-dark aware), favicon.ico, touch/manifest icons,
   site.webmanifest, og image icon-512.png; `cd site && bun run icons` regenerates
+- Scenes fit narration both ways: fit = lead+take+tail, never before motionEnd (camera push + breathing are
+  background) or film.json settle (JS scenes); registry/build/chapters honour a shorter dur. Sample refit
+  (en 36.3 s, es 40.5 s). Site logo cropped to the artwork
+- PRs: #2 feat/issue-1-adoption → main (Closes #1); #3 feat/web-narration stacked on it
 - MotionScene speaker button: own colours (dark disc, white icon); browser check proves 3:1+ in light, dark, OS-dark
 
 ## Remaining
-- Redeploy the site for the speaker fix + new icons (user: `cd site && bunx wrangler deploy`); build is ready
-- Scenes fit narration both ways (shorter, never before the last movement): proposed, awaiting go-ahead
-- PRs: feat/issue-1-adoption → main (Closes #1), then feat/web-narration; connect Workers Builds to main (CF_PAGES=1)
+- Redeploy the site (speaker fix, icons, refit film) (user: `cd site && bunx wrangler deploy`); build is ready
+- Merge #2 then #3; connect Workers Builds to main (CF_PAGES=1) so merges deploy
 - React/Vue figures have no sound button (story players narrate via createShow)
 
 ## Next command
