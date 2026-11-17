@@ -1,29 +1,22 @@
 # Checkpoint
 
-**Slice:** release 0.2 prep: narration, scenes that fit their narration, logo and icons, onto main and npm.
+**Slice:** feat/issue-10-adoption-gaps (issue #10), PR #11
 
-## Done
-- Narration on the site; `fit` both ways (`motionEnd`, `settle`); Piper-narrated sample film (en, es); speaker
-  contrast fix; logo, favicons, manifest. Live on emaki.sensei-hq.com (manual `wrangler deploy`).
-- PR #3 merged into `feat/issue-1-adoption` after #2 had merged it, so #3 missed main. PR #4 brings it over.
-- Root `bun run build` builds every package, then the site (Workers Builds failed: the site imports the packages'
-  `dist`, absent in a fresh checkout). Spec: `config/spec/order.spec.js`.
-- `main` is protected: PRs only, `check`, `browser` and `site` must pass, no force-push or deletion; admins may bypass
-  (so `bun run bump` can push its release commit and tag).
+**Done**
+- `MotionShow` `cover` prop: image + play button, show created on the first click and started with sound on.
+- `setupMotion` registers glob-path logo keys (`./logos/acme.svg`) by basename.
+- React and Vue `MotionShow` at parity with Svelte (poster, cover, title/length, ticks, fullscreenHref); `useShowState` reports `started` and follows the playhead.
+- Docs synced (package READMEs, docs/llms, site copies).
+- `bun run check` 460 passed; browser check green; site tests 34 passed; react/vue src 100% coverage.
 
-## Remaining
-1. Workers Builds settings (dashboard, Worker `emaki` → Settings → Build): root directory `/`, build command
-   `bun run build`, deploy command `bunx wrangler deploy -c site/wrangler.jsonc`.
-2. Merge PR #4.
-3. Release: `git checkout main && git pull && bun run bump` (minor → 0.2.0); the tag runs publish.yml.
+**Remaining**
+- Merge PR #11; cut a patch with `bun run bump patch --yes` if the website should consume it.
+- Coverage to 100% on packages/*/src (84% lines now), then thresholds + CI.
+- CI: run the poster's Python test; gate publish.yml's GitHub release step to tags.
 
-## Next command
-`gh pr merge 4 --merge` (after the Workers Builds settings, so its check goes green)
+**Next command:** `gh pr merge 11 --merge --delete-branch`
 
-## Open questions
-- Add `Workers Builds: emaki` to the required checks once it passes?
-- `workers_dev: false` / `preview_urls: false` in `site/wrangler.jsonc`?
+**Open questions**
+- Workers Builds on PR branches needs the non-production deploy command set in the dashboard.
 
-## Known broken
-- Workers Builds fails until its settings change (step 1).
-- React/Vue figures have no sound button; `show.seek()` doesn't re-sync sound.
+**Known broken:** nothing.

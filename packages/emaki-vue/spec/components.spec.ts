@@ -19,7 +19,7 @@ beforeEach(() => {
   vi.stubGlobal('ResizeObserver', FakeResizeObserver);
   views = []; shows = [];
   vi.mocked(attachScene).mockReset().mockImplementation(() => { const v = fakeView(); views.push(v); return v; });
-  vi.mocked(createShow).mockReset().mockImplementation(async () => { const s = fakeShow(); shows.push(s); return s as never; });
+  vi.mocked(createShow).mockReset().mockImplementation(async (_stage, _film, o) => { const s = fakeShow(3, !o?.poster); shows.push(s); return s as never; });
   vi.mocked(installCapture).mockReset().mockImplementation(async () => { const s = fakeShow(); shows.push(s); return s as never; });
   vi.mocked(figurePlayer).mockClear();
 });
@@ -126,7 +126,7 @@ describe('MotionShow', () => {
     const props = await mount(MotionShow, { film: 'f', layout: 'landscape' as 'landscape' | 'portrait' }, { onReady });
     const [stage, film, opts] = vi.mocked(createShow).mock.calls[0];
     expect(film).toBe('f');
-    expect(opts).toEqual({ locale: 'en', layout: 'landscape', mode: 'auto', slide: 1, loop: false });
+    expect(opts).toEqual({ locale: 'en', layout: 'landscape', mode: 'auto', slide: 1, loop: false, poster: false });
     expect(stage.parentElement!.parentElement).toBe(el.querySelector('[role=application]'));
     const show = shows[0];
     expect(onReady).toHaveBeenCalledWith(show);
@@ -210,3 +210,64 @@ describe('ShowPage', () => {
     expect(createShow).not.toHaveBeenCalled();
   });
 });
+
+describe('MotionShow poster, cover and progress (as the Svelte player)', () => {
+  let frames: Map<number, FrameRequestCallback>, next: number;
+  const frame = async () => { const due = [...frames.values()]; frames.clear(); due.forEach((f) => f(performance.now())); await settle(); };
+  beforeEach(() => {
+    frames = new Map(); next = 0;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => { frames.set(++next, cb); return next; });
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => { frames.delete(id); });
+  });
+
+  it('with poster, opens on the cover frame with a play button; the click starts it, and a restart after that skips the poster', async () => {
+    const props = await mount(MotionShow, { film: 'f', poster: true, title: 'F', length: '1 min', locale: 'en' });
+    expect(vi.mocked(createShow).mock.calls[0][2]).toMatchObject({ poster: true });
+    expect(button('Play the film: F').textContent).toContain('Play the film · 1 min');
+    expect(button('Next scene')).toBeUndefined();
+    await click('Play the film: F');
+    expect(shows[0].start).toHaveBeenCalledOnce();
+    expect(el.textContent).toContain('1 / 3');
+    props.locale = 'es';
+    await settle();
+    expect(vi.mocked(createShow).mock.calls[1][2]).toMatchObject({ locale: 'es', poster: false });
+  });
+
+  it('with a cover, paints the image and creates nothing until the first click, which plays it with sound on', async () => {
+    await mount(MotionShow, { film: 'f', cover: '/covers/f.jpg', title: 'F', length: '1 min' });
+    expect(createShow).not.toHaveBeenCalled();
+    expect(el.querySelector('img')!.getAttribute('src')).toBe('/covers/f.jpg');
+    expect(button('Play the film: F').textContent).toContain('Play the film · 1 min');
+    await click('Play the film: F');
+    expect(createShow).toHaveBeenCalledOnce();
+    expect(vi.mocked(createShow).mock.calls[0][2]).toMatchObject({ poster: true });
+    expect(shows[0].start).toHaveBeenCalledOnce();
+    expect(el.querySelector('img')).toBeNull();
+    expect(el.textContent).toContain('1 / 3');
+  });
+
+  it('draws a tick per scene that fills as it plays and jumps there on click, and links to full screen', async () => {
+    await mount(MotionShow, { film: 'f', fullscreenHref: '/show/f' });
+    expect(el.querySelector('a')!.getAttribute('href')).toBe('/show/f');
+    await click('Scene 3');
+    expect(shows[0].go).toHaveBeenCalledWith(2);
+    shows[0].advance(1);
+    await frame();
+    const fills = ['Scene 1', 'Scene 2', 'Scene 3'].map((n) => (button(n).firstElementChild as HTMLElement).style.width);
+    expect(fills).toEqual(['100%', '100%', '50%']);
+  });
+
+  it('names the play button plainly without a title or length, and drops a show a newer start overtook', async () => {
+    let resolve!: (s: Show) => void;
+    vi.mocked(createShow).mockImplementationOnce(() => new Promise((r) => { resolve = r; }));
+    const props = await mount(MotionShow, { film: 'f', poster: true });
+    props.film = 'g';
+    await settle();
+    const late = fakeShow();
+    resolve(late as unknown as Show);
+    await settle();
+    expect(late.destroy).toHaveBeenCalled();
+    expect(button('Play the film').textContent).toBe('Play the film');
+  });
+});
+

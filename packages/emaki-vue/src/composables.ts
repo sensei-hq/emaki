@@ -17,18 +17,24 @@ export function useScenePlayer(held: ScenePlayerState) {
 }
 
 export type Show = Awaited<ReturnType<typeof createShow>>;
-export interface ShowState { index: number; local: number; playing: boolean; sound: boolean; layout: Layout }
+export interface ShowState { index: number; local: number; playing: boolean; sound: boolean; layout: Layout; started: boolean }
 
-/** Reactive state of a story player controller (from <MotionShow @ready>). */
+/** Reactive state of a story player controller (from <MotionShow @ready>), following the playhead (read once a
+ *  frame; it moves without notifications). `started` is false on a poster. */
 export function useShowState(show: Ref<Show | null>) {
   const state = shallowRef<ShowState | null>(null);
-  let off: (() => void) | null = null;
+  let off: (() => void) | null = null, raf = 0;
+  const follow = () => {
+    const s = show.value, x = state.value;
+    if (s && x && s.state.local !== x.local) state.value = { ...x, local: s.state.local };
+    raf = requestAnimationFrame(follow);
+  };
   watch(show, (s) => {
-    off?.(); off = null;
+    off?.(); off = null; cancelAnimationFrame(raf);
     state.value = s ? { ...s.state } : null;
-    if (s) off = s.on((x) => { state.value = { ...x }; }) as () => void;
+    if (s) { off = s.on((x) => { state.value = { ...x }; }) as () => void; raf = requestAnimationFrame(follow); }
   }, { immediate: true });
-  onBeforeUnmount(() => off?.());
+  onBeforeUnmount(() => { off?.(); cancelAnimationFrame(raf); });
   return state;
 }
 
