@@ -3,16 +3,18 @@
 import { configureLocales, type SiteConfig } from './i18n.js';
 import { registerLogo } from './renderer.js';
 import { useSource, type FilmSource } from './registry.js';
+import { logoName } from './loaders/vite.js';
 
 export interface MotionSetup {
   source: FilmSource;
   site?: SiteConfig;
-  /** name → SVG text; scenes draw them with { "type": "logo", "name": ... }. */
+  /** name → SVG text; scenes draw them with { "type": "logo", "name": ... }. A path key (an import.meta.glob's
+   *  `./logos/acme.svg`) registers under its file's basename (`acme`). */
   logos?: Record<string, string>;
 }
 
 export function setupMotion({ source, site, logos }: MotionSetup) {
   if (site) configureLocales(site);
   useSource(source);
-  for (const [name, svg] of Object.entries(logos ?? {})) registerLogo(name, svg);
+  for (const [name, svg] of Object.entries(logos ?? {})) registerLogo(logoName(name), svg);
 }
