@@ -72,6 +72,31 @@ describe('emaki commands', () => {
 		expect(sf.err).toMatch(/content\/films\/demo already exists/)
 	})
 
+	it('fit and campaign status print their tables', () => {
+		const d = project()
+		const fit = emaki(d, 'fit', 'demo', '--check')
+		expect(fit.err).toBe('')
+		expect(fit.out).toBe([
+			'scene        design  holds   take   runs',
+			'hook           12.0    0.0    0.0   12.0  (no take)',
+			'close          18.0    0.0    0.0   18.0  (no take)',
+			'total 30.0 s (en)',
+			''
+		].join('\n'))
+		put(d, 'films/campaign/calendar.csv', 'date,product,theme,title,status,script\n2026-11-16,DBD,DBD week,Title,expanded,days/day-01-demo.md\n2026-11-17,Rokkit,Rokkit week,"A title longer than forty-six characters, cut short",planned,\n')
+		put(d, 'films/campaign/days/day-01-demo.md', DAY)
+		expect(emaki(d, 'campaign', 'posted', 'demo', '--youtube', '12345', '--x', 'https://x.com/i/web/status/1').code).toBe(0)
+		const st = emaki(d, 'campaign', 'status', '--from', '2026-11-16', '--days', '3')
+		expect(st.out).toBe([
+			'date        topic       title                                          story film takes rndr short car posts',
+			'2026-11-16  DBD         Title                                          yes   yes     0   -   yes    0  Y·X',
+			'2026-11-17  Rokkit      A title longer than forty-six characters, cut  (no day script yet)',
+			'',
+			'posts: Y = YouTube, I = Instagram, X = X; · = not yet',
+			''
+		].join('\n'))
+	})
+
 	it('carousel needs a slug or --all', () => {
 		expect(emaki(project(), 'carousel').err).toMatch(/name a slug, or --all/)
 	})
