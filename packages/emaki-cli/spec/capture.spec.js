@@ -5,7 +5,7 @@ import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { MotionError, project as load, render } from '../src/api.js'
+import { MotionError, project as load, render, sheet } from '../src/api.js'
 import { logger, project, put } from './helpers.js'
 
 const browser = { pages: [], closed: false }
@@ -18,16 +18,22 @@ function fakeBrowser() {
 	return {
 		newPage: async ({ viewport }) => {
 			const page = {
-				viewport, seeks: [], shots: 0, handlers: {},
+				viewport, seeks: [], shots: 0, evals: 0, handlers: {},
 				on: (ev, fn) => { page.handlers[ev] = fn },
 				goto: async (url) => { page.url = url; if (show.errors) page.handlers.pageerror?.(new Error('boom')) },
-				waitForFunction: async () => true,
+				waitForFunction: async (fn, arg) => {
+					globalThis.window = { __show: show }
+					globalThis.document = { images: [{ complete: true }] }
+					try { return await fn(arg) } finally { delete globalThis.window; delete globalThis.document }
+				},
+				setContent: async (html) => { page.html = html },
 				waitForTimeout: async () => {},
 				evaluate: async (fn, arg) => {
+					if (++page.evals === show.failOn) throw new Error('Execution context was destroyed')
 					globalThis.window = { __show: { ...show, seek: (t) => page.seeks.push(t) } }
 					try { return await fn(arg) } finally { delete globalThis.window }
 				},
-				screenshot: async () => { page.shots++; return Buffer.from(`JPG${page.shots}`) },
+				screenshot: async () => { page.shots++; return show.big ? Buffer.alloc(show.big) : Buffer.from(`JPG${page.shots}`) },
 				close: async () => { page.closed = true }
 			}
 			browser.pages.push(page)
@@ -46,7 +52,7 @@ beforeAll(() => {
 		writeFileSync(join(bin, name), `#!/bin/sh\necho "${name} $*" >> "${calls}"\n${body}\n`)
 		chmodSync(join(bin, name), 0o755)
 	}
-	script('ffmpeg', 'cat > /dev/null\nfor a; do last=$a; done\necho FAKE > "$last"')
+	script('ffmpeg', '[ -n "$FAKE_FFMPEG_EARLY" ] && exit 1\ncat > /dev/null\n[ -n "$FAKE_FFMPEG_FAIL" ] && exit 1\nfor a; do last=$a; done\necho FAKE > "$last"')
 	script('ffprobe', 'echo "${FAKE_DUR:-12}"')
 	savedPath = process.env.PATH
 	process.env.PATH = `${bin}:${savedPath}`
@@ -62,6 +68,8 @@ beforeEach(() => {
 })
 afterEach(() => {
 	delete process.env.FAKE_DUR
+	delete process.env.FAKE_FFMPEG_FAIL
+	delete process.env.FAKE_FFMPEG_EARLY
 	vi.unstubAllGlobals()
 })
 const ran = () => (existsSync(calls) ? readFileSync(calls, 'utf-8').trim().split('\n') : [])
@@ -186,5 +194,91 @@ describe('render', () => {
 		expect(existsSync(join(d, 'production/demo/en/render/demo-en-16x9.part.mp4'))).toBe(true)
 		expect(existsSync(join(d, 'production/demo/en/render/demo-en-16x9.mp4'))).toBe(false)
 		expect(browser.closed).toBe(true)
+	})
+
+	it('a failed ffmpeg fails the capture and leaves no video', async () => {
+		const d = project()
+		process.env.FAKE_FFMPEG_FAIL = '1'
+		await expect(render(load(d), 'demo', { locale: 'en', ...site, o: 'landscape', fps: 1, music: 'none', log: logger() }))
+			.rejects.toThrow(new MotionError('ffmpeg failed'))
+		expect(existsSync(join(d, 'production/demo/en/render/demo-en-16x9.mp4'))).toBe(false)
+		expect(browser.closed).toBe(true)
+	})
+
+	it('waits for ffmpeg to take in large frames before sending more', async () => {
+		const d = project()
+		show.big = 4 * 1024 * 1024
+		const made = await render(load(d), 'demo', { locale: 'en', ...site, o: 'landscape', fps: 3, music: 'none', coverOnly: false, log: logger() })
+		expect(made).toEqual([join(d, 'production/demo/en/render/demo-en-16x9.mp4')])
+		expect(browser.pages[0].shots).toBe(4)
+	})
+
+	it('carries on when the dev server reloads the page mid-render', async () => {
+		const d = project()
+		show.failOn = 3
+		const log = logger()
+		await render(load(d), 'demo', { locale: 'en', ...site, o: 'landscape', fps: 1, log })
+		expect(log.lines[0]).toBe('  score: production/demo/en/render/score.wav')
+		// ready, meta, the score (lost to the reload), ready again, the score again, one frame, the cover
+		expect(browser.pages[0].evals).toBe(7)
+	})
+
+	it('names the site cover after the locale when it is not the default one', async () => {
+		const d = project()
+		put(d, 'emaki.config.json', { coversDir: 'static/covers' })
+		const log = logger()
+		await render(load(d), 'demo', { locale: 'es', ...site, o: 'landscape', coverOnly: true, log })
+		expect(log.lines.at(-1)).toBe('  cover for the site: static/covers/demo.es.jpg')
+	})
+})
+
+describe('sheet', () => {
+	beforeEach(() => {
+		show.meta = { duration: 30, cover: 1, scenes: [{ id: 'hook', start: 0, dur: 12 }, { id: 'close', start: 12, dur: 18 }] }
+	})
+
+	it('shoots each scene\'s last moment in both layouts and lays them side by side', async () => {
+		const d = project()
+		const log = logger()
+		const dst = await sheet(load(d), 'demo', { locale: 'en', ...site, log })
+		const out = join(d, 'production/demo/en/sheets')
+		expect(dst).toBe(join(out, 'demo-en-sheet.jpg'))
+		expect(log.lines).toEqual(['sheet: production/demo/en/sheets/demo-en-sheet.jpg'])
+		const [land, port, board] = browser.pages
+		expect(land.seeks).toEqual([11.6, 29.6])
+		expect(port.seeks).toEqual([11.6, 29.6])
+		expect(readFileSync(join(out, 'portrait-01-close.jpg'), 'utf-8')).toBe('JPG2')
+		expect(board.viewport).toEqual({ width: 2580, height: 550 })
+		expect(board.html.match(/<img /g)).toHaveLength(4)
+		expect(board.html).toContain(`src="data:image/jpeg;base64,${Buffer.from('JPG1').toString('base64')}" style="position:absolute;left:0px;top:0px;width:960px;height:540px"`)
+		expect(board.html).toContain('style="position:absolute;left:2256px;top:0px;width:304px;height:540px"')
+		expect(readFileSync(dst, 'utf-8')).toBe('JPG1')
+		expect(browser.closed).toBe(true)
+	})
+
+	it('--at shoots the moments it names, and reports the page\'s errors', async () => {
+		const d = project()
+		show.errors = true
+		const log = logger()
+		await sheet(load(d), 'demo', { locale: 'en', ...site, at: 'close:1.5,hook:0.25', log })
+		expect(browser.pages[0].seeks).toEqual([13.5, 0.25])
+		expect(log.lines.slice(0, 2)).toEqual(['page errors: Error: boom', 'page errors: Error: boom'])
+	})
+
+	it('refuses a scene the film does not have', async () => {
+		const d = project()
+		await expect(sheet(load(d), 'demo', { locale: 'en', ...site, at: 'middle:1', log: logger() }))
+			.rejects.toThrow(new MotionError('no scene "middle"'))
+		expect(browser.closed).toBe(true)
+	})
+
+	it('logs to the console by default', async () => {
+		const info = vi.spyOn(console, 'info').mockImplementation(() => {})
+		try {
+			await sheet(load(project()), 'demo', { locale: 'en', ...site })
+			expect(info).toHaveBeenCalledWith('sheet: production/demo/en/sheets/demo-en-sheet.jpg')
+		} finally {
+			info.mockRestore()
+		}
 	})
 })
