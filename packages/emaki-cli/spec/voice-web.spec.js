@@ -83,7 +83,7 @@ describe('the sample film', () => {
 			for (const { scene } of lines) {
 				expect(existsSync(join(dir, `voice/${locale}/${scene}.m4a`)), `${locale}/${scene}.m4a`).toBe(true)
 				expect(t[scene].voice).toBeGreaterThan(0)
-				expect(Math.max(design[scene], t[scene].dur ?? 0)).toBeGreaterThan(t[scene].voice)
+				expect(t[scene].dur ?? design[scene]).toBeGreaterThan(t[scene].voice)
 			}
 		}
 	})
