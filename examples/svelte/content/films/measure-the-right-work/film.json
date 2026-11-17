@@ -2,6 +2,15 @@
   "title": "Measure the Right Work",
   "look": "Session board: counters, an activity chart, two paired metric cards and metric groups on a dot-grid desk. Washi paper, sumi ink, rationed vermillion for rework, jade for work that landed. The brand mark on the close.",
   "background": "#F3F0E9",
+  "dark": {
+    "background": "#1E1B18",
+    "palette": [
+      "#191614",
+      "#D8D0C7",
+      "#F2ECE4",
+      "#E0795C"
+    ]
+  },
   "palette": [
     "#F9F6F1",
     "#48413D",

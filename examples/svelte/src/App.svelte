@@ -2,12 +2,15 @@
   // One page that shows what the packages do: the story as an article (text + looping figures), the story player,
   // and, at /show/<film>?capture=1, the capture page `emaki sheet` / `emaki render` drive.
   import { MotionScene, MotionShow, ShowPage } from '@senseihq/emaki-svelte';
+  import type { Mode } from '@senseihq/emaki';
   import { listStories, loadStory, type Story } from '@senseihq/emaki';
   import { contentSource, site } from './emaki-source';
 
   const q = new URLSearchParams(location.search);
   const show = location.pathname.match(/^\/show\/([^/]+)/)?.[1];
   let locale = $state(q.get('locale') ?? site?.defaultLocale ?? 'en');
+  // ?mode=light|dark pins the scenes; without it they follow the page (auto).
+  const mode = (['light', 'dark'].includes(q.get('mode') ?? '') ? q.get('mode') : 'auto') as Mode;
   let story = $state<Story | null>(null);
 
   $effect(() => {
@@ -17,7 +20,7 @@
 </script>
 
 {#if show}
-  <ShowPage film={show} capture={q.get('capture') === '1'} layout={q.get('o') === 'portrait' ? 'portrait' : 'landscape'} locale={q.get('locale') ?? 'en'} />
+  <ShowPage film={show} capture={q.get('capture') === '1'} layout={q.get('o') === 'portrait' ? 'portrait' : 'landscape'} locale={q.get('locale') ?? 'en'} src={(['json', 'js'].includes(q.get('src') ?? '') ? q.get('src') : undefined) as 'json' | 'js' | undefined} mode={mode === 'dark' ? 'dark' : undefined} />
 {:else if story}
   <main>
     <nav>
@@ -30,7 +33,7 @@
       <p class="dek">{story.dek}</p>
     </header>
     {#if story.film}
-      <div class="player" data-testid="player"><MotionShow film={story.film} {locale} /></div>
+      <div class="player" data-testid="player"><MotionShow film={story.film} {locale} {mode} poster title={story.title} fullscreenHref="/show/{story.film}" /></div>
     {/if}
     {#each story.sections as s (s.id)}
       <section>
@@ -38,7 +41,7 @@
         <h2>{s.title}</h2>
         {#each s.body as p}<p>{p}</p>{/each}
         {#if s.motion}
-          <figure data-testid="figure-{s.id}"><MotionScene film={s.motion.film} scene={s.motion.scene} {locale} /></figure>
+          <figure data-testid="figure-{s.id}"><MotionScene film={s.motion.film} scene={s.motion.scene} {locale} {mode} label={s.title} /></figure>
         {/if}
       </section>
     {/each}

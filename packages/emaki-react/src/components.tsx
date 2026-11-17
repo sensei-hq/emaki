@@ -1,38 +1,39 @@
 // React components over @senseihq/emaki. All are client components (they need the DOM); in Next.js import them
 // from a file marked 'use client'. Call setupMotion({ source, site, logos }) once on the client first.
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { attachScene, createShow, installCapture, type AttachedScene, type Layout, type ScenePlayerState } from '@senseihq/emaki';
+import { attachScene, createShow, installCapture, showKey, type AttachedScene, type Layout, type Mode, type ScenePlayerState } from '@senseihq/emaki';
 import { usePlayerFor, useScenePlayer, useShowState, useSize, useWidth, type Show } from './hooks.js';
 
 /** Mounts a player's scene into a div and keeps it fitted (shared by MotionScene and ScenePlayer). */
-function useAttached(player: ScenePlayerState, locale: string, autoplay: boolean) {
+function useAttached(player: ScenePlayerState, locale: string, mode: Mode, autoplay: boolean) {
   const [ref, width] = useWidth<HTMLDivElement>();
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<AttachedScene | null>(null);
   useEffect(() => {
-    view.current = attachScene(host.current!, player, { locale, autoplay });
+    view.current = attachScene(host.current!, player, { locale, mode, autoplay });
     return () => { view.current?.destroy(); view.current = null; };
   }, [player]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { view.current?.setLocale(locale); }, [locale]);
+  useEffect(() => { view.current?.setMode(mode); }, [mode]);
   useEffect(() => { if (width) view.current?.fit(width); }, [width]);
   return { ref, host };
 }
 
-export interface MotionSceneProps { film: string; scene: string; layout?: Layout; locale?: string; autoplay?: boolean; className?: string; style?: CSSProperties }
+export interface MotionSceneProps { film: string; scene: string; layout?: Layout; locale?: string; mode?: Mode; autoplay?: boolean; className?: string; style?: CSSProperties }
 
 /** An article figure: one scene, looping while it is on screen. */
-export function MotionScene({ film, scene, layout = 'figure', locale = 'en', autoplay = true, className, style }: MotionSceneProps) {
+export function MotionScene({ film, scene, layout = 'figure', locale = 'en', mode = 'auto', autoplay = true, className, style }: MotionSceneProps) {
   const player = usePlayerFor({ film, scene, layout });
-  const { ref, host } = useAttached(player, locale, autoplay);
+  const { ref, host } = useAttached(player, locale, mode, autoplay);
   return <div ref={ref} className={className} style={{ width: '100%', ...style }}><div ref={host} /></div>;
 }
 
-export interface ScenePlayerProps { player: ScenePlayerState; locale?: string; controls?: boolean; className?: string }
+export interface ScenePlayerProps { player: ScenePlayerState; locale?: string; mode?: Mode; controls?: boolean; className?: string }
 
 /** A scene driven by a ScenePlayerState you own (editors, previews, step-throughs). */
-export function ScenePlayer({ player, locale = 'en', controls = false, className }: ScenePlayerProps) {
+export function ScenePlayer({ player, locale = 'en', mode = 'auto', controls = false, className }: ScenePlayerProps) {
   const p = useScenePlayer(player);
-  const { ref, host } = useAttached(player, locale, false);
+  const { ref, host } = useAttached(player, locale, mode, false);
   const msg: CSSProperties = { position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', margin: 0, font: '14px system-ui' };
   return (
     <div ref={ref} className={className} style={{ position: 'relative', width: '100%' }}>
@@ -51,36 +52,30 @@ export function ScenePlayer({ player, locale = 'en', controls = false, className
 }
 
 export interface MotionShowProps {
-  film: string; locale?: string; layout?: Layout; controls?: boolean; slide?: number; loop?: boolean;
+  film: string; locale?: string; layout?: Layout; mode?: Mode; controls?: boolean; slide?: number; loop?: boolean;
   /** The controller once ready (next/prev/play/pause/setSound/setLayout/seek/on), for custom chrome. */
   onReady?: (show: Show) => void;
   className?: string; style?: CSSProperties;
 }
 
 /** The story player: a film's scenes as slides, fitted to its box. Keys: ←/→, Space, M (sound), O (orientation). */
-export function MotionShow({ film, locale = 'en', layout = 'landscape', controls = true, slide = 1, loop = false, onReady, className, style }: MotionShowProps) {
+export function MotionShow({ film, locale = 'en', layout = 'landscape', mode = 'auto', controls = true, slide = 1, loop = false, onReady, className, style }: MotionShowProps) {
   const stage = useRef<HTMLDivElement>(null);
   const [fitRef, size] = useSize<HTMLDivElement>();
   const [show, setShow] = useState<Show | null>(null);
   const st = useShowState(show);
   useEffect(() => {
     let alive = true, made: Show | null = null;
-    createShow(stage.current!, film, { locale, layout, slide, loop }).then((s) => {
+    createShow(stage.current!, film, { locale, layout, mode, slide, loop }).then((s) => {
       if (!alive) return s.destroy();
       made = s; setShow(s); onReady?.(s);
     });
     return () => { alive = false; made?.destroy(); setShow(null); };
-  }, [film, locale]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [film, locale, mode]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (show && show.state.layout !== layout) show.setLayout(layout); }, [show, layout]);
   useEffect(() => { show?.fit(size.w, size.h); }, [show, size, st?.layout]);
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    if (!show) return;
-    const k = e.key.toLowerCase();
-    if (k === 'arrowright') show.next(); else if (k === 'arrowleft') show.prev();
-    else if (k === ' ') { show.toggle(); e.preventDefault(); }
-    else if (k === 'm') show.setSound(!show.state.sound);
-    else if (k === 'o') show.setLayout(show.state.layout === 'landscape' ? 'portrait' : 'landscape');
-  };
+  // Every key (←/→, Space, M, O, R, Home, F) from the core, so all players answer the same way.
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => { if (show && showKey(show, e.nativeEvent, e.currentTarget)) e.preventDefault(); };
   const btn: CSSProperties = { minWidth: 34, height: 34, borderRadius: 17, border: '1px solid currentColor', background: 'none', color: 'inherit', cursor: 'pointer', padding: '0 10px' };
   return (
     <div tabIndex={0} role="application" aria-label="Story player" onKeyDown={onKeyDown} className={className}
@@ -101,17 +96,18 @@ export function MotionShow({ film, locale = 'en', layout = 'landscape', controls
   );
 }
 
-export interface ShowPageProps { film: string; layout?: Layout; locale?: string; capture?: boolean }
+/** mode: capture renders light unless asked; the interactive player follows the page (auto). */
+export interface ShowPageProps { film: string; layout?: Layout; locale?: string; mode?: Mode; src?: 'json' | 'js'; capture?: boolean }
 
 /** The /show/<film> page the video pipeline drives: with `capture`, the stage at 1:1, no chrome, window.__show. */
-export function ShowPage({ film, layout = 'landscape', locale = 'en', capture = false }: ShowPageProps) {
+export function ShowPage({ film, layout = 'landscape', locale = 'en', mode, src, capture = false }: ShowPageProps) {
   const host = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!capture) return;
     let s: Show | null = null;
-    installCapture(host.current!, film, layout, locale).then((x) => { s = x; });
+    installCapture(host.current!, film, layout, locale, { mode: mode ?? 'light', src }).then((x) => { s = x; });
     return () => s?.destroy();
-  }, [capture, film, layout, locale]);
+  }, [capture, film, layout, locale, mode, src]);
   if (capture) return <div ref={host} />;
-  return <div style={{ position: 'fixed', inset: 0 }}><MotionShow film={film} layout={layout} locale={locale} /></div>;
+  return <div style={{ position: 'fixed', inset: 0 }}><MotionShow film={film} layout={layout} locale={locale} mode={mode ?? 'auto'} /></div>;
 }

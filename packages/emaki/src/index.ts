@@ -6,6 +6,7 @@ export * from './scene-schema.js';
 export { evaluateScene, validateScene, localizeScene, sceneKeys, registerLogo, mountJsonScene, renderComponent, layoutComponents } from './renderer.js';
 export * from './registry.js';
 export * from './mount.js';
+export { pageMode } from './mode.js';
 export * from './sound.js';
 export { collectScore, play as playScore, type Score } from './score.js';
 export * from './show.js';

@@ -1,5 +1,5 @@
 // Svelte 5 reactivity over the core's framework-free state: the core notifies, a $state counter makes reads tracked.
-import type { createShow, Layout, ScenePlayerState } from '@senseihq/emaki';
+import { ticks as showTicks, type createShow, type Layout, type ScenePlayerState } from '@senseihq/emaki';
 
 /** Reactive reads of a ScenePlayerState: `p.t`, `p.playing`, `p.status` update the UI as the player changes. */
 export function reactivePlayer(get: () => ScenePlayerState) {
@@ -20,19 +20,30 @@ export function reactivePlayer(get: () => ScenePlayerState) {
 type Show = Awaited<ReturnType<typeof createShow>>;
 export type ShowHandle = ReturnType<typeof reactiveShow>;
 
-/** Reactive state of a story player (createShow): index, playing, sound, layout, plus the controller as `api`. */
+/** Reactive state of a story player (createShow): index, playhead, playing, sound, layout, whether it has started
+ *  (a poster has not), per-scene progress ticks, plus the controller as `api`. The playhead is read once a frame. */
 export function reactiveShow() {
   let api = $state<Show | null>(null);
-  let st = $state({ index: 0, local: 0, playing: false, sound: false, layout: 'landscape' as Layout });
-  let off: (() => void) | null = null;
+  let st = $state({ index: 0, local: 0, playing: false, sound: false, layout: 'landscape' as Layout, started: true });
+  let off: (() => void) | null = null, raf = 0;
+  const follow = () => {
+    if (api && api.state.local !== st.local) st.local = api.state.local;
+    raf = requestAnimationFrame(follow);
+  };
   return {
     get api() { return api; },
     get index() { return st.index; },
+    get local() { return st.local; },
     get playing() { return st.playing; },
     get sound() { return st.sound; },
     get layout() { return st.layout; },
+    get started() { return st.started; },
     get count() { return api?.timeline.scenes.length ?? 0; },
-    attach(s: Show) { api = s; st = { ...s.state }; off = s.on((x) => { st = { ...x }; }) as () => void; },
-    detach() { off?.(); api?.destroy(); api = null; },
+    get ticks() { void st.index; void st.local; return api ? showTicks(api) : []; },
+    attach(s: Show) {
+      api = s; st = { ...s.state }; off = s.on((x) => { st = { ...x }; }) as () => void;
+      cancelAnimationFrame(raf); raf = requestAnimationFrame(follow);
+    },
+    detach() { cancelAnimationFrame(raf); off?.(); api?.destroy(); api = null; },
   };
 }

@@ -31,6 +31,12 @@ const list = (xs) => xs.slice(0, 8).join(', ') + (xs.length > 8 ? ' …' : '')
 export function validateFilm(p, slug) {
 	const issues = [], d = p.filmDir(slug), film = load(join(d, 'film.json')), used = new Set()
 	if (!exists(join(d, 'look.css'))) issues.push('look.css is missing')
+	else {
+		// Dark is opt-in: film.json's dark block turns it on, look.css draws it. One without the other is a mistake.
+		const styled = readFileSync(join(d, 'look.css'), 'utf-8').includes('#stage[data-mode="dark"]')
+		if (film.dark && !styled) issues.push('film.json has a dark block but look.css never styles #stage[data-mode="dark"]')
+		if (!film.dark && styled) issues.push('look.css styles #stage[data-mode="dark"] but film.json has no dark block (those styles never apply)')
+	}
 	for (const s of film.scenes) {
 		const sj = join(d, `scene-${s.id}.json`), js = join(d, `scene-${s.id}.js`)
 		if (!exists(sj) && !exists(js)) {
@@ -46,7 +52,7 @@ export function validateFilm(p, slug) {
 		}
 		if (!(s.dur > 0 && s.dur < 60)) issues.push(`scene ${s.id}: dur ${s.dur} looks wrong`)
 	}
-	if (film.scenes.at(-1)?.id !== 'close') issues.push('the last scene should be "close" (the punchline card is the cover)')
+	if (!film.cover && film.scenes.at(-1)?.id !== 'close') issues.push('the last scene should be "close" (the punchline card is the cover), or film.json should name its cover')
 	for (const loc of p.site.locales) {
 		const sp = join(d, 'strings', `${loc}.json`)
 		if (!exists(sp)) {
@@ -83,7 +89,7 @@ export function validateStory(p, entry) {
 		for (const k of ['title', 'dek', 'sections']) if (!b[k] || (Array.isArray(b[k]) && !b[k].length)) issues.push(`${loc}: ${k} is empty`)
 		if (film && !b.takeaway) issues.push(`${loc}: a film story needs a takeaway (the closing line)`)
 		for (const s of b.sections ?? [])
-			if (s.motion == null && film && !sceneIds.has(s.id) && !['more', 'sources'].includes(s.id))
+			if (s.motion == null && s.figure == null && film && !sceneIds.has(s.id) && !['more', 'sources'].includes(s.id))
 				issues.push(`(info) ${loc}: section ${s.id} has no figure (no scene of that id)`)
 	}
 	return issues
@@ -109,7 +115,7 @@ export function newFilm(p, slug, { scenes, title, date } = {}) {
 	const T = join(TEMPLATES, 'film')
 	const name = (i) => i.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 	const film = {
-		title: title || name(slug), look: 'Describe the look in one paragraph.', background: '#F3F0E9',
+		title: title || name(slug), look: 'Describe the look in one paragraph.', background: '#F3F0E9', dark: { background: '#1E1B18' },
 		fonts: { display: { family: 'Fraunces', weights: [300, 400] }, sans: { family: 'Inter', weights: [400, 600] } },
 		scenes: ids.map((i) => ({ id: i, name: name(i), dur: i === 'close' ? 5.5 : 10, desc: 'What this scene shows.' }))
 	}
@@ -130,7 +136,8 @@ export function newFilm(p, slug, { scenes, title, date } = {}) {
 	for (const loc of p.site.locales) {
 		save(join(d, 'strings', `${loc}.json`), strings)
 		save(join(d, 'voice', `${loc}.json`), voice)
-		save(join(p.content, 'stories', loc, `${slug}.json`), {
+		const body = join(p.content, 'stories', loc, `${slug}.json`)
+		if (!exists(body)) save(body, {
 			title: film.title, dek: 'One or two sentences.',
 			sections: ids.filter((i) => !['hook', 'close'].includes(i)).map((i) => ({ id: i, eyebrow: name(i), title: 'Section title', body: ['Paragraph.'] })),
 			takeaway: strings['close.title'], takeawaySub: strings['close.sub'], sources: []
@@ -138,7 +145,7 @@ export function newFilm(p, slug, { scenes, title, date } = {}) {
 	}
 	const ip = join(p.content, 'stories', 'index.json')
 	const index = exists(ip) ? load(ip) : []
-	index.push({ slug, publish_date: date || today(), kind: 'film', tags: [], minutes: 4 })
+	if (!index.some((e) => e.slug === slug)) index.push({ slug, publish_date: date || today(), kind: 'film', tags: [], minutes: 4 })
 	save(ip, index.sort((a, b) => a.publish_date.localeCompare(b.publish_date)))
 	manifest(p)
 	return { slug, scenes: ids.length, locales: p.site.locales.length }

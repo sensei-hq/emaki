@@ -39,6 +39,10 @@ export function which(cmd) {
 export const mediaLength = (p) =>
 	parseFloat(run('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', p]).trim())
 
+/** True when a media file has an audio stream (ffprobe). */
+export const hasAudio = (p) =>
+	run('ffprobe', ['-v', 'error', '-select_streams', 'a', '-show_entries', 'stream=codec_type', '-of', 'csv=p=0', p]).includes('audio')
+
 /** key=value pairs from --opt, values parsed as JSON when they are JSON (numbers, booleans). */
 export function parseOpts(items) {
 	const out = {}

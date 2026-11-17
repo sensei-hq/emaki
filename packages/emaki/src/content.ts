@@ -18,6 +18,8 @@ export interface StoryEntry {
 export interface Section {
   id: string; eyebrow?: string; title: string; body: string[]; points?: string[]; caption?: string;
   code?: { lang: string; text: string };
+  /** An app-drawn (HTML) figure, by name. Wins over the same-id scene: the section then gets no motion. */
+  figure?: string;
   motion?: { film: string; scene: string };
 }
 export interface StoryBody {
@@ -49,7 +51,7 @@ export async function loadStory(src: ContentSource, slug: string, locale: string
     const body = await src.body(l, slug);
     if (!body) continue;
     const film = entry.film ?? slug, ids = new Set((await src.sceneIds?.(film)) ?? []);
-    const sections = body.sections.map((s) => (s.motion || !ids.has(s.id) ? s : { ...s, motion: { film, scene: s.id } }));
+    const sections = body.sections.map((s) => (s.motion || s.figure || !ids.has(s.id) ? s : { ...s, motion: { film, scene: s.id } }));
     return { ...entry, ...body, sections, film: ids.size ? film : entry.film, locale: l, fallbackFrom: l === locale ? undefined : l };
   }
   return null;

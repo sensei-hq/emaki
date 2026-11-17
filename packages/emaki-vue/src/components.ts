@@ -1,16 +1,17 @@
 // Vue 3 components over @senseihq/emaki, written as render functions so they need no SFC compiler.
 // Client-only (they need the DOM): in Nuxt wrap them in <ClientOnly>. Call setupMotion(...) once on the client first.
 import { defineComponent, h, onBeforeUnmount, onMounted, ref, shallowRef, watch, type PropType } from 'vue';
-import { attachScene, createShow, figurePlayer, installCapture, type AttachedScene, type Layout, type ScenePlayerState } from '@senseihq/emaki';
+import { attachScene, createShow, figurePlayer, installCapture, showKey, type AttachedScene, type Layout, type Mode, type ScenePlayerState } from '@senseihq/emaki';
 import { useScenePlayer, useShowState, useSize, type Show } from './composables.js';
 
-function attach(player: () => ScenePlayerState, locale: () => string, autoplay: boolean) {
+function attach(player: () => ScenePlayerState, locale: () => string, mode: () => Mode, autoplay: boolean) {
   const box = ref<HTMLElement | null>(null), host = ref<HTMLElement | null>(null);
   const size = useSize(box);
   let view: AttachedScene | null = null;
-  onMounted(() => { view = attachScene(host.value!, player(), { locale: locale(), autoplay }); });
+  onMounted(() => { view = attachScene(host.value!, player(), { locale: locale(), mode: mode(), autoplay }); });
   onBeforeUnmount(() => view?.destroy());
   watch(locale, (l) => view?.setLocale(l));
+  watch(mode, (m) => view?.setMode(m));
   watch(size, (s) => { if (s.w) view?.fit(s.w); });
   return { box, host };
 }
@@ -23,12 +24,13 @@ export const MotionScene = defineComponent({
     scene: { type: String, required: true },
     layout: { type: String as PropType<Layout>, default: 'figure' },
     locale: { type: String, default: 'en' },
+    mode: { type: String as PropType<Mode>, default: 'auto' },
     autoplay: { type: Boolean, default: true },
   },
   setup(props) {
     const player = figurePlayer({ film: props.film, scene: props.scene, layout: props.layout });
     watch(() => [props.film, props.scene, props.layout] as const, ([film, scene, layout]) => player.load({ film, scene, layout }));
-    const { box, host } = attach(() => player, () => props.locale, props.autoplay);
+    const { box, host } = attach(() => player, () => props.locale, () => props.mode, props.autoplay);
     return () => h('div', { ref: box, class: 'motion-scene', style: 'width:100%' }, [h('div', { ref: host })]);
   },
 });
@@ -39,11 +41,12 @@ export const ScenePlayer = defineComponent({
   props: {
     player: { type: Object as PropType<ScenePlayerState>, required: true },
     locale: { type: String, default: 'en' },
+    mode: { type: String as PropType<Mode>, default: 'auto' },
     controls: { type: Boolean, default: false },
   },
   setup(props) {
     const st = useScenePlayer(props.player);
-    const { box, host } = attach(() => props.player, () => props.locale, false);
+    const { box, host } = attach(() => props.player, () => props.locale, () => props.mode, false);
     const msg = 'position:absolute;inset:0;display:grid;place-items:center;margin:0;font:14px system-ui';
     return () => {
       const s = st.value, p = props.player;
@@ -71,6 +74,7 @@ export const MotionShow = defineComponent({
     film: { type: String, required: true },
     locale: { type: String, default: 'en' },
     layout: { type: String as PropType<Layout>, default: 'landscape' },
+    mode: { type: String as PropType<Mode>, default: 'auto' },
     controls: { type: Boolean, default: true },
     slide: { type: Number, default: 1 },
     loop: { type: Boolean, default: false },
@@ -83,23 +87,17 @@ export const MotionShow = defineComponent({
     const size = useSize(fit);
     async function start() {
       show.value?.destroy(); show.value = null;
-      const s = await createShow(stage.value!, props.film, { locale: props.locale, layout: props.layout, slide: props.slide, loop: props.loop });
+      const s = await createShow(stage.value!, props.film, { locale: props.locale, layout: props.layout, mode: props.mode, slide: props.slide, loop: props.loop });
       show.value = s; s.fit(size.value.w, size.value.h); emit('ready', s);
     }
     onMounted(start);
     onBeforeUnmount(() => show.value?.destroy());
-    watch(() => [props.film, props.locale], start);
+    watch(() => [props.film, props.locale, props.mode], start);
     watch(() => props.layout, (l) => show.value?.setLayout(l));
     watch([size, () => st.value?.layout], () => show.value?.fit(size.value.w, size.value.h));
     expose({ show });
-    const onKeydown = (e: KeyboardEvent) => {
-      const s = show.value; if (!s) return;
-      const k = e.key.toLowerCase();
-      if (k === 'arrowright') s.next(); else if (k === 'arrowleft') s.prev();
-      else if (k === ' ') { s.toggle(); e.preventDefault(); }
-      else if (k === 'm') s.setSound(!s.state.sound);
-      else if (k === 'o') s.setLayout(s.state.layout === 'landscape' ? 'portrait' : 'landscape');
-    };
+    // Every key (←/→, Space, M, O, R, Home, F) from the core, so all players answer the same way.
+    const onKeydown = (e: KeyboardEvent) => { if (show.value && showKey(show.value, e, e.currentTarget as Element)) e.preventDefault(); };
     const btn = 'min-width:34px;height:34px;border-radius:17px;border:1px solid currentColor;background:none;color:inherit;cursor:pointer;padding:0 10px';
     return () => {
       const s = show.value, x = st.value;
@@ -127,15 +125,19 @@ export const ShowPage = defineComponent({
     film: { type: String, required: true },
     layout: { type: String as PropType<Layout>, default: 'landscape' },
     locale: { type: String, default: 'en' },
+    /** Capture renders light unless asked; the interactive player follows the page (auto). */
+    mode: { type: String as PropType<Mode>, default: undefined },
+    /** Force scenes from their JSON or their code modules (parity checks). */
+    src: { type: String as PropType<'json' | 'js'>, default: undefined },
     capture: { type: Boolean, default: false },
   },
   setup(props) {
     const host = ref<HTMLElement | null>(null);
     let s: Show | null = null;
-    onMounted(async () => { if (props.capture) s = await installCapture(host.value!, props.film, props.layout, props.locale); });
+    onMounted(async () => { if (props.capture) s = await installCapture(host.value!, props.film, props.layout, props.locale, { mode: props.mode ?? 'light', src: props.src }); });
     onBeforeUnmount(() => s?.destroy());
     return () => props.capture
       ? h('div', { ref: host })
-      : h('div', { style: 'position:fixed;inset:0' }, [h(MotionShow, { film: props.film, layout: props.layout, locale: props.locale })]);
+      : h('div', { style: 'position:fixed;inset:0' }, [h(MotionShow, { film: props.film, layout: props.layout, locale: props.locale, mode: props.mode ?? 'auto' })]);
   },
 });

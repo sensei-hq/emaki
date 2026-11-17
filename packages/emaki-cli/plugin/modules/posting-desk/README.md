@@ -16,12 +16,12 @@ SvelteKit adapter (`/sveltekit`: the guard hook and route handlers), the D1 migr
 |---|---|---|
 | Identity at the edge | Every `/admin`, `/api/admin`, preview URL sits behind an identity proxy (Cloudflare Access, Google IAP, Azure AD App Proxy, oauth2-proxy). The app **re-verifies** the signed identity header (signature, audience, issuer, expiry, key id) and fails closed. | `verifyCaller`, `callerOf`; `/sveltekit` `postingHandle` |
 | Roles | `admin` (people, by email), `stager` (the production machine's service token: uploads media and text), `poster` (the scheduled job's service token: reads the queue, records results). A matrix allows each role only its routes and methods. | `allowed` |
-| Staging | The production machine uploads each post's media (sha256 checked) and text per channel. | `desk.api` → `stage`, `media/<key>` (PUT) |
+| Staging | The production machine uploads each post's media (sha256 checked) and text per channel: `emaki stage <slug>`. | `desk.api` → `stage`, `media/<key>` (PUT) |
 | Approval bound to content | An approval stores the sha256 of the canonical post (channel + text + media hashes). Restaging anything changes the hash, so the approval no longer matches. | `contentSha`, `PostingStore.approve` |
 | The queue | A post is due only when the story's publish date has passed in the site's time zone, it is approved, the hash still matches, and posting isn't paused (it starts paused). | `due`, `desk.api` → `queue` |
 | Media to platforms | Platforms fetch media by URL: short-lived signed URLs (HMAC, one hour) on a public route that serves nothing else. | `signMedia`, `desk.signedMedia`; `/sveltekit` `mediaRoute` |
 | The poster | A scheduled job (GitHub Actions in a protected environment holding the platform keys) reads the queue, re-checks each file's hash, posts, and records the link. `POST_MODE=dry-run` until you trust it; YouTube starts `private`. | `poster/post.py` (see the package README for the workflow) |
-| Planning | Make next (pull a story forward; the rest shift a slot), production status from the production machine, and a request thread per story ("ask for a change"), which the producer answers. | `desk.desk` (`plan`, `makeNext`, `request`, `reply`) |
+| Planning | Make next (pull a story forward; the rest shift a slot), production status from the production machine (`emaki stage status`), and a request thread per story ("ask for a change"), which the producer answers (`emaki stage requests`, `emaki stage reply`). | `desk.desk` (`plan`, `makeNext`, `request`, `reply`) |
 | Audit | Every approve, revoke, pause, post and failure is logged with who and when. | `migrations/0001_posting.sql`, `desk.desk.plan().audit` |
 
 ## Setup checklist (adapt to your stack)

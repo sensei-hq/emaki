@@ -6,6 +6,7 @@ import sade from 'sade'
 import pkg from '../package.json' with { type: 'json' }
 import { project } from './config.js'
 import { manifest, newFilm, validate } from './films.js'
+import { migrate } from './migrate.js'
 import { MotionError, parseOpts } from './util.js'
 
 const prog = sade('emaki')
@@ -89,6 +90,19 @@ prog.command('validate [slug]')
 		r.lines.forEach((l) => console.info(l))
 		console.info(r.problems ? `${r.problems} problem(s)` : 'ok')
 		if (r.problems) process.exitCode = 1
+	}))
+
+prog.command('migrate <from>')
+	.describe('Move a sensei-hq.com-style site (src/lib/motion, src/lib/content/articles, films/) into content/ and production/. Never overwrites.')
+	.option('--locale', 'The locale the site was written in', 'en')
+	.action(act((from, o) => {
+		const p = P(), r = migrate(p, from, { locale: o.locale })
+		r.wrote.forEach((f) => console.info(`  wrote ${f}`))
+		if (r.kept.length) console.info(`  kept ${r.kept.length} existing file(s)`)
+		const v = validate(project())
+		v.lines.forEach((l) => console.info(l))
+		console.info(v.problems ? `${v.problems} problem(s) left: fix them, then \`emaki validate\`` : 'migrated; emaki validate: ok')
+		if (v.problems) process.exitCode = 1
 	}))
 
 prog.command('new <slug>')
@@ -176,20 +190,153 @@ prog.command('render <slug>')
 	.option('--url', 'A running site (default: start the dev server)')
 	.option('--o', 'both | landscape | portrait', 'both')
 	.option('--fps', 'Frames per second', 30)
+	.option('--from', 'Start at this film time (s)', 0)
+	.option('--to', 'Stop at this film time (s; default the end)')
+	.option('--out', 'Output: a .mp4 file (one layout) or a folder (default production/<slug>/<locale>/render/)')
+	.option('--music', 'synth (the film\'s score) | export (audio of production/<slug>/<locale>/<slug>.mp4) | none', 'synth')
+	.option('--audio-only', 'Lay the music on the existing render; capture no frames', false)
+	.option('--cover-only', 'Just save the cover frames', false)
 	.action(act(async (slug, o) => {
 		const { render } = await import('./capture.js')
 		const p = P()
-		await render(p, slug, { locale: loc(o, p), url: o.url, o: o.o, fps: Number(o.fps) })
+		await render(p, slug, {
+			locale: loc(o, p), url: o.url, o: o.o, fps: Number(o.fps), from: Number(o.from), to: o.to == null ? undefined : Number(o.to),
+			out: o.out, music: o.music, audioOnly: o['audio-only'], coverOnly: o['cover-only']
+		})
 	}))
 
 prog.command('build <slug>')
 	.describe('Final videos: picture + voice + ducked score, captions (.srt/.vtt and burned in), -14 LUFS.')
 	.option('--locale', 'Locale (default: the site default)')
 	.option('--no-captions', 'Do not burn captions in')
+	.option('--check', 'Print each scene\'s take, freeze and start; build nothing', false)
+	.option('--out', 'Output folder (default production/<slug>/<locale>/out/)')
 	.action(act(async (slug, o) => {
 		const { build } = await import('./voice.js')
 		const p = P()
-		build(p, slug, { locale: loc(o, p), noCaptions: o.captions === false })
+		build(p, slug, { locale: loc(o, p), noCaptions: o.captions === false, check: o.check, out: o.out })
+	}))
+
+// After the build: stage for approval on the posting desk, or publish straight to a platform. Credentials come from
+// the environment only (STAGER_*, MEDIA_URL_SECRET, YT_*, IG_*; see the README).
+const list = (v) => [v ?? []].flat().flatMap((x) => String(x).split(',')).map((x) => x.trim()).filter(Boolean)
+
+prog.command('stage <slug>')
+	.describe('Upload a finished piece\'s media and post text to the posting desk for approval (STAGER_CLIENT_ID/SECRET).')
+	.option('--channels', 'youtube,instagram_reel,instagram_carousel,x (default: all)')
+	.option('--locale', 'Locale (default: the site default)')
+	.option('--dry-run', 'Print the posts; send nothing', false)
+	.action(act(async (slug, o) => {
+		const { stage } = await import('./stage.js')
+		await stage(P(), slug, { locale: o.locale, channels: o.channels ? list(o.channels) : undefined, dryRun: o['dry-run'] })
+	}))
+
+prog.command('stage status [slug]')
+	.describe('Report each piece\'s script and what is produced to the desk\'s plan.')
+	.option('--locale', 'Locale (default: the site default)')
+	.action(act(async (slug, o) => {
+		const { productionStatus } = await import('./desk-plan.js')
+		await productionStatus(P(), slug, { locale: o.locale })
+	}))
+
+prog.command('stage requests')
+	.describe('The open motion requests from the desk, with their threads.')
+	.action(act(async () => {
+		const { deskRequests } = await import('./desk-plan.js')
+		await deskRequests(P())
+	}))
+
+prog.command('stage reply <id> [text]')
+	.describe('Answer a motion request; --working or --done moves it on.')
+	.option('--working', 'Mark it working', false)
+	.option('--done', 'Mark it done', false)
+	.action(act(async (id, text, o) => {
+		if (o.working && o.done) throw new MotionError('--working or --done, not both')
+		const { deskReply } = await import('./desk-plan.js')
+		await deskReply(P(), id, text ?? '', { status: o.done ? 'done' : o.working ? 'working' : undefined })
+	}))
+
+prog.command('publish <channel> [slug]')
+	.describe('Post a finished film straight to youtube or instagram and record the link (YT_* / IG_* keys).')
+	.option('--locale', 'Locale (default: the site default)')
+	.option('--privacy', 'YouTube: public | unlisted | private', 'unlisted')
+	.option('--update', 'YouTube: refresh this uploaded video id in place (no re-upload)')
+	.option('--force-new', 'YouTube: upload even when an id is already recorded', false)
+	.option('--description-mode', 'With --update: prepend | replace', 'prepend')
+	.option('--video-url', 'Instagram: public MP4 URL (skips staging on the desk)')
+	.option('--cover-url', 'Instagram: public JPEG URL for the cover (with --video-url)')
+	.option('--dry-run', 'Print exactly what would post; touch nothing', false)
+	.option('--verify', 'Check the credentials (read-only) and name the account', false)
+	.action(act(async (channel, slug, o) => {
+		if (!o.verify && !slug) throw new MotionError('a slug is required (or --verify)')
+		const { publish } = await import('./publish.js')
+		await publish(P(), channel, slug, {
+			locale: o.locale, privacy: o.privacy, update: o.update && String(o.update), forceNew: o['force-new'], descriptionMode: o['description-mode'],
+			videoUrl: o['video-url'], coverUrl: o['cover-url'], dryRun: o['dry-run'], verify: o.verify
+		})
+	}))
+
+prog.command('carousel [slug]')
+	.describe('Render a campaign day\'s Instagram carousel (1080×1350 PNGs) from its day script (needs Playwright).')
+	.option('--all', 'Every day script', false)
+	.option('--locale', 'Locale (default: the site default)')
+	.action(act(async (slug, o) => {
+		const { carousel } = await import('./carousel.js')
+		await carousel(P(), [slug, ...o._].filter(Boolean).map(String), { all: o.all, locale: o.locale })
+	}))
+
+prog.command('campaign status')
+	.describe('What is due, and for each day what exists: story, film, takes, render, Short, carousel, posts.')
+	.option('--days', 'How many days', 14)
+	.option('--from', 'First date YYYY-MM-DD (default: today in the site\'s time zone)')
+	.action(act(async (o) => {
+		const { campaignStatus } = await import('./campaign.js')
+		const yes = (b) => (b ? 'yes' : ' - ')
+		console.info(`${'date'.padEnd(10)}  ${'topic'.padEnd(11)} ${'title'.padEnd(46)} story film takes rndr short car posts`)
+		for (const r of campaignStatus(P(), { from: o.from && String(o.from), days: Number(o.days) })) {
+			const head = `${r.date}  ${r.topic.slice(0, 11).padEnd(11)} ${r.title.slice(0, 46).padEnd(46)}`
+			if (!r.script) { console.info(`${head} (no day script yet)`); continue }
+			const posts = ['youtube', 'instagram', 'x'].map((k) => (r.posts[k] ? k[0].toUpperCase() : '·')).join('')
+			console.info(`${head} ${yes(r.story)}   ${yes(r.film)}  ${String(r.takes).padStart(4)}  ${yes(r.render)}  ${yes(r.built)}  ${String(r.carousel).padStart(3)}  ${posts}`)
+		}
+		console.info('\nposts: Y = YouTube, I = Instagram, X = X; · = not yet')
+	}))
+
+prog.command('campaign shortfilm <slug>')
+	.describe('Set up a Short\'s film (scenes and voice lines) from its day script\'s voiceover table.')
+	.option('--locale', 'Locale (default: the site default)')
+	.action(act(async (slug, o) => {
+		const { shortFilm } = await import('./campaign.js')
+		const r = shortFilm(P(), slug, { locale: o.locale })
+		console.info(`wrote ${r.path}: ${r.scenes} beats. Next: build the scenes, then \`emaki voice ${slug}\`, \`emaki fit ${slug}\`, \`emaki render ${slug} --o portrait\`.`)
+	}))
+
+prog.command('campaign posted <slug>')
+	.describe('Record where a piece was posted: the campaign ledger and the story\'s social links.')
+	.option('--youtube', 'Video id or URL')
+	.option('--instagram', 'Post URL')
+	.option('--x', 'Post URL')
+	.action(act(async (slug, o) => {
+		const { campaignPosted } = await import('./campaign.js')
+		const s = (v) => (v === undefined || v === true ? undefined : String(v))
+		const r = campaignPosted(P(), slug, { youtube: s(o.youtube), instagram: s(o.instagram), x: s(o.x) })
+		console.info(`recorded ${slug}: ${JSON.stringify(r)}. Commit content/stories/index.json; the next build links the posts.`)
+	}))
+
+prog.command('campaign due')
+	.describe('The piece for one day (default today in the site\'s time zone), as JSON, for automation.')
+	.option('--date', 'YYYY-MM-DD')
+	.action(act(async (o) => {
+		const { campaignDue } = await import('./campaign.js')
+		console.info(JSON.stringify(campaignDue(P(), { date: o.date && String(o.date) }), null, 2))
+	}))
+
+prog.command('campaign calendar')
+	.describe('Rewrite CALENDAR.md in the campaign folder from calendar.csv.')
+	.action(act(async () => {
+		const { campaignCalendar } = await import('./campaign.js')
+		const r = campaignCalendar(P())
+		console.info(`wrote ${r.path} (${r.days} days)`)
 	}))
 
 prog.parse(process.argv)

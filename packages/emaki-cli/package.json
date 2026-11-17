@@ -1,7 +1,7 @@
 {
   "name": "@senseihq/emaki-cli",
   "version": "0.1.0",
-  "description": "The motion stories command line: set a project up, install the Claude plugin (skills, agents, playbook), and run the production steps (validate, sheet, voice, fit, render, build) per film and locale.",
+  "description": "The motion stories command line: set a project up, install the Claude plugin (skills, agents, playbook), run the production steps (validate, sheet, voice, fit, render, build) per film and locale, then stage, publish and run a campaign.",
   "type": "module",
   "license": "MIT",
   "author": "SenecaGlobal",
@@ -19,7 +19,7 @@
     "prepublishOnly": "cp ../../LICENSE . && bun run build",
     "postpublish": "rm -f LICENSE"
   },
-  "dependencies": { "sade": "^1.8.1" },
+  "dependencies": { "@senseihq/emaki-posting": "workspace:*", "sade": "^1.8.1" },
   "peerDependencies": { "playwright": ">=1.40" },
   "peerDependenciesMeta": { "playwright": { "optional": true } },
   "publishConfig": { "access": "public" }

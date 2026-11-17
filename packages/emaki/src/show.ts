@@ -5,22 +5,30 @@ import { fontsReady, mountScene } from './mount.js';
 import { coverTime, loadFilm, timeline } from './registry.js';
 import { filmScore, scorePlayer } from './sound.js';
 import { renderWav } from './score.js';
-import { SIZES, type FilmMeta, type Layout, type Mounted } from './types.js';
+import { SIZES, type FilmMeta, type Layout, type Mode, type Mounted } from './types.js';
 
-export interface ShowOptions { layout?: Layout; locale?: string; capture?: boolean; slide?: number; loop?: boolean }
-export type ShowListener = (s: { index: number; local: number; playing: boolean; sound: boolean; layout: Layout }) => void;
+export interface ShowOptions {
+  layout?: Layout; locale?: string; capture?: boolean; slide?: number; loop?: boolean;
+  /** Light, dark or 'auto' (the default; capture defaults to light so renders do not depend on the machine). */
+  mode?: Mode;
+  /** Force where scenes come from: their JSON file or the film's code modules (parity checks; ?src= on /show). */
+  src?: 'json' | 'js';
+  /** Open on the film's cover, paused, until start() (which plays from the top with sound on). */
+  poster?: boolean;
+}
+export type ShowListener = (s: { index: number; local: number; playing: boolean; sound: boolean; layout: Layout; started: boolean }) => void;
 
 export async function createShow(host: HTMLElement, slug: string, opts: ShowOptions = {}) {
-  const locale = opts.locale ?? 'en';
+  const locale = opts.locale ?? 'en', mode: Mode = opts.mode ?? (opts.capture ? 'light' : 'auto');
   const f = await loadFilm(slug, locale);
   if (!f) throw new Error(`emaki: no film "${slug}"`);
   const tl = timeline(f);
   let layout: Layout = opts.layout ?? 'landscape';
   let index = Math.max(0, Math.min(tl.scenes.length - 1, (opts.slide ?? 1) - 1));
-  let local = 0, playing = !opts.capture, sound = false, scale = 1;
+  let local = 0, playing = !opts.capture && !opts.poster, sound = false, scale = 1, started = !opts.poster;
   let dead = false, m: Mounted | null = null, key = '', chain: Promise<void> = Promise.resolve(), raf = 0, last = 0;
   const audio = scorePlayer(f), listeners = new Set<ShowListener>();
-  const emit = () => listeners.forEach((l) => l({ index, local, playing, sound, layout }));
+  const emit = () => listeners.forEach((l) => l({ index, local, playing, sound, layout, started }));
 
   function draw() {
     chain = chain.then(async () => {
@@ -28,7 +36,7 @@ export async function createShow(host: HTMLElement, slug: string, opts: ShowOpti
       const k = `${index}:${layout}`;
       if (k !== key) {
         m?.destroy();
-        const next = await mountScene(host, f!, tl.scenes[index].id, layout, { locale });
+        const next = await mountScene(host, f!, tl.scenes[index].id, layout, { locale, mode, src: opts.src });
         if (dead) return next.destroy();
         m = next; key = k;
       }
@@ -51,13 +59,26 @@ export async function createShow(host: HTMLElement, slug: string, opts: ShowOpti
     }
     raf = requestAnimationFrame(tick);
   }
+  // A poster opens on the cover frame (the closing card by default), paused, until start().
+  if (opts.poster) {
+    const at = coverTime(f);
+    let i = tl.scenes.length - 1;
+    while (i > 0 && at < tl.scenes[i].start) i--;
+    index = i; local = at - tl.scenes[i].start;
+  }
   await fontsReady(f);
   await draw();
   if (!opts.capture) { last = performance.now(); raf = requestAnimationFrame(tick); }
 
   const api = {
     film: f as FilmMeta, timeline: tl,
-    get state() { return { index, local, playing, sound, layout }; },
+    get state() { return { index, local, playing, sound, layout, started }; },
+    /** From a poster: play from the first scene with sound on (the click that starts it is the reader's gesture). */
+    async start() { started = true; playing = true; sound = true; index = 0; local = 0; await draw(); syncAudio(); emit(); },
+    /** R: the current scene again from its start. */
+    replay() { local = 0; playing = true; started = true; draw(); syncAudio(); emit(); },
+    /** Home: the film from the top. */
+    restart() { started = true; go(0); },
     /** Fit the stage into a box of w x h px; the host takes the stage's scaled size (centre it with CSS). */
     fit(w: number, h: number) {
       const [W, H] = SIZES[layout];
@@ -85,10 +106,11 @@ export async function createShow(host: HTMLElement, slug: string, opts: ShowOpti
 
 /** The capture contract for tools/motion.py: window.__show = { meta, ready, seek(t), audio() }. Call on the /show route
  *  when ?capture=1 is set; render the stage at 1:1 with no chrome. */
-export async function installCapture(host: HTMLElement, slug: string, layout: Layout, locale: string) {
+export async function installCapture(host: HTMLElement, slug: string, layout: Layout, locale: string, opts: { mode?: Mode; src?: 'json' | 'js' } = {}) {
+  const mode = opts.mode ?? 'light';
   const [W, H] = SIZES[layout];
   host.style.cssText = `position:relative;width:${W}px;height:${H}px;overflow:hidden`;
-  const show = await createShow(host, slug, { layout, locale, capture: true });
+  const show = await createShow(host, slug, { layout, locale, capture: true, mode, src: opts.src });
   const f = show.film;
   const w = window as unknown as Record<string, unknown>;
   w.__show = {
@@ -107,4 +129,31 @@ export async function installCapture(host: HTMLElement, slug: string, layout: La
     },
   };
   return show;
+}
+
+type Show = Awaited<ReturnType<typeof createShow>>;
+
+/** The story player's keys, for every wrapper: ←/→ scene, Space play/pause, M sound, O orientation, R replay the
+ *  scene, Home from the top, F fullscreen (on `fullscreen`, default the whole page). True when the key was used, so
+ *  the caller can preventDefault. */
+export function showKey(show: Show, e: KeyboardEvent, fullscreen?: Element): boolean {
+  const k = e.key.toLowerCase();
+  if (k === 'arrowright') show.next();
+  else if (k === 'arrowleft') show.prev();
+  else if (k === ' ') show.state.started ? show.toggle() : show.start();
+  else if (k === 'm') show.setSound(!show.state.sound);
+  else if (k === 'o') show.setLayout(show.state.layout === 'landscape' ? 'portrait' : 'landscape');
+  else if (k === 'r') show.replay();
+  else if (k === 'home') show.restart();
+  else if (k === 'f') {
+    if (typeof document !== 'undefined' && document.fullscreenElement) document.exitFullscreen?.();
+    else (fullscreen ?? document.documentElement).requestFullscreen?.();
+  } else return false;
+  return true;
+}
+
+/** Progress per scene: one tick each, weighted by its running time, filled up to the playhead (0 … 1). */
+export function ticks(show: Show) {
+  const { index, local } = show.state;
+  return show.timeline.scenes.map((s, i) => ({ id: s.id, name: s.name, dur: s.dur, fill: i < index ? 1 : i > index ? 0 : Math.min(1, local / s.dur) }));
 }

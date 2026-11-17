@@ -6,8 +6,9 @@ import { createKit, type Kit, type SceneDef } from './kit.js';
 import { mountJsonScene } from './renderer.js';
 import { getSource, warp } from './registry.js';
 import { dirOf, fallbackChain, mergeChain } from './i18n.js';
-import type { PortraitSpec } from './scene-schema.js';
-import { SIZES, type FilmMeta, type Layout, type Mounted } from './types.js';
+import type { PortraitSpec, SceneSpec } from './scene-schema.js';
+import { followMode } from './mode.js';
+import { SIZES, type FilmMeta, type Layout, type Mode, type Mounted, type SceneMeta } from './types.js';
 
 /** Fonts, as CSS variables the scenes use. Override with setFontStack() to match your brand. */
 let fontStack = "--display:'Fraunces',Georgia,serif;--sans:'Inter',system-ui,sans-serif;--serif:'Noto Serif JP','Fraunces',serif;--mono:'JetBrains Mono',ui-monospace,monospace;";
@@ -42,7 +43,7 @@ function figureLayout(stage: HTMLElement, W: number, H: number, spec: PortraitSp
 }
 
 /** Renders scene `sceneId` of film `f` into `host`. Returns a handle: render(t) draws running time t; destroy() clears. */
-export async function mountScene(host: HTMLElement, f: FilmMeta, sceneId: string, layout: Layout, opts: { locale?: string; src?: 'json' | 'js' } = {}): Promise<Mounted> {
+export async function mountScene(host: HTMLElement, f: FilmMeta, sceneId: string, layout: Layout, opts: { locale?: string; src?: 'json' | 'js'; mode?: Mode } = {}): Promise<Mounted> {
   const src = getSource(), locale = opts.locale ?? 'en';
   const [W, H] = SIZES[layout];
   // The newest mount on a host wins: one that a later mount overtook while loading comes back inert, and a destroy()
@@ -56,15 +57,32 @@ export async function mountScene(host: HTMLElement, f: FilmMeta, sceneId: string
   root.innerHTML = '';
   const style = document.createElement('style');
   style.textContent = `:host{display:block;position:relative;overflow:hidden}` +
-    `#stage{position:absolute;left:0;top:0;width:${W}px;height:${H}px;overflow:hidden;transform-origin:0 0;background:${f.background};${fontStack}-webkit-font-smoothing:antialiased}` + look;
+    `#stage{position:absolute;left:0;top:0;width:${W}px;height:${H}px;overflow:hidden;transform-origin:0 0;--background:${f.background};background:var(--background);${fontStack}-webkit-font-smoothing:antialiased}` +
+    (f.dark ? `#stage[data-mode="dark"]{--background:${f.dark.background}}` : '') + look;
   const stage = document.createElement('div');
   stage.id = 'stage';
   stage.lang = locale;
   root.append(style, stage);
   const meta = f.scenes.find((s) => s.id === sceneId);
   if (!meta) throw new Error(`emaki: ${f.slug} has no scene "${sceneId}"`);
-  const destroy = () => { if (owner.__motionMount === token) { root.innerHTML = ''; owner.__motionMount = undefined; } };
+  const stopMode = followMode(stage, host, f, opts.mode);
+  const destroy = () => { stopMode(); if (owner.__motionMount === token) { root.innerHTML = ''; owner.__motionMount = undefined; } };
+  try {
+    if (!json && opts.src === 'json') throw new Error(`emaki: ${f.slug} has no JSON scene "${sceneId}"`);
+    return await draw({ f, sceneId, layout, locale, stage, strings, json, meta, destroy, W, H });
+  } catch (e) {
+    stopMode();
+    throw e;
+  }
+}
 
+interface Prepared {
+  f: FilmMeta; sceneId: string; layout: Layout; locale: string; stage: HTMLElement; strings: Record<string, string>;
+  json: SceneSpec | null; meta: SceneMeta; destroy: () => void; W: number; H: number;
+}
+
+/** Draws the scene onto its prepared stage: a JSON scene through the renderer, else the escape hatch's code scene. */
+async function draw({ f, sceneId, layout, locale, stage, strings, json, meta, destroy, W, H }: Prepared): Promise<Mounted> {
   if (json) {
     const m = mountJsonScene(stage, json, { W, H, locale, strings, dir: dirOf(locale) });
     if (layout === 'figure') {
@@ -75,7 +93,7 @@ export async function mountScene(host: HTMLElement, f: FilmMeta, sceneId: string
   }
 
   // The escape hatch: code scenes. shared.js sets window.W helpers; each scene registers with kit.scene(id, def).
-  const code = await src.code?.(f.slug);
+  const code = await getSource().code?.(f.slug);
   if (!code?.scenes[sceneId]) throw new Error(`emaki: ${f.slug} has no scene-${sceneId}.json or .js`);
   const defs: Record<string, SceneDef> = {};
   const kit = createKit({ stage, W, H, onScene: (id, def) => (defs[id] = def), onScore: () => {} });
@@ -89,7 +107,9 @@ export async function mountScene(host: HTMLElement, f: FilmMeta, sceneId: string
     if (layout === 'portrait') portrait?.(k, s);
     else if (layout === 'figure') figureLayout(stage, W, H, s);
   };
-  new Function('kit', 'window', 'W', code.scenes[sceneId])(kit, win, helpers);
+  // Every module runs, in film order: a scene may use a helper another scene's module adds to W (the website's
+  // relay, hub and overload films do). Only the requested scene is then instantiated.
+  for (const s of f.scenes) if (code.scenes[s.id]) new Function('kit', 'window', 'W', code.scenes[s.id])(kit, win, helpers);
   const def = defs[sceneId];
   if (!def) throw new Error(`emaki: scene-${sceneId}.js did not call kit.scene('${sceneId}', ...)`);
   const inst = Object.create(def) as SceneDef;

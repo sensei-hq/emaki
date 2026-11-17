@@ -4,13 +4,19 @@
 import { fontsReady, mountScene } from './mount.js';
 import { ScenePlayerState, type SceneRef } from './player.js';
 import { loadFilm } from './registry.js';
-import { SIZES, type Mounted } from './types.js';
+import { SIZES, type Mode, type Mounted } from './types.js';
 
 export interface AttachOptions {
   /** Language of the scene text (strings/<locale>.json along the fallback chain). */
   locale?: string;
   /** Play while at least 20% of the host is on screen, pause when it scrolls away (article figures). */
   autoplay?: boolean;
+  /** Light, dark or 'auto' (the default: follow the page's data-mode, else prefers-color-scheme). */
+  mode?: Mode;
+  /** A still: never plays, shows the scene near its end. Defaults to the reader's prefers-reduced-motion. */
+  still?: boolean;
+  /** The scene's slice of the score (sceneSound): cued each time the scene starts over, stopped off screen. */
+  sound?: { cue(): void; stop(): void; destroy(): void };
 }
 
 export interface AttachedScene {
@@ -18,17 +24,22 @@ export interface AttachedScene {
   fit(width: number): void;
   /** Change the language; remounts the scene. */
   setLocale(locale: string): void;
+  /** Change light/dark/auto; remounts the scene. */
+  setMode(mode: Mode): void;
   destroy(): void;
 }
 
 export function attachScene(host: HTMLElement, player: ScenePlayerState, opts: AttachOptions = {}): AttachedScene {
   let m: Mounted | null = null, mountedKey = '', width = host.clientWidth, alive = true, raf = 0, last = performance.now();
-  let locale = opts.locale ?? 'en', busy: Promise<void> = Promise.resolve();
+  let locale = opts.locale ?? 'en', mode: Mode = opts.mode ?? 'auto', busy: Promise<void> = Promise.resolve();
+  // A still (reduced motion, or asked for) never plays; it rests near the end, where the scene has been built.
+  const still = opts.still ?? (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  player.still = still;
   host.style.position ||= 'relative';
   host.style.overflow = 'hidden';
 
   const size = () => SIZES[player.ref?.layout ?? 'landscape'];
-  const keyOf = () => `${player.key}|${locale}`;
+  const keyOf = () => `${player.key}|${locale}|${mode}`;
   const scale = () => {
     const [W, H] = size();
     host.style.aspectRatio = `${W} / ${H}`;
@@ -47,10 +58,11 @@ export function attachScene(host: HTMLElement, player: ScenePlayerState, opts: A
           if (!f) return player.fail(`no film "${ref.film}"`);
           await fontsReady(f);
           if (!alive) return;
-          const next = await mountScene(host, f, ref.scene, ref.layout, { locale, src: ref.src });
+          const next = await mountScene(host, f, ref.scene, ref.layout, { locale, src: ref.src, mode });
           if (!alive || want !== keyOf()) { next.destroy(); return; }
           m = next; mountedKey = want;
           player.markReady(m.dur);
+          if (still) player.seek(Math.max(0, m.dur - 0.6));
           if (opts.autoplay && visible) player.play();
         } catch (e) {
           return player.fail(e instanceof Error ? e.message : String(e));
@@ -62,14 +74,16 @@ export function attachScene(host: HTMLElement, player: ScenePlayerState, opts: A
   }
 
   let seenKey = '';
+  let loops = player.loops;
   const off = player.subscribe(() => {
+    if (player.loops !== loops) { loops = player.loops; opts.sound?.cue(); }
     if (keyOf() !== seenKey) { seenKey = keyOf(); sync(); }
     else if (m && mountedKey === keyOf()) m.render(Math.min(player.t, m.dur - 1e-3));
   });
 
   let visible = !opts.autoplay;
   const io = opts.autoplay && typeof IntersectionObserver !== 'undefined'
-    ? new IntersectionObserver(([e]) => { visible = e.isIntersecting; if (visible) player.play(); else player.pause(); }, { threshold: 0.2 })
+    ? new IntersectionObserver(([e]) => { visible = e.isIntersecting; if (visible) player.play(); else { player.pause(); opts.sound?.stop(); } }, { threshold: 0.2 })
     : null;
   io?.observe(host);
 
@@ -85,8 +99,9 @@ export function attachScene(host: HTMLElement, player: ScenePlayerState, opts: A
 
   return {
     fit(w) { width = w; scale(); },
+    setMode(md) { if (md !== mode) { mode = md; seenKey = keyOf(); sync(); } },
     setLocale(l) { if (l !== locale) { locale = l; seenKey = keyOf(); sync(); } },
-    destroy() { alive = false; cancelAnimationFrame(raf); off(); io?.disconnect(); m?.destroy(); m = null; },
+    destroy() { alive = false; cancelAnimationFrame(raf); off(); io?.disconnect(); opts.sound?.destroy(); m?.destroy(); m = null; },
   };
 }
 

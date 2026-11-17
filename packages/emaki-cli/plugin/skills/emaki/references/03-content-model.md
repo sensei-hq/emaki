@@ -44,8 +44,8 @@ Rules:
 
 | File | Contents |
 |---|---|
-| `film.json` | `title`, `look` (one paragraph describing the visual language, used by builders), `background`, `palette`, `fonts`, `scenes` [`id`, `name`, `dur` (design seconds incl. a 1.5–2 s end hold), `desc`], optional `cover` {scene, at}. The last scene is `close`. |
-| `look.css` | The film's tokens and shared classes (`.card`, `.tag`, `.words`, `.line`, `.sub`, `.eyebrow`, `.ground`, `.cam`, `.art`). Scoped to each scene's shadow root. One look per site is the norm; copy it per film. |
+| `film.json` | `title`, `look` (one paragraph describing the visual language, used by builders), `background`, `palette`, `dark` (`background`, `palette`: the dark look; without it the film is always light), `fonts`, `scenes` [`id`, `name`, `dur` (design seconds incl. a 1.5–2 s end hold), `desc`], optional `cover` {scene, at}. The last scene is `close`. |
+| `look.css` | The film's tokens and shared classes (`.card`, `.tag`, `.words`, `.line`, `.sub`, `.eyebrow`, `.ground`, `.cam`, `.art`). Scoped to each scene's shadow root. Dark tokens go under `#stage[data-mode="dark"]` (only with a `dark` block in film.json). One look per site is the norm; copy it per film. |
 | `scene-<id>.json` | The scene as data (components, tracks, css, portrait, locales). See 04-scene-authoring.md. |
 | `scene-<id>.js` + `shared.js` | The escape hatch for a scene the JSON catalogue cannot express yet (procedural drawing). Same rules: pure `render(t)`. Prefer adding a component or effect to the renderer over writing JS. |
 | `score.js` | The sound: action tones timed to scene events (`T.<scene> + seconds`). |
@@ -56,7 +56,9 @@ Rules:
 ## Production (not deployed)
 
 `production/<slug>/<locale>/takes/take-NN.wav` · `render/<slug>-<locale>-16x9.mp4`, `-9x16.mp4`, `score.wav`,
-covers · `out/` final videos + `.vtt`/`.srt` · `sheets/` contact sheets.
+covers · `out/` final videos (chapters embedded), `-web.mp4`, `.vtt`/`.srt`, `chapters.txt`, `description.txt`,
+`poster.jpg`, `poster-vertical.jpg`, `-thumb.jpg` · `sheets/` contact sheets · `<slug>.mp4` an exported film whose
+audio `render --music export` lays under the picture.
 
 ## Naming
 

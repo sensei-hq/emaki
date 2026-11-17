@@ -6,5 +6,5 @@ coverage/
 production/
 .DS_Store
 packages/*/LICENSE
-!LICENSE
 .env*
+.claude/worktrees/

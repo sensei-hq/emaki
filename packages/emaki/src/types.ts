@@ -1,6 +1,9 @@
 // Shared types for the emaki core. Framework-free: nothing here imports a UI library.
 export type Layout = 'landscape' | 'portrait' | 'figure';
 
+/** Light or dark. 'auto' follows the nearest data-mode on the page (rokkit's convention), else prefers-color-scheme. */
+export type Mode = 'light' | 'dark' | 'auto';
+
 /** Stage size in px for each layout. Scenes are authored on a 1920x1080 board. */
 export const SIZES: Record<Layout, [number, number]> = {
   landscape: [1920, 1080],
@@ -17,6 +20,8 @@ export interface FilmJson {
   look?: string;
   background: string;
   palette?: string[];
+  /** The film's dark look. Present when look.css styles #stage[data-mode="dark"]; without it the film is always light. */
+  dark?: { background: string; palette?: string[] };
   fonts?: Record<string, { family: string; weights?: number[] }>;
   scenes: SceneEntry[];
   /** The cover frame: a scene and a time into it (default: the last scene's final picture). */

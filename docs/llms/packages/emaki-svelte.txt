@@ -23,12 +23,16 @@ render the article text on the server and let the components hydrate.
 
 | Component | Props |
 |---|---|
-| `MotionScene` | `film`, `scene`, `layout` (`figure`), `locale`, `autoplay` (true) |
-| `MotionShow` | `film`, `locale`, `layout` (`landscape`), `controls` (true), `slide`, `loop`, `bind:show` (state + controller) |
-| `ScenePlayer` | `player: ScenePlayerState`, `locale`, `controls` |
-| `ShowPage` | `film`, `layout`, `locale`, `capture` |
+| `MotionScene` | `film`, `scene`, `layout` (`figure`), `locale`, `mode` (`auto`), `autoplay` (true), `t` (drive it yourself), `hold` (2 s rest before looping), `label` (alt text); a still under reduced motion; a sound button when the film has a score |
+| `MotionShow` | `film`, `locale`, `layout` (`landscape`), `mode` (`auto`), `poster` (cover first; `title`, `length` on it), `fullscreenHref`, `controls` (true), `slide`, `loop`, `bind:show` (state + controller) |
+| `ScenePlayer` | `player: ScenePlayerState`, `locale`, `mode` (`auto`), `controls` |
+| `ShowPage` | `film`, `layout`, `locale`, `mode` (capture: `light`), `src` (`json`/`js`, forces the scene source), `capture` |
+
+`mode` is `light`, `dark` or `auto`. Auto follows the page's `data-mode` (as rokkit's `themable` sets it), else the
+OS, and the scenes redraw when it changes. A film draws dark only if it has a dark look (see @senseihq/emaki).
 
 `reactivePlayer(() => player)` and `reactiveShow()` give Svelte-reactive reads of the core's state classes for your
-own chrome. Keys on the player: ←/→ scene, Space play/pause, M sound, O orientation.
+own chrome. Keys on the player: ←/→ scene, Space play/pause, M sound, O orientation, R replay the scene, Home from
+the top, F fullscreen (`showKey` in the core, the same in every wrapper). The bar shows a progress tick per scene.
 
 MIT © SenecaGlobal

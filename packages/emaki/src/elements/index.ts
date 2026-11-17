@@ -1,14 +1,18 @@
 // Web components over the core, so every framework (or none) renders stories the same way:
 //   <motion-scene film="phishing-101" scene="spot" layout="figure" locale="es"></motion-scene>   an article figure (loops)
 //   <motion-show film="phishing-101" locale="es" layout="landscape"></motion-show>                 the story player
+// Both take mode="light|dark|auto" (default auto: follow the page's data-mode, else prefers-color-scheme).
 // Call defineMotionElements() once, after useSource(...). Both elements fit their box; give them a width (and the
 // show an aspect ratio). Sound is always off until the reader turns it on.
-import { createShow, filmScore, fontsReady, loadFilm, mountScene, playScore as play, timeline, type Mounted, type Layout, SIZES } from '../index.js';
+import { createShow, showKey, filmScore, fontsReady, loadFilm, mountScene, playScore as play, timeline, type Mounted, type Layout, type Mode, SIZES } from '../index.js';
 
 const BTN = 'position:absolute;right:10px;bottom:10px;width:36px;height:36px;border-radius:50%;border:0;background:rgba(255,255,255,.85);cursor:pointer;font:16px system-ui';
 
+/** The mode attribute: light, dark, or auto (the default: follow the page's data-mode, else the OS). */
+const modeOf = (el: Element): Mode => (['light', 'dark'].includes(el.getAttribute('mode') ?? '') ? el.getAttribute('mode') as Mode : 'auto');
+
 class MotionScene extends HTMLElement {
-  static observedAttributes = ['film', 'scene', 'layout', 'locale'];
+  static observedAttributes = ['film', 'scene', 'layout', 'locale', 'mode'];
   #m: Mounted | null = null; #raf = 0; #t = 0; #last = 0; #ro?: ResizeObserver; #io?: IntersectionObserver; #visible = false;
   #box = document.createElement('div'); #btn = document.createElement('button');
   #ctx: AudioContext | null = null; #voice: { stop: () => void } | null = null; #start = 0;
@@ -35,7 +39,7 @@ class MotionScene extends HTMLElement {
     if (!f) return;
     await fontsReady(f);
     this.#m?.destroy();
-    this.#m = await mountScene(this.#box, f, id, this.layout, { locale });
+    this.#m = await mountScene(this.#box, f, id, this.layout, { locale, mode: modeOf(this) });
     this.#start = timeline(f).scenes.find((s) => s.id === id)!.start;
     this.#btn.hidden = !(await filmScore(f));
     this.#fit();
@@ -69,7 +73,7 @@ class MotionScene extends HTMLElement {
 }
 
 class MotionShow extends HTMLElement {
-  static observedAttributes = ['film', 'locale', 'layout'];
+  static observedAttributes = ['film', 'locale', 'layout', 'mode'];
   #show: Awaited<ReturnType<typeof createShow>> | null = null; #ro?: ResizeObserver;
   #box = document.createElement('div');
   connectedCallback() {
@@ -88,16 +92,11 @@ class MotionShow extends HTMLElement {
     const slug = this.getAttribute('film');
     if (!slug) return;
     this.#show?.destroy();
-    this.#show = await createShow(this.#box, slug, { locale: this.getAttribute('locale') || 'en', layout: (this.getAttribute('layout') as Layout) || 'landscape' });
+    this.#show = await createShow(this.#box, slug, { locale: this.getAttribute('locale') || 'en', layout: (this.getAttribute('layout') as Layout) || 'landscape', mode: modeOf(this) });
     this.#show.fit(this.clientWidth, this.clientHeight);
     this.#show.on((s) => this.dispatchEvent(new CustomEvent('showchange', { detail: s })));
   }
-  #key = (e: KeyboardEvent) => {
-    const s = this.#show; if (!s) return;
-    if (e.key === 'ArrowRight') s.next(); else if (e.key === 'ArrowLeft') s.prev();
-    else if (e.key === ' ') { s.toggle(); e.preventDefault(); } else if (e.key.toLowerCase() === 'm') s.setSound(!s.state.sound);
-    else if (e.key.toLowerCase() === 'o') s.setLayout(s.state.layout === 'landscape' ? 'portrait' : 'landscape');
-  };
+  #key = (e: KeyboardEvent) => { if (this.#show && showKey(this.#show, e, this)) e.preventDefault(); };
 }
 
 export function defineMotionElements() {
