@@ -13,9 +13,11 @@ function multipart(parts) {
 	return { body: Buffer.concat([...chunks, Buffer.from(`--${boundary}--\r\n`)]), type: `multipart/related; boundary=${boundary}` }
 }
 
+// The language's English name. of() answers an unknown but well-formed code with the code itself (its default
+// fallback); a malformed one throws.
 const languageName = (code) => {
 	try {
-		return new Intl.DisplayNames(['en'], { type: 'language' }).of(code) ?? code
+		return new Intl.DisplayNames(['en'], { type: 'language' }).of(code)
 	} catch {
 		return code
 	}

@@ -106,7 +106,7 @@ export async function putMedia(d: DeskContext, caller: Caller, key: string, requ
   if (body.byteLength > MAX) fail(413, 'Too large');
   const got = await sha256(body);
   if (!want || got !== want) fail(400, `sha256 mismatch (got ${got})`);
-  await d.media.put(key, body, { contentType: TYPES[key.split('.').pop() ?? ''] ?? 'application/octet-stream', sha256: got });
+  await d.media.put(key, body, { contentType: TYPES[key.split('.').pop()!] ?? 'application/octet-stream', sha256: got });
   await d.store.audit(caller.id, 'upload', key.split('/')[0], null, `${key} ${got.slice(0, 12)}`);
   return { ok: true, key, sha256: got, bytes: body.byteLength };
 }
