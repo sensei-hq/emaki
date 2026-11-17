@@ -6,18 +6,14 @@ import { dirname, join } from 'node:path'
 import { TEMPLATES } from './films.js'
 import { load, save } from './util.js'
 
+/** [dependency, framework], most specific first: a meta-framework wins over the library it is built on. */
+const DETECT = [['@sveltejs/kit', 'sveltekit'], ['svelte', 'svelte'], ['next', 'next'], ['nuxt', 'nuxt'], ['react', 'react'], ['vue', 'vue']]
+
 /** Which framework a project uses, from its package.json. */
 export function detectFramework(cwd) {
 	const pj = join(cwd, 'package.json')
-	if (!existsSync(pj)) return 'vanilla'
-	const p = load(pj), deps = { ...p.dependencies, ...p.devDependencies }
-	if (deps['@sveltejs/kit']) return 'sveltekit'
-	if (deps.svelte) return 'svelte'
-	if (deps.next) return 'next'
-	if (deps.nuxt) return 'nuxt'
-	if (deps.react) return 'react'
-	if (deps.vue) return 'vue'
-	return 'vanilla'
+	const p = existsSync(pj) ? load(pj) : {}, deps = { ...p.dependencies, ...p.devDependencies }
+	return DETECT.find(([dep]) => deps[dep])?.[1] ?? 'vanilla'
 }
 
 export const PACKAGES = {
