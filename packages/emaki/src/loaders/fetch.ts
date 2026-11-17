@@ -30,6 +30,8 @@ export function fetchFilmSource(base = '/content'): FilmSource {
     score: (slug) => get<string>(F(slug, 'score.js'), 'text'),
     strings: (slug, locale) => get<Record<string, string>>(F(slug, `strings/${locale}.json`)),
     timing: async (slug, locale) => (await get<TimingJson>(F(slug, `timing.${locale}.json`))) ?? get<TimingJson>(F(slug, 'timing.json')),
+    // Asked only for scenes whose timing gives a voice start, which `emaki voice-web` writes with the file.
+    voice: async (slug, locale, scene) => F(slug, `voice/${locale}/${scene}.m4a`),
   };
 }
 

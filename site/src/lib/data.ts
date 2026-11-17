@@ -65,7 +65,7 @@ export const features = {
 		{
 			tag: 'player',
 			title: 'Story player',
-			body: 'The whole film as slides in landscape or portrait, with keys, sound on request and a controller you can drive from your own chrome.'
+			body: 'The whole film as slides in landscape or portrait, with keys, sound on request (the score, and the narration of the scene on screen) and a controller you can drive from your own chrome.'
 		},
 		{
 			tag: 'video',
@@ -202,7 +202,7 @@ export const plugin = {
 		{ name: 'emaki', body: 'Runs the whole program: interview, outline, item cards, foundation, a pilot story, then batches.' },
 		{ name: 'story-build', body: 'Turns an item card into a story body, a film of JSON scenes, strings, sound and a verified contact sheet.' },
 		{ name: 'story-localize', body: 'Adds a language: story bodies, scene strings, voice scripts and UI strings, every key validated.' },
-		{ name: 'story-media', body: 'Runs voice, fit, render and build per locale, and checks the delivery list.' },
+		{ name: 'story-media', body: 'Runs voice, fit, voice-web, render and build per locale, and checks the delivery list.' },
 		{ name: 'story-review', body: 'Checks stories against the quality gates and turns feedback into fixes, with before/after evidence.' },
 		{ name: 'story-publish', body: 'Runs the release checklist, deploys, and sets up the optional posting desk and campaigns.' }
 	],

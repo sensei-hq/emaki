@@ -28,6 +28,8 @@ provider per locale (the `emaki` CLI's TTS providers). Never ask for, print or s
    recording list for a person). Report each take's length; for manual takes, wait for the files.
 3. `emaki fit <slug> --locale <l>`; read the table. If a beat must land on a word, retime the
    scene's tracks (and `score.js`) or add a hold in `timing.<l>.json`, then fit again.
+   Then `emaki voice-web <slug> --locale <l>` so the site's player and figures speak the same takes (commit the
+   `voice/<l>/*.m4a` files and `timing.<l>.json` with the story).
 4. `emaki render <slug> --locale <l> --o both` (picture + score + covers; the 16:9 cover goes to the
    site's covers folder).
 5. `emaki build <slug> --locale <l>` (voice, ducked score, -14 LUFS, captions).

@@ -1,29 +1,35 @@
 # Checkpoint
 
-**Slice:** feat/dark-scenes-and-site (stacked on fix/publish-order-and-ci) — dark scenes + emaki.sensei-hq.com
+**Slice:** feat/web-narration (on feat/issue-1-adoption): narration plays on the site, in step with the scenes
 
 ## Done
-- fix branch: publish order spec + fix, Playwright pin in CI, browser diagnostics (emaki-ci.patch minus the
-  NPM_TOKEN bootstrap), config/publish-all.sh (core first, skips versions on npm, stops on failure)
-- Dark scenes: film.json `dark` + look.css `#stage[data-mode="dark"]`; mode light|dark|auto on mountScene,
-  createShow, attachScene (+setMode), <motion-scene>/<motion-show>, Svelte/React/Vue props; auto follows the
-  nearest data-mode (rokkit's) through shadow roots, else prefers-color-scheme; capture defaults to light;
-  sample + template films have a dark look; `emaki validate` checks dark block vs look.css; docs + skill refs
-- site/: landing (live film, dot grid, showcase), /docs from docs/llms (copies spec-checked), llms.txt,
-  Cloudflare config, 27 browser/server specs, CI `site` job
+- Core: timing `voice` start → SceneMeta.voice; FilmSource.voice → URL; `narration()`; scorePlayer.duck (0.35);
+  createShow narrates the scene on screen; sceneSound = score slice + narration, cue/toggle at the playhead, setLocale
+- Loaders: vite `voice` glob (?url), fetch `voice/<locale>/<scene>.m4a`; init writes the glob; example + site glob it
+- `<motion-scene>` uses sceneSound; button hidden until the scene is known to have sound
+- CLI `emaki voice-web <slug> --locale`: takes → voice/<locale>/<scene>.m4a (mono AAC 64k, -16 LUFS), voice start
+- Sample film narrated with Piper (en_US-lessac-medium, es_MX-claude-high), en + es, in the CLI template (so every
+  `emaki init` and the site landing get it) and the example app (~490 KB for 10 takes)
+- Verified: bun run check (236), test:browser (narration ✓), site check/test (27)/build with CF_PAGES=1
+- Pushed feat/web-narration; site deployed by hand (wrangler deploy) to emaki.sensei-hq.com
+- Site logo: emaki.svg → BrandMark (currentColor), favicon.svg (OS-dark aware), favicon.ico, touch/manifest icons,
+  site.webmanifest, og image icon-512.png; `cd site && bun run icons` regenerates
+- Scenes fit narration both ways: fit = lead+take+tail, never before motionEnd (camera push + breathing are
+  background) or film.json settle (JS scenes); registry/build/chapters honour a shorter dur. Sample refit
+  (en 36.3 s, es 40.5 s). Site logo cropped to the artwork
+- PRs: #2 feat/issue-1-adoption → main (Closes #1); #3 feat/web-narration stacked on it
+- MotionScene speaker button: own colours (dark disc, white icon); browser check proves 3:1+ in light, dark, OS-dark
 
 ## Remaining
-- emaki-react@0.1.0 and emaki-vue@0.1.0 are still 404 on npm after a publish:all run (auth + dry-run fine);
-  rerun `bun run publish:all` and read its output, then add their trusted publishers
-- Branches pushed; open PRs, CI green, merge
-- Cloudflare: connect the repo in Workers Builds (root dir = repo root) and add the custom domain
-- Not built: `emaki render --mode dark` (videos render light; installCapture takes a mode)
+- Redeploy the site (speaker fix, icons, refit film) (user: `cd site && bunx wrangler deploy`); build is ready
+- Merge #2 then #3; connect Workers Builds to main (CF_PAGES=1) so merges deploy
+- React/Vue figures have no sound button (story players narrate via createShow)
 
 ## Next command
-`bun run publish:all`  (needs `bunx npm login`; skips the four already published)
+`cd site && bunx wrangler deploy` (user)
 
 ## Open questions
-- None
+- None blocking
 
 ## Known broken
-- React/Vue mode props have no tests (no harness exists for those wrappers); types only
+- show.seek() does not re-sync sound while playing (score and narration)

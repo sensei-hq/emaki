@@ -59,5 +59,8 @@ export function parseOpts(items) {
 	return out
 }
 
+/** A scene's running time: its fitted `dur` (timing.<locale>.json, longer or shorter than the design), else the
+ *  design time plus its pauses. The core's loadFilm resolves it the same way. */
+export const runningTime = (scene, tm = {}) => tm.dur ?? scene.dur + (tm.holds ?? []).reduce((n, h) => n + h[1], 0)
 export const pad2 = (n) => String(n).padStart(2, '0')
 export const today = () => new Date().toISOString().slice(0, 10)

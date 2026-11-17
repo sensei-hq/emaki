@@ -3,7 +3,7 @@
 // renders the /show/<slug> route, tools/motion.py can record it frame by frame.
 import { fontsReady, mountScene } from './mount.js';
 import { coverTime, loadFilm, timeline } from './registry.js';
-import { filmScore, scorePlayer } from './sound.js';
+import { filmScore, narration, scorePlayer } from './sound.js';
 import { renderWav } from './score.js';
 import { SIZES, type FilmMeta, type Layout, type Mode, type Mounted } from './types.js';
 
@@ -27,7 +27,7 @@ export async function createShow(host: HTMLElement, slug: string, opts: ShowOpti
   let index = Math.max(0, Math.min(tl.scenes.length - 1, (opts.slide ?? 1) - 1));
   let local = 0, playing = !opts.capture && !opts.poster, sound = false, scale = 1, started = !opts.poster;
   let dead = false, m: Mounted | null = null, key = '', chain: Promise<void> = Promise.resolve(), raf = 0, last = 0;
-  const audio = scorePlayer(f), listeners = new Set<ShowListener>();
+  const audio = scorePlayer(f), words = narration(f, locale), listeners = new Set<ShowListener>();
   const emit = () => listeners.forEach((l) => l({ index, local, playing, sound, layout, started }));
 
   function draw() {
@@ -45,7 +45,13 @@ export async function createShow(host: HTMLElement, slug: string, opts: ShowOpti
     });
     return chain;
   }
-  async function syncAudio() { if (sound && playing) await audio.start(tl.scenes[index].start + local); else audio.stop(); }
+  // Sound follows the picture: the score from the playhead, and the scene's narration over it (the score ducked).
+  async function syncAudio() {
+    if (!(sound && playing)) { audio.stop(); words.stop(); return; }
+    const s = tl.scenes[index];
+    audio.duck(words.has(s.id));
+    await Promise.all([audio.start(s.start + local), words.start(s.id, local)]);
+  }
   function go(i: number) { index = (i + tl.scenes.length) % tl.scenes.length; local = 0; draw(); syncAudio(); emit(); }
   function tick(now: number) {
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
@@ -99,7 +105,7 @@ export async function createShow(host: HTMLElement, slug: string, opts: ShowOpti
       await draw();
     },
     on(l: ShowListener) { listeners.add(l); return () => listeners.delete(l); },
-    destroy() { dead = true; cancelAnimationFrame(raf); audio.close(); m?.destroy(); listeners.clear(); },
+    destroy() { dead = true; cancelAnimationFrame(raf); audio.close(); words.stop(); m?.destroy(); listeners.clear(); },
   };
   return api;
 }

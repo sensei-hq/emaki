@@ -11,8 +11,10 @@ export const SIZES: Record<Layout, [number, number]> = {
   figure: [1600, 1000],
 };
 
-/** A scene as listed in film.json. `dur` is the design length in seconds, including its end hold. */
-export interface SceneEntry { id: string; name: string; dur: number; desc?: string }
+/** A scene as listed in film.json. `dur` is the design length in seconds, including its end hold. `settle`: when its
+ *  motion is over (seconds), so `emaki fit` never ends a narrated scene before it; JSON scenes need none (their tracks
+ *  say, motionEnd), JS scenes give it or keep their design length. */
+export interface SceneEntry { id: string; name: string; dur: number; desc?: string; settle?: number }
 
 /** film.json: the film's look and its scenes in order. */
 export interface FilmJson {
@@ -28,11 +30,13 @@ export interface FilmJson {
   cover?: { scene: string; at?: number };
 }
 
-/** timing.json / timing.<locale>.json: per scene, a running time (fitted to the voice) and/or pauses [at, seconds]. */
-export interface TimingJson { scenes?: Record<string, { dur?: number; holds?: [number, number][] }> }
+/** timing.json / timing.<locale>.json: per scene, a running time (fitted to the voice by `emaki fit`: longer or shorter
+ *  than the design, never before the motion settles) and/or pauses [at, seconds],
+ *  and `voice`: where its narration starts, in seconds into the scene (written by `emaki voice-web`). */
+export interface TimingJson { scenes?: Record<string, { dur?: number; holds?: [number, number][]; voice?: number }> }
 
-/** A scene with its running time resolved for one locale. */
-export interface SceneMeta extends SceneEntry { design: number; holds: [number, number][] }
+/** A scene with its running time resolved for one locale; `voice` is set when the scene is narrated on the web. */
+export interface SceneMeta extends SceneEntry { design: number; holds: [number, number][]; voice?: number }
 export interface FilmMeta extends Omit<FilmJson, 'scenes'> { slug: string; scenes: SceneMeta[] }
 
 export interface Mounted {

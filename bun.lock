@@ -38,6 +38,7 @@
         "emaki": "src/index.js",
       },
       "dependencies": {
+        "@senseihq/emaki": "workspace:*",
         "@senseihq/emaki-posting": "workspace:*",
         "sade": "^1.8.1",
       },

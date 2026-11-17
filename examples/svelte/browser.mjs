@@ -1,7 +1,8 @@
 // The example in real Chromium (CI's browser job): build it, serve it, and check the three things the packages promise.
 //   1. the article's figures mount and draw (a scene in each figure's shadow root),
 //   2. the story player mounts, advances and switches language,
-//   3. /show/<film>?capture=1 installs window.__show with a timeline, a cover time, seek() and the score.
+//   3. /show/<film>?capture=1 installs window.__show with a timeline, a cover time, seek() and the score,
+//   4. the narration (content/films/<film>/voice/en/*.m4a, `emaki voice-web`) plays in the player and the figures.
 // Failures print as GitHub annotations (visible on the run without signing in) and leave screenshots in test-results/.
 import { spawn } from 'node:child_process'
 import { mkdirSync } from 'node:fs'
@@ -66,13 +67,29 @@ try {
 	await page.screenshot({ path: `${out}/example-es.png`, fullPage: false })
 	ok(`Spanish article: "${h1}"`)
 
+	// The figure's speaker button stays legible on its scene: icon against the disc (blended over the scene's board),
+	// WCAG 3:1 for UI graphics, whatever the page's text colour and whichever mode the scene draws in.
+	const speakers = () => page.$$eval('[data-testid^="figure-"] .motion-scene', (els) => els.map((el) => {
+		const rgba = (c) => { const m = c.match(/[\d.]+/g).map(Number), k = c.startsWith('color(') ? 255 : 1; return [m[0] * k, m[1] * k, m[2] * k, m[3] ?? 1] }
+		const lum = ([r, g, b]) => [r, g, b].map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4 }).reduce((n, v, i) => n + v * [0.2126, 0.7152, 0.0722][i], 0)
+		const btn = el.querySelector('button'), st = el.querySelector(':scope > div')?.shadowRoot?.querySelector('#stage')
+		if (!btn || !st) return null
+		const board = rgba(getComputedStyle(st).backgroundColor), disc = rgba(getComputedStyle(btn).backgroundColor)
+		const under = board.slice(0, 3).map((v, i) => disc[i] * disc[3] + v * (1 - disc[3]))
+		const icon = rgba(getComputedStyle(btn).color)
+		const [a, b] = [lum(icon), lum(under)].sort((x, y) => y - x)
+		return +((a + 0.05) / (b + 0.05)).toFixed(2)
+	}))
+	const legible = (what, cs) => cs.length && cs.every((c) => c >= 3) ? ok(`speaker icons legible ${what} (contrast ${Math.min(...cs)}:1)`) : fail(`speaker icons illegible ${what}: ${JSON.stringify(cs)}`)
+	legible('in light mode', await speakers())
+
 	// Dark mode the way rokkit sets it: data-mode on <html>. Every scene follows it and repaints its board.
 	const boards = () => page.$$eval('[data-testid^="figure-"] .motion-scene > div, .ms-stage', (hs) => hs.map((h) => {
 		const st = h.shadowRoot?.querySelector('#stage')
 		return st ? [st.getAttribute('data-mode'), getComputedStyle(st).backgroundColor] : null
 	}))
 	const light = await boards()
-	await page.evaluate(() => { document.documentElement.dataset.mode = 'dark' })
+	await page.evaluate(() => { document.documentElement.dataset.mode = 'dark'; document.body.style.color = '#ece8df' })
 	await page.waitForFunction(() => [...document.querySelectorAll('[data-testid^="figure-"] .motion-scene > div, .ms-stage')].every((h) => h.shadowRoot?.querySelector('#stage')?.getAttribute('data-mode') === 'dark'), null, { timeout: 5000 })
 		.catch(() => {})
 	const dark = await boards()
@@ -80,11 +97,20 @@ try {
 		? ok(`${dark.length} scenes followed <html data-mode="dark"> (${light[0]?.[1]} → ${dark[0]?.[1]})`)
 		: fail(`scenes did not go dark: ${JSON.stringify({ light, dark })}`)
 	await page.screenshot({ path: `${out}/example-dark.png`, fullPage: false })
-	await page.evaluate(() => { document.documentElement.dataset.mode = 'light' })
+	legible('on a dark page', await speakers())
+	await page.evaluate(() => { document.documentElement.dataset.mode = 'light'; document.body.style.color = '' })
 	// An explicit mode prop beats the page: /?mode=dark on a light page draws every scene dark.
 	await page.goto(base + '/?locale=en&mode=dark')
 	await page.waitForFunction(() => [...document.querySelectorAll('[data-testid^="figure-"] .motion-scene > div, .ms-stage')].every((h) => h.shadowRoot?.querySelector('#stage')?.getAttribute('data-mode') === 'dark'), null, { timeout: 10000 })
 		.then(() => ok('mode="dark" on the components overrides a light page'), () => fail('the mode prop did not reach the scenes'))
+	legible('on dark scenes in a light page', await speakers())
+	// The OS in dark mode on a page that declares color-scheme (system colours like Canvas turn dark), page left light.
+	await page.emulateMedia({ colorScheme: 'dark' })
+	await page.goto(base + '/?locale=en')
+	await page.evaluate(() => { document.documentElement.style.colorScheme = 'light dark' })
+	await page.waitForFunction((n) => document.querySelectorAll('[data-testid^="figure-"] button[aria-label="Turn sound on"]').length === n, figs.length, { timeout: 10000 }).catch(() => {})
+	legible('with the OS in dark mode', await speakers())
+	await page.emulateMedia({ colorScheme: 'light' })
 
 	const cap = await browser.newPage({ viewport: { width: 1920, height: 1080 } })
 	cap.on('pageerror', (e) => errors.push(String(e)))
@@ -96,6 +122,32 @@ try {
 	await cap.screenshot({ path: `${out}/capture-cover-es.png` })
 	const wav = await cap.evaluate(() => window.__show.audio())
 	wav === null || wav.length > 1000 ? ok(`score: ${wav ? `${Math.round(wav.length * 0.75 / 1024)} KB WAV` : 'none'}`) : fail('score render failed')
+	// Narration: every Audio the page makes is recorded; with sound on, the scene on screen speaks, in step.
+	const nar = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+	nar.on('pageerror', (e) => errors.push(String(e)))
+	await nar.addInitScript(() => {
+		const A = window.Audio
+		window.__audio = []
+		window.Audio = class extends A { constructor(src) { super(src); window.__audio.push(this) } }
+	})
+	const speaking = (scene) => nar.waitForFunction((id) => window.__audio.some((a) => a.src.includes(`/${id}`) && a.src.endsWith('.m4a') && !a.paused && a.currentTime > 0.2), scene, { timeout: 8000 })
+	await nar.goto(base + '/?locale=en')
+	await nar.click('[data-testid="player"] [aria-label^="Play the film"]')
+	await speaking('hook').then(async () => {
+		const a = await nar.evaluate(() => { const x = window.__audio.find((a) => !a.paused); return { src: x.src.split('/').pop(), t: x.currentTime, d: x.duration } })
+		ok(`player narrates its scene (${a.src}, ${a.t.toFixed(1)} of ${a.d.toFixed(1)} s)`)
+	}, () => fail('the player is silent: no narration played after Play'))
+	await nar.click('[data-testid="player"] [aria-label="Pause"]').catch(() => {})
+	await nar.waitForFunction(() => window.__audio.length > 0 && window.__audio.every((a) => a.paused), null, { timeout: 3000 })
+		.then(() => ok('pause silences the narration'), () => fail('narration kept playing after pause'))
+	const fig = (await nar.$$eval('[data-testid^="figure-"]', (els) => els.map((e) => e.getAttribute('data-testid').slice(7))))[1]
+	await nar.locator(`[data-testid="figure-${fig}"]`).scrollIntoViewIfNeeded()
+	await nar.click(`[data-testid="figure-${fig}"] button[aria-label="Turn sound on"]`)
+	await speaking(fig).then(() => ok(`figure "${fig}" narrates its scene`), () => fail(`figure "${fig}" is silent with sound on`))
+	await nar.click(`[data-testid="figure-${fig}"] button[aria-label="Turn sound off"]`)
+	await nar.waitForFunction(() => window.__audio.length > 0 && window.__audio.every((a) => a.paused), null, { timeout: 3000 })
+		.then(() => ok('the figure\'s sound turns off'), () => fail('figure narration kept playing after sound off'))
+
 	errors.length ? fail(`page errors: ${errors.slice(0, 3).join(' | ')}`) : ok('no page errors')
 } catch (e) {
 	fail(e instanceof Error ? e.stack ?? e.message : String(e))

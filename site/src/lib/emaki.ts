@@ -14,7 +14,8 @@ const g = {
 		import: 'default'
 	}),
 	logos: import.meta.glob('../../../packages/emaki-cli/templates/content/logos/*.svg', { eager: true, query: '?raw', import: 'default' }),
-	site: import.meta.glob('../../../packages/emaki-cli/templates/content/site.json', { eager: true, import: 'default' })
+	site: import.meta.glob('../../../packages/emaki-cli/templates/content/site.json', { eager: true, import: 'default' }),
+	voice: import.meta.glob('../../../packages/emaki-cli/templates/content/films/*/voice/*/*.m4a', { eager: true, query: '?url', import: 'default' })
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
