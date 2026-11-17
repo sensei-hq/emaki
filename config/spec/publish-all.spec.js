@@ -12,8 +12,8 @@ function run({ published = [], failIn = '' } = {}) {
 	writeFileSync(log, '')
 	// npm view <name>@<version> version → prints the version only when it is "published".
 	writeFileSync(join(bin, 'npm'), `#!/bin/sh\ncase " $PUBLISHED " in *" $2 "*) echo "\${2##*@}";; esac\n`)
-	// bun publish → records the package dir; fails in $FAIL_IN.
-	writeFileSync(join(bin, 'bun'), `#!/bin/sh\necho "$(basename "$PWD")" >> "${log}"\n[ "$(basename "$PWD")" != "$FAIL_IN" ]\n`)
+	// bun run build:all → nothing to build here; bun publish → records the package dir; fails in $FAIL_IN.
+	writeFileSync(join(bin, 'bun'), `#!/bin/sh\n[ "$1" = run ] && exit 0\necho "$(basename "$PWD")" >> "${log}"\n[ "$(basename "$PWD")" != "$FAIL_IN" ]\n`)
 	for (const f of ['npm', 'bun']) chmodSync(join(bin, f), 0o755)
 	const r = spawnSync('sh', ['config/publish-all.sh'], {
 		encoding: 'utf-8',
