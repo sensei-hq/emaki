@@ -71,6 +71,23 @@ describe('voice-web', () => {
 	})
 })
 
+describe('the sample film', () => {
+	it('ships narration in every locale it has lines for, and init copies it', () => {
+		const d = tmp()
+		init({ cwd: d, framework: 'vanilla' })
+		const dir = join(d, `content/films/${slug}`)
+		for (const locale of ['en', 'es']) {
+			const lines = json(join(dir, `voice/${locale}.json`))
+			const t = json(join(dir, `timing.${locale}.json`)).scenes
+			for (const { scene } of lines) {
+				expect(existsSync(join(dir, `voice/${locale}/${scene}.m4a`)), `${locale}/${scene}.m4a`).toBe(true)
+				expect(t[scene].voice).toBeGreaterThan(0)
+				expect(t[scene].dur).toBeGreaterThan(t[scene].voice)
+			}
+		}
+	})
+})
+
 describe('init', () => {
 	it('the Vite source globs the narration as URLs', () => {
 		const d = tmp()
