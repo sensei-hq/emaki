@@ -15,9 +15,8 @@ import { die, exists, load } from './util.js'
 /** Index fields that are words for the reader: emaki keeps them per locale, in the story body. */
 const TEXT = ['title', 'dek', 'kanjiGloss', 'series']
 
-export function migrate(p, from, { locale = 'en' } = {}) {
-	const films = join(from, 'src/lib/motion/films'), articles = join(from, 'src/lib/content/articles')
-	if (!exists(films) && !exists(articles)) die(`${from} has neither src/lib/motion/films nor src/lib/content/articles`)
+/** Writes that never overwrite: each target lands in `wrote`, or in `kept` when it already exists. */
+function writer(p) {
 	const wrote = [], kept = []
 	const put = (dst, write) => {
 		const rel = p.rel(dst)
@@ -33,35 +32,53 @@ export function migrate(p, from, { locale = 'en' } = {}) {
 			if (e.isDirectory()) tree(join(src, e.name), join(dst, e.name))
 			else copy(join(src, e.name), join(dst, rename(e.name)))
 	}
+	return { wrote, kept, copy, json, tree }
+}
 
-	if (exists(films))
-		for (const slug of readdirSync(films).filter((d) => exists(join(films, d, 'film.json'))))
-			tree(join(films, slug), join(p.films, slug), (n) => (n === 'base.css' ? 'look.css' : n))
+/** The sub-folders of `dir` that hold a film.json (none when `dir` is missing). */
+const filmFolders = (dir) => (exists(dir) ? readdirSync(dir).filter((d) => exists(join(dir, d, 'film.json'))) : [])
+
+/** src/lib/motion/films/<slug>/ → content/films/<slug>/ (base.css becomes look.css), then the logos. */
+function moveFilms(p, from, w) {
+	const films = join(from, 'src/lib/motion/films')
+	for (const slug of filmFolders(films)) w.tree(join(films, slug), join(p.films, slug), (n) => (n === 'base.css' ? 'look.css' : n))
 	const logos = join(from, 'src/lib/motion/logos')
-	if (exists(logos)) tree(logos, join(p.content, 'logos'))
+	if (exists(logos)) w.tree(logos, join(p.content, 'logos'))
+}
 
-	if (exists(join(articles, 'index.json'))) {
-		const index = load(join(articles, 'index.json'))
-		json(join(p.content, 'stories', 'index.json'), index.map((e) => Object.fromEntries(Object.entries(e).filter(([k]) => !TEXT.includes(k)))))
-		for (const e of index) {
-			const src = join(articles, `${e.slug}.json`)
-			if (!exists(src)) continue
-			const text = Object.fromEntries(TEXT.filter((k) => k in e).map((k) => [k, e[k]]))
-			json(join(p.content, 'stories', locale, `${e.slug}.json`), { ...text, ...load(src) })
-		}
+/** The articles index without its reader-facing text, and each article's body with that text, in `locale`. */
+function moveArticles(p, articles, locale, w) {
+	if (!exists(join(articles, 'index.json'))) return
+	const index = load(join(articles, 'index.json'))
+	w.json(join(p.content, 'stories', 'index.json'), index.map((e) => Object.fromEntries(Object.entries(e).filter(([k]) => !TEXT.includes(k)))))
+	for (const e of index) {
+		const src = join(articles, `${e.slug}.json`)
+		if (!exists(src)) continue
+		const text = Object.fromEntries(TEXT.filter((k) => k in e).map((k) => [k, e[k]]))
+		w.json(join(p.content, 'stories', locale, `${e.slug}.json`), { ...text, ...load(src) })
 	}
+}
 
+/** films/<slug>/: the narration (into a film that was moved) and the recorded takes. */
+function moveMasters(p, from, locale, w) {
 	const masters = join(from, 'films')
-	if (exists(masters))
-		for (const slug of readdirSync(masters).filter((d) => exists(join(masters, d, 'film.json')))) {
-			const scenes = load(join(masters, slug, 'film.json')).scenes ?? []
-			if (scenes.length && exists(join(p.films, slug)))
-				json(join(p.films, slug, 'voice', `${locale}.json`), scenes.map((s) => ({ scene: s.id, text: s.text ?? '', say: s.say ?? null })))
-			const takes = join(masters, slug, 'takes')
-			if (exists(takes))
-				for (const f of readdirSync(takes).filter((n) => n.endsWith('.wav'))) copy(join(takes, f), p.prod(slug, locale, 'takes', f))
-		}
+	for (const slug of filmFolders(masters)) {
+		const scenes = load(join(masters, slug, 'film.json')).scenes ?? []
+		if (scenes.length && exists(join(p.films, slug)))
+			w.json(join(p.films, slug, 'voice', `${locale}.json`), scenes.map((s) => ({ scene: s.id, text: s.text ?? '', say: s.say ?? null })))
+		const takes = join(masters, slug, 'takes')
+		const wavs = exists(takes) ? readdirSync(takes).filter((n) => n.endsWith('.wav')) : []
+		for (const f of wavs) w.copy(join(takes, f), p.prod(slug, locale, 'takes', f))
+	}
+}
 
-	if (!exists(join(p.content, 'site.json'))) json(join(p.content, 'site.json'), { name: '', url: '', locales: [locale], defaultLocale: locale })
-	return { wrote, kept }
+export function migrate(p, from, { locale = 'en' } = {}) {
+	const films = join(from, 'src/lib/motion/films'), articles = join(from, 'src/lib/content/articles')
+	if (!exists(films) && !exists(articles)) die(`${from} has neither src/lib/motion/films nor src/lib/content/articles`)
+	const w = writer(p)
+	moveFilms(p, from, w)
+	moveArticles(p, articles, locale, w)
+	moveMasters(p, from, locale, w)
+	if (!exists(join(p.content, 'site.json'))) w.json(join(p.content, 'site.json'), { name: '', url: '', locales: [locale], defaultLocale: locale })
+	return { wrote: w.wrote, kept: w.kept }
 }
