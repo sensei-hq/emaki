@@ -27,3 +27,8 @@ describe('package loops run in dependency order', () => {
 		})
 	}
 })
+
+describe('the root build', () => {
+	// One command from a fresh checkout (Workers Builds runs it): the site imports the packages' dist, so they come first.
+	it('builds every package, then the site', () => expect(scripts.build).toBe('bun run build:all && cd site && bun run build'))
+})
