@@ -55,7 +55,8 @@ export function viteSource(g: ViteGlobs) {
       if (shared == null) return null;
       const scenes: Record<string, string> = {};
       const re = new RegExp(`films/${slug}/scene-(.+)\\.js$`);
-      for (const p of Object.keys(g.raw ?? {})) {
+      // shared.js came from g.raw, so the globs are there.
+      for (const p of Object.keys(g.raw!)) {
         const m = p.match(re);
         if (m) scenes[m[1]] = (await call<string>(g.raw![p]))!;
       }
