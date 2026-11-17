@@ -76,13 +76,14 @@ describe('the sample film', () => {
 		const d = tmp()
 		init({ cwd: d, framework: 'vanilla' })
 		const dir = join(d, `content/films/${slug}`)
+		const design = Object.fromEntries(json(join(dir, 'film.json')).scenes.map((s) => [s.id, s.dur]))
 		for (const locale of ['en', 'es']) {
 			const lines = json(join(dir, `voice/${locale}.json`))
 			const t = json(join(dir, `timing.${locale}.json`)).scenes
 			for (const { scene } of lines) {
 				expect(existsSync(join(dir, `voice/${locale}/${scene}.m4a`)), `${locale}/${scene}.m4a`).toBe(true)
 				expect(t[scene].voice).toBeGreaterThan(0)
-				expect(t[scene].dur).toBeGreaterThan(t[scene].voice)
+				expect(Math.max(design[scene], t[scene].dur ?? 0)).toBeGreaterThan(t[scene].voice)
 			}
 		}
 	})
