@@ -37,6 +37,8 @@ export interface TimingJson { scenes?: Record<string, { dur?: number; holds?: [n
 
 /** A scene with its running time resolved for one locale; `voice` is set when the scene is narrated on the web. */
 export interface SceneMeta extends SceneEntry { design: number; holds: [number, number][]; voice?: number }
+/** One line of a film's voiceover script (voice/<locale>.json): the scene it is spoken over, and the words. */
+export interface VoiceLine { scene: string; text: string }
 export interface FilmMeta extends Omit<FilmJson, 'scenes'> { slug: string; scenes: SceneMeta[] }
 
 export interface Mounted {

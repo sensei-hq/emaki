@@ -6,7 +6,7 @@
 ## 1 · Short video (9:16, about 45 s, YouTube Shorts + Instagram Reels)
 
 The motion film `content/films/<slug>/` rendered 9:16, the same scenes as the story's figures. Action tones only;
-voiceover per scene; captions burned in. The voice lines below are the copy of record (`voice/<locale>.json`).
+voiceover per scene; captions burned in (`emaki build --captions`). The voice lines below are the copy of record (`voice/<locale>.json`).
 
 | # | Voiceover | On screen (scene) |
 |---|---|---|

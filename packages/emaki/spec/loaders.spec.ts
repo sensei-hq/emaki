@@ -55,6 +55,13 @@ describe('fetchFilmSource and fetchContentSource', () => {
     expect(await fetchFilmSource('/c').css('f')).toBe('');
   });
 
+  it('reads the voiceover script for the locale, or nothing when the film has none', async () => {
+    files['/c/films/f/voice/en.json'] = [{ scene: 'a', text: 'Hi.' }];
+    const src = fetchFilmSource('/c');
+    expect(await src.voiceText!('f', 'en')).toEqual([{ scene: 'a', text: 'Hi.' }]);
+    expect(await src.voiceText!('f', 'es')).toBeNull();
+  });
+
   it('reads the timing for the locale, falling back to the film-wide timing', async () => {
     files['/c/films/f/timing.es.json'] = { scenes: { a: { dur: 2 } } };
     files['/c/films/f/timing.json'] = { scenes: { a: { dur: 1 } } };
@@ -123,6 +130,16 @@ describe('viteSource', () => {
     expect(await filmSource.code!('f')).toBeNull();
     expect(await filmSource.score!('f')).toBeNull();
     expect(await filmSource.strings!('f', 'en')).toBeNull();
+  });
+
+  it('reads the voiceover scripts the app globbed, or nothing when it did not', async () => {
+    const { filmSource } = viteSource({
+      films: {}, scenes: {}, voiceText: { '/content/films/f/voice/en.json': [{ scene: 'a', text: 'Hi.' }] },
+    });
+    expect(await filmSource.voiceText!('f', 'en')).toEqual([{ scene: 'a', text: 'Hi.' }]);
+    expect(await filmSource.voiceText!('f', 'es')).toBeNull();
+    const { filmSource: bare } = viteSource({ films: {}, scenes: {} });
+    expect(await bare.voiceText!('f', 'en')).toBeNull();
   });
 
   it('gives a film an empty slug when its path is not films/<slug>/film.json', async () => {

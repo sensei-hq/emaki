@@ -231,10 +231,10 @@ describe('emaki production steps', () => {
 		expect((await emaki(project(), 'voice-web', 'demo')).out).toBe('wrote a.m4a\nremoved b.m4a (no take)\nwrote timing.en.json')
 	})
 
-	it('build passes --no-captions, --check and --out', async () => {
+	it('build passes --captions, --check and --out', async () => {
 		const d = project()
-		expect((await emaki(d, 'build', 'demo', '--no-captions', '--check', '--out', 'o')).calls).toEqual([['build', d, 'demo', { locale: 'en', noCaptions: true, check: true, out: 'o' }]])
-		expect((await emaki(d, 'build', 'demo')).calls).toEqual([['build', d, 'demo', { locale: 'en', noCaptions: false, check: false, out: undefined }]])
+		expect((await emaki(d, 'build', 'demo', '--captions', '--check', '--out', 'o')).calls).toEqual([['build', d, 'demo', { locale: 'en', captions: true, check: true, out: 'o' }]])
+		expect((await emaki(d, 'build', 'demo')).calls).toEqual([['build', d, 'demo', { locale: 'en', captions: false, check: false, out: undefined }]])
 	})
 
 	it('an error that is not a MotionError is a bug: it propagates with its stack', async () => {

@@ -32,7 +32,7 @@ provider per locale (the `emaki` CLI's TTS providers). Never ask for, print or s
    `voice/<l>/*.m4a` files and `timing.<l>.json` with the story).
 4. `emaki render <slug> --locale <l> --o both` (picture + score + covers; the 16:9 cover goes to the
    site's covers folder).
-5. `emaki build <slug> --locale <l>` (voice, ducked score, -14 LUFS, captions).
+5. `emaki build <slug> --locale <l> --captions` (voice, ducked score, -14 LUFS, burned-in captions).
 6. Check the delivery list in `skills/emaki/references/05-voice-and-video.md`: extract frames at the start,
    each scene change and the end with ffmpeg and look at them; confirm durations and captions.
 7. Report the files (paths under `production/<slug>/<l>/out/`), durations, and anything to re-record.

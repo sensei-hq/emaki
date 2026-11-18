@@ -1,7 +1,7 @@
 // React components over @senseihq/emaki. All are client components (they need the DOM); in Next.js import them
 // from a file marked 'use client'. Call setupMotion({ source, site, logos }) once on the client first.
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { attachScene, createShow, installCapture, showKey, ticks, type AttachedScene, type Layout, type Mode, type ScenePlayerState } from '@senseihq/emaki';
+import { attachScene, createShow, installCapture, showKey, ticks, voiceLines, type AttachedScene, type Layout, type Mode, type ScenePlayerState, type VoiceLine } from '@senseihq/emaki';
 import { usePlayerFor, useScenePlayer, useShowState, useSize, useWidth, type Show } from './hooks.js';
 
 /** Mounts a player's scene into a div and keeps it fitted (shared by MotionScene and ScenePlayer). */
@@ -61,6 +61,8 @@ export interface MotionShowProps {
   title?: string; length?: string;
   /** Where the full-screen link goes (e.g. /show/<film>); no link when empty. */
   fullscreenHref?: string;
+  /** A Description button under the player that opens the film's voiceover script; hidden without one. */
+  description?: boolean;
   /** The controller once ready (next/prev/play/pause/setSound/setLayout/seek/on), for custom chrome. */
   onReady?: (show: Show) => void;
   className?: string; style?: CSSProperties;
@@ -88,10 +90,12 @@ function PlayButton({ title, length, cover, onClick }: { title: string; length: 
 /** The story player: a film's scenes as slides, fitted to its box. Keys: ←/→ scene, Space play/pause, M sound,
  *  O orientation, R replay, Home from the top, F fullscreen. `poster` opens on the cover frame; `cover` paints an
  *  image and creates nothing until the first click. */
-export function MotionShow({ film, locale = 'en', layout = 'landscape', mode = 'auto', controls = true, slide = 1, loop = false, poster = false, cover = '', title = '', length = '', fullscreenHref = '', onReady, className, style }: MotionShowProps) {
+export function MotionShow({ film, locale = 'en', layout = 'landscape', mode = 'auto', controls = true, slide = 1, loop = false, poster = false, cover = '', title = '', length = '', fullscreenHref = '', description = false, onReady, className, style }: MotionShowProps) {
   const stage = useRef<HTMLDivElement>(null);
   const [fitRef, size] = useSize<HTMLDivElement>();
   const [show, setShow] = useState<Show | null>(null);
+  const [lines, setLines] = useState<VoiceLine[] | null>(null);
+  const [expanded, setExpanded] = useState(false);
   // With a cover nothing is created until the reader clicks; that click then starts the show (sound on). The poster
   // shows only until the reader first plays: a language or mode change after that restarts without it.
   const [waiting, setWaiting] = useState(() => !!cover);
@@ -110,6 +114,12 @@ export function MotionShow({ film, locale = 'en', layout = 'landscape', mode = '
     });
     return () => { alive = false; made?.destroy(); setShow(null); };
   }, [film, locale, mode, waiting]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!description) { setLines(null); return; }
+    let alive = true;
+    voiceLines(film, locale).then((l) => { if (alive) setLines(l); });
+    return () => { alive = false; };
+  }, [film, locale, description]);
   useEffect(() => { if (show && show.state.layout !== layout) show.setLayout(layout); }, [show, layout]);
   useEffect(() => { show?.fit(size.w, size.h); }, [show, size, st?.layout]);
   // Every key (←/→, Space, M, O, R, Home, F) from the core, so all players answer the same way.
@@ -140,6 +150,15 @@ export function MotionShow({ film, locale = 'en', layout = 'landscape', mode = '
           <button style={btn} onClick={() => show.setSound(!st.sound)} aria-pressed={st.sound}>{st.sound ? 'Sound on' : 'Sound off'}</button>
           {fullscreenHref && <a href={fullscreenHref} aria-label="Open full screen" title="Full screen"
             style={{ ...btn, display: 'grid', placeItems: 'center', textDecoration: 'none', padding: 0 }}>⤢</a>}
+        </div>
+      )}
+      {description && lines && (
+        <div style={{ padding: '6px 12px 12px', font: '14px/1.55 system-ui' }}>
+          <button onClick={() => setExpanded(!expanded)} aria-expanded={expanded}
+            style={{ background: 'none', border: 0, padding: '6px 0', cursor: 'pointer', font: 'inherit', color: 'inherit', opacity: 0.75, textDecoration: 'underline' }}>
+            Description {expanded ? '▾' : '▸'}
+          </button>
+          {expanded && <div>{lines.map((l) => <p key={l.scene} style={{ margin: '0 0 .7em' }}>{l.text}</p>)}</div>}
         </div>
       )}
     </div>
