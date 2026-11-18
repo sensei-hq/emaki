@@ -26,6 +26,20 @@ describe('scene player state', () => {
     expect(st.key).toContain(':js');
   });
 
+  it('has no key before anything is loaded', () => {
+    expect(new ScenePlayerState().key).toBe('');
+  });
+
+  it('toggles between playing and paused', () => {
+    const st = new ScenePlayerState();
+    st.load({ film: 'a', scene: 'b', layout: 'landscape' });
+    st.markReady(10);
+    st.toggle();
+    expect(st.playing).toBe(true);
+    st.toggle();
+    expect(st.playing).toBe(false);
+  });
+
   it('seeks clamped to the duration', () => {
     const st = new ScenePlayerState();
     st.load({ film: 'a', scene: 'b', layout: 'landscape' });

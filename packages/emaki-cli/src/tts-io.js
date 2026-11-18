@@ -12,7 +12,7 @@ export const lang = (locale) => locale.split('-')[0]
 export function sh(cmd, args, input) {
 	const r = spawnSync(cmd, args, { input, encoding: input == null ? 'utf-8' : undefined, maxBuffer: 256 * 1024 * 1024 })
 	if (r.error) fail(`${cmd}: ${r.error.code === 'ENOENT' ? 'not installed' : r.error.message}`)
-	if (r.status) fail(`${cmd}: ${String(r.stderr ?? '').slice(-400)}`)
+	if (r.status) fail(`${cmd}: ${String(r.stderr).slice(-400)}`)
 	return r.stdout
 }
 

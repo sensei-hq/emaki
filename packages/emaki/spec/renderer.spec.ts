@@ -218,3 +218,11 @@ describe('tracks', () => {
     expect(evaluateScene(spec, 9).find((o) => o.selector === '.rw')!.attrs).toEqual({ width: '91.2' });
   });
 });
+
+describe('the evaluator\'s kit', () => {
+  it('is stage-free: a scene or a score registered on it goes nowhere', async () => {
+    const { K } = await import('../src/effects.js');
+    expect(K.scene('x', { render() {} })).toBeUndefined();
+    expect(K.score(() => { throw new Error('never run'); })).toBeUndefined();
+  });
+});

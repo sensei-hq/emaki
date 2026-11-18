@@ -7,9 +7,12 @@ export default defineConfig({
 		coverage: {
 			provider: 'v8',
 			include: ['packages/*/src/**/*.{ts,js}'],
-			exclude: ['**/*.d.ts'],
+			// scene-schema.ts is types only: it compiles to nothing, so v8 reports it as 0 of 0 (shown as 0%).
+			exclude: ['**/*.d.ts', 'packages/emaki/src/scene-schema.ts'],
 			reporter: ['text', 'html', 'json-summary'],
-			reportsDirectory: 'coverage'
+			reportsDirectory: 'coverage',
+			// Every line, branch and function of the packages' sources is exercised; CI fails the run below this.
+			thresholds: { lines: 100, branches: 100, functions: 100, statements: 100 }
 		},
 		projects: [
 			{ test: { name: 'config', include: ['config/spec/**/*.spec.js'], environment: 'node' } },

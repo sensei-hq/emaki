@@ -17,6 +17,7 @@ describe('render: --from / --to', () => {
 		expect(frameRange(12.5, 30, 2, 4)).toEqual({ t0: 2, end: 4, frames: 60, seconds: 2 })
 		expect(frameRange(12.5, 30, 10, 99)).toMatchObject({ end: 12.5, frames: 75 })
 		expect(frameRange(12.5, 30, -3)).toMatchObject({ t0: 0, frames: 375 })
+		expect(frameRange(12.5, 30, null)).toMatchObject({ t0: 0, frames: 375 })
 	})
 	it('always captures at least one frame', () => {
 		expect(frameRange(12.5, 30, 3, 3.001).frames).toBe(1)
@@ -25,6 +26,7 @@ describe('render: --from / --to', () => {
 		expect(() => frameRange(12.5, 30, 5, 4)).toThrow(MotionError)
 		expect(() => frameRange(12.5, 30, 13)).toThrow(/--from 13/)
 		expect(() => frameRange(12.5, 30, Number.NaN)).toThrow(MotionError)
+		expect(() => frameRange(12.5, 30, null, 'soon')).toThrow('--from 0 --to soon is not a range inside the film (it runs 12.5 s)')
 	})
 })
 
@@ -56,6 +58,7 @@ describe('render: --music', () => {
 		const none = musicFor('export', { exportFile, exists: () => false })
 		expect(none.kind).toBe('none')
 		expect(none.note).toMatch(/demo\.mp4.*silent/)
+		expect(musicFor('export', { exportFile })).toEqual(none)
 	})
 	it('none is a silent picture; anything else is refused', () => {
 		expect(musicFor('none')).toEqual({ kind: 'none' })
@@ -105,8 +108,10 @@ describe('render: the dev server reloading mid-capture', () => {
 	})
 	it('gives up after 8 attempts with the last error', async () => {
 		let calls = 0
-		await expect(retrying(async () => { calls++; throw new Error(`gone ${calls}`) }, async () => {})).rejects.toThrow('gone 8')
+		let recovered = 0
+		await expect(retrying(async () => { calls++; throw new Error(`gone ${calls}`) }, async () => { recovered++ })).rejects.toThrow('gone 8')
 		expect(calls).toBe(8)
+		expect(recovered).toBe(7)
 	})
 	it('does not retry when the call succeeds', async () => {
 		let recovered = 0
@@ -160,6 +165,10 @@ describe('build: the freeze table (a take that outruns its scene)', () => {
 		expect(lines[2]).toMatch(/^ 2 {2}pair\s+9\.0\s+9\.0\s+1\.8\s+10\.8 {2}00:06$/)
 		expect(lines[3]).toMatch(/\(no take\)$/)
 		expect(lines.at(-1)).toBe('total 21.8 s (1 scene frozen to fit its take; `emaki fit` and a new render make that unnecessary)')
+	})
+	it('counts the frozen scenes in the total line', () => {
+		const both = planTable(buildPlan(film, timing, new Map([...takes, ['hook', { file: 't/take-01.wav', seconds: 6 }]]), LT))
+		expect(both.at(-1)).toMatch(/\(2 scenes frozen to fit their takes; /)
 	})
 })
 

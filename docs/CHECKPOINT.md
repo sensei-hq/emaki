@@ -1,22 +1,25 @@
 # Checkpoint
 
-**Slice:** feat/issue-10-adoption-gaps (issue #10), PR #11
+**Slice:** chore/coverage-and-ci (coverage to 100% + gate)
 
 **Done**
-- `MotionShow` `cover` prop: image + play button, show created on the first click and started with sound on.
-- `setupMotion` registers glob-path logo keys (`./logos/acme.svg`) by basename.
-- React and Vue `MotionShow` at parity with Svelte (poster, cover, title/length, ticks, fullscreenHref); `useShowState` reports `started` and follows the playhead.
-- Docs synced (package READMEs, docs/llms, site copies).
-- `bun run check` 460 passed; browser check green; site tests 34 passed; react/vue src 100% coverage.
+- v0.1.2 on npm (issue #10: MotionShow cover, React/Vue parity, glob logo keys).
+- PR #12 merged: CI runs the poster's python tests; the GitHub release runs only for a tag.
+- packages/*/src at 100% lines/branches/functions/statements; vitest thresholds at 100; CI runs `bun run coverage`.
+- Bug fixed on the way: `emaki render` hung (unhandled EPIPE) when ffmpeg quit mid-capture; now fails with 'ffmpeg failed'.
+- Dead branches removed (no behaviour change): vite code() raw fallback, applyPortrait ground lookup, rng seed guard,
+  kit words(), controller sync, elements sound toggle, desk putMedia ext, youtube languageName, stage --channels list,
+  tts-io stderr, media retrying's unreachable end.
+- `bun run check` 700 passed; coverage 100; browser check, site 34, python OK.
 
 **Remaining**
-- Merge PR #11; cut a patch with `bun run bump patch --yes` if the website should consume it.
-- Coverage to 100% on packages/*/src (84% lines now), then thresholds + CI.
-- CI: run the poster's Python test; gate publish.yml's GitHub release step to tags.
+- Merge the coverage PR.
 
-**Next command:** `gh pr merge 11 --merge --delete-branch`
+**Next command:** `gh pr merge 13 --merge --delete-branch`
 
 **Open questions**
-- Workers Builds on PR branches needs the non-production deploy command set in the dashboard.
+- Workers Builds on PR branches: set the non-production deploy command to
+  `bunx wrangler versions upload -c site/wrangler.jsonc` in the Cloudflare dashboard (user).
+- qlty: 2 public-signature smells left (playScore 7 params, signMedia 6); changing them is a breaking API change.
 
 **Known broken:** nothing.

@@ -27,6 +27,9 @@ jobs:
       - name: Types, build, specs
         run: bun run check
       # The poster (packages/emaki-posting/poster) is python on the standard library only: no install step.
+      # The same specs with V8 coverage of packages/*/src; below 100% (vitest.config.js thresholds) it fails.
+      - name: Coverage
+        run: bun run coverage
       - name: Poster (python)
         run: python3 -B -m unittest discover -s packages/emaki-posting/spec -p 'test_*.py'
 
