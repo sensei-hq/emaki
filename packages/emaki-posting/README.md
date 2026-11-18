@@ -52,4 +52,4 @@ Setup:
    `POST_MODE=dry-run` until you trust it; run `python3 node_modules/@senseihq/emaki-posting/poster/post.py`.
 5. Test in dry-run: stage → approve → change the text (the approval lapses) → re-approve → dry-run post.
 
-MIT © SenecaGlobal
+MIT © sensei-hq

@@ -106,4 +106,4 @@ depends on the machine's theme. `src: 'json' | 'js'` forces where scenes come fr
 for checking a converted scene against its code original; the routes `emaki init` writes read `?src=` and `?mode=`. `emaki sheet` and `emaki render` drive it; every framework wrapper's `ShowPage`
 calls it when `capture` is set.
 
-MIT © SenecaGlobal
+MIT © sensei-hq

@@ -35,4 +35,4 @@ OS, and the scenes redraw when it changes. A film draws dark only if it has a da
 own chrome. Keys on the player: ←/→ scene, Space play/pause, M sound, O orientation, R replay the scene, Home from
 the top, F fullscreen (`showKey` in the core, the same in every wrapper). The bar shows a progress tick per scene.
 
-MIT © SenecaGlobal
+MIT © sensei-hq

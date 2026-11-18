@@ -240,5 +240,5 @@ export const footer = {
 			]
 		}
 	],
-	legal: 'MIT © SenecaGlobal'
+	legal: 'MIT © sensei-hq'
 };

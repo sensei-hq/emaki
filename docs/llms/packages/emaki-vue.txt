@@ -32,4 +32,4 @@ image URL shown with the play button; the show is created on the first click, so
 Call `setupMotion({ source, site, logos })` once on the client first. Composables: `useScenePlayer(player)` (a
 reactive snapshot of a `ScenePlayerState`) and `useShowState(showRef)` (`{ index, local, playing, sound, layout, started }`, the playhead followed once a frame).
 
-MIT © SenecaGlobal
+MIT © sensei-hq

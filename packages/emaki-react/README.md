@@ -31,4 +31,4 @@ Call `setupMotion({ source, site, logos })` once on the client first (`emaki ini
 `mode` is `light`, `dark` or `auto`. Auto follows the page's `data-mode` (as rokkit's `themable` sets it), else the
 OS, and the scenes redraw when it changes. A film draws dark only if it has a dark look (see @senseihq/emaki).
 
-MIT © SenecaGlobal
+MIT © sensei-hq
