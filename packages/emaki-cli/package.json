@@ -1,6 +1,6 @@
 {
   "name": "@senseihq/emaki-cli",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "The motion stories command line: set a project up, install the Claude plugin (skills, agents, playbook), run the production steps (validate, sheet, voice, fit, render, build) per film and locale, then stage, publish and run a campaign.",
   "type": "module",
   "license": "MIT",
