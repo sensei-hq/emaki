@@ -1,20 +1,20 @@
 # Checkpoint
 
-**Slice:** player description + captions default + mount coalescing + OpenSpec (toward v0.3.0)
+**Slice:** none open — v0.3.0 shipped
 
 **Done**
 
-- `emaki build` burns captions only with `--captions` (BREAKING: `--no-captions` removed); sidecars still ship.
-- Optional VO-script description under the player: core `voiceText`/`voiceLines`/`descriptionFooter`,
-  `<motion-show description>`, Svelte/React/Vue `description` props; off by default everywhere.
-- OpenSpec adopted: `openspec/` (project, web-components spec, `fix-overlapping-element-mounts` change),
-  `AGENTS.md`, slash commands, CLAUDE.md wiring.
-- #19 fixed (mounts/starts coalesce on newest, restart-if-emptied); #8 verified fully resolved.
-- Issues #8 and #19 closed with evidence. Branch `feat/player-description-captions-mount-fix`, 4 commits.
+- v0.3.0 on npm (all six packages) and as a GitHub release (PR #20, tag v0.3.0).
+- Breaking: `emaki build` burns captions only with `--captions` (`--no-captions` removed).
+- Optional VO-script description under the story player (core + element + Svelte/React/Vue props),
+  off by default everywhere.
+- OpenSpec adopted (`openspec/`, `AGENTS.md`, commands, CLAUDE.md wiring); #19 fixed through
+  change `fix-overlapping-element-mounts`.
+- Issues #8 (verified resolved) and #19 (fixed) closed. Coverage 100%, CI green incl. Chromium + site.
 
-**Remaining:** PR checks green → merge → `bun run bump` (minor → 0.3.0, tag publishes).
+**Remaining:** nothing.
 
-**Next command:** `gh pr checks --watch` on the branch PR, then merge.
+**Next command:** none pending; start the next slice from an issue or an openspec change.
 
 **Open questions:** none.
 
