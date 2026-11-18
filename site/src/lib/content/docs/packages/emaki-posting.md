@@ -10,7 +10,7 @@ npm i @senseihq/emaki-posting
 
 | Export | What |
 |---|---|
-| `@senseihq/emaki-posting` | rules (`contentSha`, `channelState`, `due`, `makeNext`, `signMedia`, `checkSignature`, `validKey`), access (`verifyCaller`, `callerOf`, `allowed`, roles admin / stager / poster), `PostingStore` + `MediaStore` interfaces and `memoryStore()`, and `createDesk(options)` → `{ api, signedMedia, desk }` |
+| `@senseihq/emaki-posting` | rules (`contentSha`, `channelState`, `due`, `makeNext`, `signMedia(key, secret, { origin, path?, ttl?, now? })`, `checkSignature`, `validKey`), access (`verifyCaller`, `callerOf`, `allowed`, roles admin / stager / poster), `PostingStore` + `MediaStore` interfaces and `memoryStore()`, and `createDesk(options)` → `{ api, signedMedia, desk }` |
 | `/cloudflare` | `d1Store(db)` and `r2Media(bucket)` |
 | `/sveltekit` | `postingHandle({ env, dev })` (the guard hook), `apiRoutes(desk)`, `mediaRoute(desk)` |
 | `/migrations/*` | D1 / SQLite schema: staged, approvals, posts, audit, settings, schedule, production, requests |

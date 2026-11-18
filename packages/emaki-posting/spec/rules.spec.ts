@@ -36,12 +36,21 @@ describe('posting rules', () => {
   });
   it('signs media URLs that expire and cannot be altered', async () => {
     const now = Date.UTC(2026, 10, 16);
-    const url = new URL(await signMedia('a/short.mp4', 'secret', 'https://site.example', 3600, now));
+    const url = new URL(await signMedia('a/short.mp4', 'secret', { origin: 'https://site.example', ttl: 3600, now }));
     const [exp, sig] = [url.searchParams.get('exp')!, url.searchParams.get('sig')!];
     expect(await checkSignature('a/short.mp4', exp, sig, 'secret', now)).toBe(true);
     expect(await checkSignature('a/other.mp4', exp, sig, 'secret', now)).toBe(false);
     expect(await checkSignature('a/short.mp4', exp, sig, 'other', now)).toBe(false);
     expect(await checkSignature('a/short.mp4', exp, sig, 'secret', now + 2 * 3600 * 1000)).toBe(false);
+  });
+  it('signs under the media path it is given, for an hour unless told otherwise', async () => {
+    const now = Date.UTC(2026, 10, 16);
+    const url = new URL(await signMedia('a/b c.mp4', 's', { origin: 'https://site.example', now, path: '/media' }));
+    expect(url.pathname).toBe('/media/a/b%20c.mp4');
+    expect(Number(url.searchParams.get('exp'))).toBe(now / 1000 + 3600);
+    const short = new URL(await signMedia('a/b.mp4', 's', { origin: 'https://site.example', now, ttl: 60 }));
+    expect(short.pathname).toBe('/m/a/b.mp4');
+    expect(Number(short.searchParams.get('exp'))).toBe(now / 1000 + 60);
   });
   it('accepts only plain media keys', () => {
     expect(validKey('schema-as-code/short.mp4')).toBe(true);

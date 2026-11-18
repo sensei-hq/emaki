@@ -43,7 +43,7 @@ export function scorePlayer(f: FilmMeta) {
         bus.connect(ctx.destination);
       }
       await ctx.resume();
-      voice = play(ctx, bus!, score, from, end, ctx.currentTime + 0.05, end);
+      voice = play(ctx, bus!, score, { from, to: end, at: ctx.currentTime + 0.05, end });
       return true;
     },
     duck(on: boolean) {
@@ -97,7 +97,7 @@ async function soundFigure(st: FigureSound, r: Awaited<FigureSound['ready']>, at
     const c = st.ctx;
     if (!st.bus) { st.bus = c.createGain(); st.bus.connect(c.destination); }
     st.bus.gain.value = r.spoken ? DUCK : 1;
-    st.voice = play(c, st.bus, r.score, st.from + at, st.to, c.currentTime + 0.03, st.end);
+    st.voice = play(c, st.bus, r.score, { from: st.from + at, to: st.to, at: c.currentTime + 0.03, end: st.end });
   }
   await speaking;
 }

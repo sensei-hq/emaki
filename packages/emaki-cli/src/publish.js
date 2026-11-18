@@ -102,7 +102,7 @@ async function reelUrls(p, slug, f, { videoUrl, coverUrl, env, fetch, now }) {
 	const desk = deskClient(p, { env, fetch }), urls = []
 	for (const [key, file, type] of [[`${slug}/${basename(f.tall)}`, f.tall, 'video/mp4'], [`${slug}/instagram-${basename(f.coverTall)}`, f.coverTall, 'image/jpeg']]) {
 		await desk.putMedia(key.toLowerCase(), readFileSync(file), type)
-		urls.push(await signMedia(key.toLowerCase(), env.MEDIA_URL_SECRET, desk.origin, 3600, now(), env.MEDIA_PATH || '/m'))
+		urls.push(await signMedia(key.toLowerCase(), env.MEDIA_URL_SECRET, { origin: desk.origin, now: now(), path: env.MEDIA_PATH || '/m' }))
 	}
 	return urls
 }

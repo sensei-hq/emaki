@@ -65,7 +65,7 @@ describe('scene sound', () => {
     const ctx = FakeCtx.all[0];
     expect(ctx.resumed).toBe(1);
     expect(played).toHaveLength(1);
-    const [c, bus, sc, from, to, at, end] = played[0] as [FakeCtx, FakeCtx['gains'][0], { events: unknown[] }, number, number, number, number];
+    const [c, bus, sc, { from, to, at, end }] = played[0] as [FakeCtx, FakeCtx['gains'][0], { events: unknown[] }, { from: number; to: number; at: number; end: number }];
     expect(c).toBe(ctx);
     expect(bus).toBe(ctx.gains[0]);
     expect(bus.to).toBe(ctx.destination);
@@ -74,7 +74,7 @@ describe('scene sound', () => {
     expect([from, to, at, end]).toEqual([2 + 1, 5, 2.03, 6]);
     await s.cue(0.5);
     expect(ctx.gains).toHaveLength(1);
-    expect((played[1] as number[])[3]).toBe(2.5);
+    expect((played[1][3] as { from: number }).from).toBe(2.5);
     s.destroy();
     expect(ctx.closed).toBe(true);
     expect(s.on).toBe(false);

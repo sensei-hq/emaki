@@ -213,11 +213,11 @@ function playFx(m: Mix, e: Extract<Ev, { kind: 'fx' }>, at: number, input: Audio
   sound({ m, e, at, input, v: (e.vel / 127) ** 0.9 });
 }
 
-/**
- * Schedules the score's events from film time `from` to `to` on `ctx`, so film time `from` sounds at context time `at`.
- * `end` is the film's length (for the master fade). Returns a handle that stops it.
- */
-export function play(ctx: BaseAudioContext, dest: AudioNode, score: Score, from: number, to: number, at: number, end: number) {
+/** What to play: film time `from` to `to`, sounding from context time `at`; `end` is the film's length (for the master fade). */
+export interface ScoreSpan { from: number; to: number; at: number; end: number }
+
+/** Schedules the score's events over `span` on `ctx`, into `dest`. Returns a handle that stops it. */
+export function play(ctx: BaseAudioContext, dest: AudioNode, score: Score, { from, to, at, end }: ScoreSpan) {
   const m = new Mix(ctx, dest, score.master.gain);
   const fadeAt = end - score.master.fadeOut;
   if (to > fadeAt && score.master.fadeOut > 0) {
@@ -242,7 +242,7 @@ export function play(ctx: BaseAudioContext, dest: AudioNode, score: Score, from:
 /** The whole score rendered offline, as a 16-bit stereo WAV (bytes). */
 export async function renderWav(score: Score, duration: number, sampleRate = 48000): Promise<Uint8Array> {
   const ctx = new OfflineAudioContext(2, Math.ceil((duration + 0.2) * sampleRate), sampleRate);
-  play(ctx, ctx.destination, score, 0, duration, 0, duration);
+  play(ctx, ctx.destination, score, { from: 0, to: duration, at: 0, end: duration });
   const buf = await ctx.startRendering();
   const n = buf.length, out = new DataView(new ArrayBuffer(44 + n * 4));
   const w = (o: number, s: string) => [...s].forEach((c, i) => out.setUint8(o + i, c.charCodeAt(0)));
