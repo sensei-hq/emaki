@@ -4,7 +4,7 @@
   "description": "The motion stories posting desk: stage, approve exactly what was staged, post on schedule. Framework-free core with Cloudflare (D1/R2/Access) and SvelteKit adapters.",
   "type": "module",
   "license": "MIT",
-  "author": "SenecaGlobal",
+  "author": "sensei-hq",
   "repository": { "type": "git", "url": "git+https://github.com/sensei-hq/emaki.git", "directory": "packages/emaki-posting" },
   "keywords": ["emaki", "social", "publishing", "approval", "cloudflare", "d1", "r2", "sveltekit"],
   "sideEffects": false,

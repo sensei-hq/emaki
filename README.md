@@ -55,4 +55,4 @@ no token), refuses any tarball whose siblings are pinned to another release (`co
 GitHub release. `deprecate.yml` deprecates a bad release (needs an `NPM_TOKEN` secret). From a machine,
 `bun run publish:all` publishes core-first, skips any version already on npm, and stops at the first failure.
 
-MIT © SenecaGlobal
+MIT © sensei-hq

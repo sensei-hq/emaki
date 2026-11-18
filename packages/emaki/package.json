@@ -4,7 +4,7 @@
   "description": "Motion stories core: JSON scenes that render as article figures, a story player and video capture, in any language. Framework-free, with web components and loaders.",
   "type": "module",
   "license": "MIT",
-  "author": "SenecaGlobal",
+  "author": "sensei-hq",
   "repository": { "type": "git", "url": "git+https://github.com/sensei-hq/emaki.git", "directory": "packages/emaki" },
   "homepage": "https://github.com/sensei-hq/emaki#readme",
   "keywords": ["emaki", "motion", "animation", "scenes", "explainer", "video", "i18n", "web-components", "storytelling"],

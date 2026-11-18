@@ -4,7 +4,7 @@
   "description": "React components and hooks for motion stories: article figures, the story player, a controlled scene player and the video capture page.",
   "type": "module",
   "license": "MIT",
-  "author": "SenecaGlobal",
+  "author": "sensei-hq",
   "repository": { "type": "git", "url": "git+https://github.com/sensei-hq/emaki.git", "directory": "packages/emaki-react" },
   "keywords": ["emaki", "react", "nextjs", "motion", "animation", "explainer", "i18n"],
   "sideEffects": false,

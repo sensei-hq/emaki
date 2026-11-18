@@ -67,4 +67,4 @@ Needs Node 20.10+, ffmpeg, and Playwright with Chromium for `sheet`, `render` an
 functions from `@senseihq/emaki-cli` (`project`, `validate`, `voice`, `voiceWeb`, `fit`, `render`, `build`, `stage`, `publish`,
 `youtube`, `instagram`, `carousel`, `campaignStatus`, …); every network call takes an injectable `fetch`.
 
-MIT © SenecaGlobal
+MIT © sensei-hq
