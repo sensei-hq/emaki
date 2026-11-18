@@ -3,7 +3,7 @@
 // scrolls away; <motion-show> starts its player when it has a film, restarts on a new one, fits on resize, and lets
 // keys through until the player is there.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useSource, type FilmJson } from '../src/index.js';
+import { useSource, type FilmJson, type SceneSpec } from '../src/index.js';
 import { defineMotionElements } from '../src/elements/index.js';
 
 class FakeAudio {
@@ -118,6 +118,60 @@ describe('<motion-scene>', () => {
     el.remove();
   });
 
+  it('a mount superseded after assigning starts no render loop', async () => {
+    let release!: (v: string | null) => void;
+    const gate = new Promise<string | null>((r) => (release = r));
+    useSource({
+      films: async () => [{ slug: 'f', json: film }, { slug: 'g', json: { ...film, title: 'G' } }],
+      css: async () => '',
+      scene: async (_s, id) => ({
+        components: [{ type: 'text', id: `t-${id}`, text: id }],
+        tracks: [{ kind: 'tween', target: `.t-${id}`, prop: 'opacity', from: 0, to: 1, t0: 0, t1: 1, easing: 'linear' }],
+        portrait: { hoist: [], frame: [0, 600], crop: [0, 0, 1920, 1080] },
+      }),
+      timing: async () => ({ scenes: { a: { voice: 0 } } }),
+      voice: async (slug, locale, scene) => `/v/${slug}/${locale}/${scene}.m4a`,
+      score: () => gate,
+    });
+    const el = scene({ film: 'f', scene: 'a', layout: 'landscape' });
+    await vi.waitFor(() => expect(stage(el)).not.toBeNull());
+    el.setAttribute('locale', 'es');
+    const first = stage(el);
+    await vi.waitFor(() => expect(stage(el)).not.toBe(first));
+    release(null);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(stage(el)!.style.transform).toBe('scale(1)');
+    expect(frames).toHaveLength(1);
+    el.remove();
+  });
+
+  it('a mount overtaken while loading is dropped without touching the live one', async () => {
+    let release!: (v: SceneSpec) => void;
+    const gate = new Promise<SceneSpec>((r) => (release = r));
+    let calls = 0;
+    const script: SceneSpec = {
+      components: [{ type: 'text', id: 't-a', text: 'a' }],
+      tracks: [{ kind: 'tween', target: '.t-a', prop: 'opacity', from: 0, to: 1, t0: 0, t1: 1, easing: 'linear' }],
+      portrait: { hoist: [], frame: [0, 600], crop: [0, 0, 1920, 1080] },
+    };
+    useSource({
+      films: async () => [{ slug: 'f', json: film }, { slug: 'g', json: { ...film, title: 'G' } }],
+      css: async () => '',
+      scene: async () => (++calls === 1 ? gate : script),
+      timing: async () => ({ scenes: { a: { voice: 0 } } }),
+      voice: async (slug, locale, scene) => `/v/${slug}/${locale}/${scene}.m4a`,
+    });
+    const el = scene({ film: 'f', scene: 'a', layout: 'landscape' });
+    await vi.waitFor(() => expect(calls).toBe(1));
+    el.setAttribute('locale', 'es');
+    await vi.waitFor(() => expect(stage(el)).not.toBeNull());
+    release(script);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(stage(el)!.style.transform).toBe('scale(1)');
+    expect(frames).toHaveLength(1);
+    el.remove();
+  });
+
   it('ignores the sound button before the scene is mounted and after it is gone', async () => {
     const el = scene({});
     el.querySelector('button')!.click();
@@ -218,4 +272,32 @@ describe('<motion-show>', () => {
     el.remove();
   });
 
+  it('a show overtaken by a newer film is dropped, and an emptied host restarts', async () => {
+    type Films = { slug: string; json: FilmJson }[];
+    let release!: (v: Films) => void;
+    const gate = new Promise<Films>((r) => (release = r));
+    let calls = 0;
+    const listed: Films = [{ slug: 'f', json: film }, { slug: 'g', json: { ...film, title: 'G' } }];
+    useSource({
+      films: async () => (++calls === 1 ? gate : listed),
+      css: async () => '',
+      scene: async (slug, id) => ({
+        components: [{ type: 'text', id: `t-${id}`, text: `${slug}-${id}` }],
+        tracks: [{ kind: 'tween', target: `.t-${id}`, prop: 'opacity', from: 0, to: 1, t0: 0, t1: 1, easing: 'linear' }],
+        portrait: { hoist: [], frame: [0, 600], crop: [0, 0, 1920, 1080] },
+      }),
+      timing: async () => ({ scenes: { a: { voice: 0 } } }),
+      voice: async (slug, locale, scene) => `/v/${slug}/${locale}/${scene}.m4a`,
+    });
+    const el = document.createElement('motion-show') as ShowEl;
+    el.setAttribute('film', 'f');
+    document.body.appendChild(el);
+    el.setAttribute('film', 'g');
+    await vi.waitFor(() => expect(el.controller).toBeTruthy());
+    release(listed);
+    await new Promise((r) => setTimeout(r, 10));
+    expect((el.controller as unknown as { film: { slug: string } }).film.slug).toBe('g');
+    expect(stage(el)!.querySelector('.t-a')!.textContent).toBe('g-a');
+    el.remove();
+  });
 });

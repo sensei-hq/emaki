@@ -13,7 +13,7 @@ const modeOf = (el: Element): Mode => (['light', 'dark'].includes(el.getAttribut
 
 class MotionScene extends HTMLElement {
   static observedAttributes = ['film', 'scene', 'layout', 'locale', 'mode'];
-  #m: Mounted | null = null; #raf = 0; #t = 0; #last = 0; #ro?: ResizeObserver; #io?: IntersectionObserver; #visible = false;
+  #m: Mounted | null = null; #raf = 0; #t = 0; #last = 0; #ro?: ResizeObserver; #io?: IntersectionObserver; #visible = false; #gen = 0;
   #box = document.createElement('div'); #btn = document.createElement('button');
   #sound: ReturnType<typeof sceneSound> | null = null;
   connectedCallback() {
@@ -33,18 +33,25 @@ class MotionScene extends HTMLElement {
   attributeChangedCallback() { if (this.isConnected) this.#mount(); }
   get layout(): Layout { return (this.getAttribute('layout') as Layout) || 'figure'; }
   async #mount() {
+    // Overlapping mounts (upgrade fires one per attribute, plus connectedCallback): the newest call wins, the
+    // rest return. The pre-call check has no await after it, so a superseded mount never reaches mountScene().
+    const token = ++this.#gen;
     const slug = this.getAttribute('film'), id = this.getAttribute('scene'), locale = this.getAttribute('locale') || 'en';
     if (!slug || !id) return;
     const f = await loadFilm(slug, locale);
     if (!f) return;
     await fontsReady(f);
+    if (token !== this.#gen) return;
     this.#m?.destroy();
-    this.#m = await mountScene(this.#box, f, id, this.layout, { locale, mode: modeOf(this) });
+    const m = await mountScene(this.#box, f, id, this.layout, { locale, mode: modeOf(this) });
+    if (token !== this.#gen) { m.destroy(); return; }
+    this.#m = m;
     // The scene's score slice and narration (sceneSound); a new film, scene or language starts it over, off.
     this.#sound?.destroy();
     const sound = (this.#sound = sceneSound(slug, id, locale));
     this.#btn.textContent = '🔈'; this.#btn.setAttribute('aria-label', 'Sound on');
     this.#btn.hidden = !(await sound.available);
+    if (token !== this.#gen) return;
     this.#fit();
     cancelAnimationFrame(this.#raf); this.#last = performance.now();
     const tick = (now: number) => {
@@ -78,6 +85,7 @@ class MotionShow extends HTMLElement {
   #show: Awaited<ReturnType<typeof createShow>> | null = null; #ro?: ResizeObserver;
   #box = document.createElement('div');
   #foot: { el: HTMLElement; destroy: () => void } | null = null; #footKey = '';
+  #gen = 0; #pending = 0;
   /** The description footer is on: a Description button under the player opens the voiceover script. */
   get #descOn() { return this.hasAttribute('description'); }
   connectedCallback() {
@@ -113,12 +121,24 @@ class MotionShow extends HTMLElement {
     if (f) this.append(f.el);
   }
   async #start() {
+    // Overlapping starts: the newest call wins. A superseded show is destroyed; when it had mounted last its
+    // destroy empties the host while nothing else is in flight (#pending counts this call), so start over.
+    const token = ++this.#gen;
     const slug = this.getAttribute('film');
     if (!slug) return;
     this.#show?.destroy();
-    this.#show = await createShow(this.#box, slug, { locale: this.getAttribute('locale') || 'en', layout: (this.getAttribute('layout') as Layout) || 'landscape', mode: modeOf(this) });
-    this.#show.fit(this.clientWidth, this.clientHeight);
-    this.#show.on((s) => this.dispatchEvent(new CustomEvent('showchange', { detail: s })));
+    this.#pending++;
+    try {
+      const show = await createShow(this.#box, slug, { locale: this.getAttribute('locale') || 'en', layout: (this.getAttribute('layout') as Layout) || 'landscape', mode: modeOf(this) });
+      if (token !== this.#gen) {
+        show.destroy();
+        if (!this.#box.shadowRoot?.querySelector('#stage') && this.#pending === 1) this.#start();
+        return;
+      }
+      this.#show = show;
+      this.#show.fit(this.clientWidth, this.clientHeight);
+      this.#show.on((s) => this.dispatchEvent(new CustomEvent('showchange', { detail: s })));
+    } finally { this.#pending--; }
   }
   #key = (e: KeyboardEvent) => { if (this.#show && showKey(this.#show, e, this)) e.preventDefault(); };
 }
