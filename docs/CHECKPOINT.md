@@ -1,23 +1,20 @@
 # Checkpoint
 
-**Slice:** refactor/options-objects (the last two qlty smells) — PR open
+**Slice:** fix/wrangler-previews (Workers Builds on pull requests) — PR open
 
 **Done**
-- v0.1.3 on npm (all six packages) and as a GitHub release.
-- `playScore(ctx, dest, score, { from, to, at, end })` (was 7 positional parameters; new `ScoreSpan` type).
-- `signMedia(key, secret, { origin, path?, ttl?, now? })` (was 6; new `SignOptions` type; defaults /m, 3600 s, now).
-- Callers moved: sound.ts, score.ts renderWav, desk machine.ts, CLI publish.js. Docs (README, docs/llms, site) show the
-  new call shapes.
-- `bun run coverage` 701 passed at 100%; types clean; browser check and site 34 green.
+- v0.2.0 on npm (all six packages, author sensei-hq) and as a GitHub release (breaking: playScore/signMedia options).
+- Copyright holder and author renamed to sensei-hq everywhere (PR #16).
+- Workers Builds previews diagnosed from the build log (Cloudflare API): dashboard settings were right (root `/`,
+  `bunx wrangler preview -c site/wrangler.jsonc`); wrangler refused a config without a `previews` block.
+- site/wrangler.jsonc gains `"previews": {}`; site/src/lib/deploy.test.ts guards it (red first). Site 36 specs green,
+  production `wrangler deploy --dry-run` still clean.
 
 **Remaining**
-- Merge the PR; release when wanted. Breaking for direct callers of either function, so the next bump is the place
-  to say so in the release notes.
+- Confirm "Workers Builds: emaki" goes green on this PR, then merge.
 
-**Next command:** `gh pr merge <this PR> --merge --delete-branch`
+**Next command:** `gh pr checks <this PR>` then `gh pr merge <this PR> --merge --delete-branch`
 
-**Open questions**
-- Workers Builds previews: Previews base preview command `bunx wrangler preview -c site/wrangler.jsonc` not yet
-  confirmed green (last failure: the name check, under `versions upload`).
+**Open questions:** none.
 
 **Known broken:** nothing known.
