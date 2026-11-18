@@ -26,14 +26,14 @@ function ready({ renders = ['16x9', '9x16'], takes = [1, 2] } = {}) {
 const ffmpeg = () => t.ran().filter((l) => l.startsWith('ffmpeg '))
 
 describe('build', () => {
-	it('builds both orientations (the score at the configured level), the web copy, captions, chapters, the description and the posters', () => {
+	it('builds both orientations (the score at the configured level), the web copy, burned-in captions with captions: true, chapters, the description and the posters', () => {
 		const d = ready()
 		put(d, 'content/films/demo/timing.en.json', { scenes: { hook: { dur: 10 } } })
 		put(d, 'emaki.config.json', { storyUrl: 'https://site.example/articles/{slug}', scoreLevel: 0.3 })
 		put(d, `${RENDER}/demo-en-cover-16x9.jpg`, 'COVER')
 		put(d, `${RENDER}/demo-en-cover-9x16.jpg`, 'COVER')
 		const log = logger()
-		const r = build(load(d), 'demo', { locale: 'en', log })
+		const r = build(load(d), 'demo', { locale: 'en', captions: true, log })
 		const out = join(d, OUT)
 		expect(r.built).toEqual([join(out, 'demo-en-16x9.mp4'), join(out, 'demo-en-9x16.mp4'), join(out, 'demo-en-web.mp4')])
 		expect(r.duration).toBe(28)
@@ -69,13 +69,13 @@ describe('build', () => {
 		expect(runs[4]).toContain(`-vf scale=1280:720 -q:v 3 ${join(out, 'demo-en-thumb.jpg')}`)
 	})
 
-	it('one orientation, no captions, a silent render, a timing file with no scenes and a folder of its own', () => {
+	it('one orientation, captions off by default, a silent render, a timing file with no scenes and a folder of its own', () => {
 		const d = ready({ renders: ['9x16'] })
 		put(d, 'content/films/demo/timing.en.json', {})
 		rmSync(join(d, 'content/stories/en/demo.json'))
 		vi.stubEnv('FAKE_STREAMS', '')
 		const log = logger(), dst = join(d, 'shipping')
-		const r = build(load(d), 'demo', { locale: 'en', noCaptions: true, out: dst, log, length: () => 1.5 })
+		const r = build(load(d), 'demo', { locale: 'en', out: dst, log, length: () => 1.5 })
 		expect(r.built).toEqual([join(dst, 'demo-en-9x16.mp4')])
 		const runs = ffmpeg()
 		expect(runs[1]).not.toContain('subtitles=')

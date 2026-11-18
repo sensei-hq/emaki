@@ -73,7 +73,7 @@ come back and repeats the frame.
   Commit the `.m4a` files with the story; rerun `voice-web` after re-recording a take (a scene whose take is gone
   loses its file). Vite apps glob them as URLs (`voice` in the source, written by `emaki init`); the fetch loader
   reads them from the published content folder.
-- **Captions** come from the voice text (`.vtt` for the site player, `.srt` burned into social cuts). Review them in
+- **Captions** come from the voice text (`.vtt` for the site player, `.srt` for uploads, burned in with `build --captions`). Review them in
   every locale.
 - **Freeze, the safety net**: when a take is longer than its scene in the render (a take re-recorded after the render,
   or `fit` skipped), `build` freezes the scene's last frame until the voice has finished, loops the score under the

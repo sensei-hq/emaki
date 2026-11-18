@@ -1,5 +1,6 @@
 // The final videos (build.py): the rendered picture, the voice laid into each scene, the score ducked under it,
-// -14 LUFS, captions burned in and shipped as .srt/.vtt, chapters, the description, the web copy and the posters.
+// -14 LUFS, captions shipped as .srt/.vtt (burned in only with `captions`), chapters, the description, the web copy
+// and the posters.
 import { copyFileSync, existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { SUFFIX } from './config.js'
@@ -40,10 +41,10 @@ const burnIn = (srtPath, layout) => {
 }
 
 /** Final videos per orientation (build.py): the rendered picture with the voice laid `lead` s into each scene, the
- *  render's music ducked under it, -14 LUFS, captions burned in (and shipped as .srt/.vtt). A take that outruns its
- *  scene freezes the scene's last frame until it has finished (buildPlan). `check` prints the plan and builds nothing;
- *  `out` is the output folder (default production/<slug>/<locale>/out/). */
-export function build(p, slug, { locale, noCaptions = false, check = false, out: target = undefined, log = console.info, length = mediaLength } = {}) {
+ *  render's music ducked under it, -14 LUFS, captions shipped as .srt/.vtt (burned in with `captions`). A take that
+ *  outruns its scene freezes the scene's last frame until it has finished (buildPlan). `check` prints the plan and
+ *  builds nothing; `out` is the output folder (default production/<slug>/<locale>/out/). */
+export function build(p, slug, { locale, captions: burn = false, check = false, out: target = undefined, log = console.info, length = mediaLength } = {}) {
 	const d = p.filmDir(slug), film = load(join(d, 'film.json'))
 	const tp = join(d, `timing.${locale}.json`)
 	const tm = existsSync(tp) ? (load(tp).scenes ?? {}) : {}
@@ -90,7 +91,7 @@ export function build(p, slug, { locale, noCaptions = false, check = false, out:
 	for (const [layout, pic] of pics) {
 		const dst = join(out, `${slug}-${locale}-${SUFFIX[layout]}.mp4`)
 		run('ffmpeg', buildArgs({
-			pic, voice: voicePath, plan, music: hasAudio(pic), subtitles: noCaptions ? null : burnIn(srtPath, layout),
+			pic, voice: voicePath, plan, music: hasAudio(pic), subtitles: burn ? burnIn(srtPath, layout) : null,
 			chapters, scoreLevel: p.cfg.scoreLevel ?? 0.55, dst
 		}))
 		log(`built ${p.rel(dst)} (${plan.rows.length} chapters)`)
