@@ -66,8 +66,12 @@ export function due(
   return out;
 }
 
+/** Where a signed media URL points and how long it lives: the site's origin, the media route's path (default /m),
+ *  seconds until it expires (default an hour) and the clock (default now, in ms). */
+export interface SignOptions { origin: string; path?: string; ttl?: number; now?: number }
+
 /** A short-lived, signed public URL for one media file (Instagram fetches media from a URL). */
-export async function signMedia(key: string, secret: string, origin: string, ttl = 3600, now = Date.now(), path = '/m') {
+export async function signMedia(key: string, secret: string, { origin, path = '/m', ttl = 3600, now = Date.now() }: SignOptions) {
   const exp = Math.floor(now / 1000) + ttl;
   const sig = await hmac(secret, `${key}:${exp}`);
   return `${origin}${path}/${key.split('/').map(encodeURIComponent).join('/')}?exp=${exp}&sig=${sig}`;

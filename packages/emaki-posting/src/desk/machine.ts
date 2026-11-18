@@ -23,7 +23,7 @@ function queueRows(all: DeskState, pieces: Piece[]) {
 
 /** A media file of a due post, with a short-lived public link when the desk has a media secret. */
 const linked = async (d: DeskContext, x: MediaRef, base: string) =>
-  ({ ...x, url: d.o.mediaSecret ? await signMedia(x.key, d.o.mediaSecret, base, 3600, Date.now(), d.o.mediaPath ?? '/m') : null });
+  ({ ...x, url: d.o.mediaSecret ? await signMedia(x.key, d.o.mediaSecret, { origin: base, path: d.o.mediaPath }) : null });
 
 const queueItem = async (d: DeskContext, s: StagedRow, pieces: Piece[], base: string) => ({
   slug: s.slug, channel: s.channel, content_sha: s.content_sha, post: s.post, article: d.o.pieceUrl(s.slug),
