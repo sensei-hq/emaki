@@ -1,6 +1,6 @@
 {
   "name": "@senseihq/emaki",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Motion stories core: JSON scenes that render as article figures, a story player and video capture, in any language. Framework-free, with web components and loaders.",
   "type": "module",
   "license": "MIT",
