@@ -90,11 +90,12 @@ describe('the sample film', () => {
 })
 
 describe('init', () => {
-	it('the Vite source globs the narration as URLs', () => {
+	it('the Vite source globs the narration as URLs and the voiceover scripts as JSON', () => {
 		const d = tmp()
 		writeFileSync(join(d, 'package.json'), JSON.stringify({ devDependencies: { '@sveltejs/kit': '2' } }))
 		init({ cwd: d })
-		expect(readFileSync(join(d, 'src/lib/emaki-source.ts'), 'utf-8'))
-			.toContain("voice: import.meta.glob('/content/films/*/voice/*/*.m4a', { eager: true, query: '?url', import: 'default' })")
+		const src = readFileSync(join(d, 'src/lib/emaki-source.ts'), 'utf-8')
+		expect(src).toContain("voice: import.meta.glob('/content/films/*/voice/*/*.m4a', { eager: true, query: '?url', import: 'default' })")
+		expect(src).toContain("voiceText: import.meta.glob('/content/films/*/voice/*.json', { eager: true, import: 'default' })")
 	})
 })

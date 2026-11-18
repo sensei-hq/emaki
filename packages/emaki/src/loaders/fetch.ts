@@ -1,7 +1,7 @@
 // Film + content source that reads static files at runtime: works with any framework, any host, no bundler
 // feature. Publish the /content folder as-is (plus content/films/index.json, written by `motion.py manifest`).
 //   useSource(fetchFilmSource('/content')); const content = fetchContentSource('/content');
-import type { ContentSource, FilmJson, FilmSource, SceneSpec, StoryBody, StoryEntry, TimingJson } from '../index.js';
+import type { ContentSource, FilmJson, FilmSource, SceneSpec, StoryBody, StoryEntry, TimingJson, VoiceLine } from '../index.js';
 
 async function get<T>(url: string, as: 'json' | 'text' = 'json'): Promise<T | null> {
   const r = await fetch(url);
@@ -32,6 +32,7 @@ export function fetchFilmSource(base = '/content'): FilmSource {
     timing: async (slug, locale) => (await get<TimingJson>(F(slug, `timing.${locale}.json`))) ?? get<TimingJson>(F(slug, 'timing.json')),
     // Asked only for scenes whose timing gives a voice start, which `emaki voice-web` writes with the file.
     voice: async (slug, locale, scene) => F(slug, `voice/${locale}/${scene}.m4a`),
+    voiceText: (slug, locale) => get<VoiceLine[]>(F(slug, `voice/${locale}.json`)),
   };
 }
 

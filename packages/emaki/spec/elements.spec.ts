@@ -47,6 +47,7 @@ beforeEach(() => {
     }),
     timing: async () => ({ scenes: { a: { voice: 0 } } }),
     voice: async (slug, locale, scene) => `/v/${slug}/${locale}/${scene}.m4a`,
+    voiceText: async (slug) => (slug === 'f' ? [{ scene: 'a', text: 'Line A.' }, { scene: 'b', text: 'Line B.' }] : null),
   });
   defineMotionElements();
 });
@@ -143,4 +144,78 @@ describe('<motion-show>', () => {
     await vi.waitFor(() => expect(el.controller).not.toBe(first));
     el.remove();
   });
+
+  it('shows the voiceover script under a Description button when asked, the player in its own box', async () => {
+    const el = document.createElement('motion-show') as ShowEl;
+    el.setAttribute('film', 'f');
+    el.setAttribute('layout', 'portrait');
+    el.setAttribute('description', '');
+    document.body.appendChild(el);
+    await vi.waitFor(() => expect(el.controller).toBeTruthy());
+    const box = el.querySelector('div')!;
+    expect(box.style.position).toBe('relative');
+    expect(box.style.aspectRatio).toBe('1080/1920');
+    const btn = () => el.querySelector('button')!;
+    await vi.waitFor(() => expect(btn()).toBeTruthy());
+    expect(btn().textContent).toBe('Description ▸');
+    expect([...el.querySelectorAll('p')].map((p) => p.textContent)).toEqual(['Line A.', 'Line B.']);
+    btn().click();
+    expect(el.querySelector<HTMLElement>('div div')!.hidden).toBe(false);
+    Watch.all[0].cb([]);
+    expect(stage(el)!.style.transform).toBe('scale(0)');
+    const foot = btn().parentElement!;
+    el.setAttribute('mode', 'light');
+    expect(btn().parentElement).toBe(foot);
+    el.removeAttribute('description');
+    expect(el.querySelector('button')).toBeNull();
+    expect(box.style.position).toBe('absolute');
+    el.setAttribute('description', '');
+    await vi.waitFor(() => expect(el.querySelector('button')).toBeTruthy());
+    el.remove();
+  });
+
+  it('renders no footer without a film, or when the film has no script for the locale', async () => {
+    const el = document.createElement('motion-show') as ShowEl;
+    el.setAttribute('description', '');
+    el.setAttribute('locale', 'es');
+    document.body.appendChild(el);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(el.querySelector('button')).toBeNull();
+    el.setAttribute('film', 'g');
+    await vi.waitFor(() => expect(el.controller).toBeTruthy());
+    await new Promise((r) => setTimeout(r, 10));
+    expect(el.querySelector('button')).toBeNull();
+    el.remove();
+  });
+
+  it('drops a footer that a newer film overtook while loading', async () => {
+    let release!: (v: { scene: string; text: string }[] | null) => void;
+    const gate = new Promise<{ scene: string; text: string }[] | null>((r) => (release = r));
+    useSource({
+      films: async () => [{ slug: 'f', json: film }, { slug: 'g', json: { ...film, title: 'G' } }],
+      css: async () => '',
+      scene: async (_s, id) => ({
+        components: [{ type: 'text', id: `t-${id}`, text: id }],
+        tracks: [{ kind: 'tween', target: `.t-${id}`, prop: 'opacity', from: 0, to: 1, t0: 0, t1: 1, easing: 'linear' }],
+        portrait: { hoist: [], frame: [0, 600], crop: [0, 0, 1920, 1080] },
+      }),
+      timing: async () => ({ scenes: { a: { voice: 0 } } }),
+      voice: async (slug, locale, scene) => `/v/${slug}/${locale}/${scene}.m4a`,
+      voiceText: async (slug) => (slug === 'g' ? gate : [{ scene: 'x', text: 'F.' }]),
+    });
+    const el = document.createElement('motion-show') as ShowEl;
+    el.setAttribute('film', 'f');
+    el.setAttribute('description', '');
+    document.body.appendChild(el);
+    await vi.waitFor(() => expect(el.querySelector('button')).toBeTruthy());
+    el.setAttribute('film', 'g');
+    el.setAttribute('film', 'f');
+    await vi.waitFor(() => expect(el.querySelectorAll('button')).toHaveLength(1));
+    release([{ scene: 'g', text: 'G.' }]);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(el.querySelectorAll('button')).toHaveLength(1);
+    expect(el.querySelector('p')!.textContent).toBe('F.');
+    el.remove();
+  });
+
 });

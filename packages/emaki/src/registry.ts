@@ -2,7 +2,7 @@
 // (loaders/vite.ts bundles them; loaders/fetch.ts reads them from static files at runtime) and everything else asks
 // the registry. Every film is a folder: film.json, look.css, scene-<id>.json (or .js), score.js, strings/, timing.
 import type { SceneSpec } from './scene-schema.js';
-import type { FilmJson, FilmMeta, TimingJson } from './types.js';
+import type { FilmJson, FilmMeta, TimingJson, VoiceLine } from './types.js';
 
 export interface FilmSource {
   /** Every film: its slug and film.json. */
@@ -22,6 +22,8 @@ export interface FilmSource {
   /** The URL of a scene's narration for the web (voice/<locale>/<scene>.m4a), or null. Asked only for scenes whose
    *  timing gives a `voice` start. */
   voice?(slug: string, locale: string, scene: string): Promise<string | null>;
+  /** voice/<locale>.json: the voiceover script, one line per scene in film order, or null. Feeds the description. */
+  voiceText?(slug: string, locale: string): Promise<VoiceLine[] | null>;
 }
 
 let source: FilmSource | null = null;

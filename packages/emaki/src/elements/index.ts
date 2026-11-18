@@ -4,7 +4,7 @@
 // Both take mode="light|dark|auto" (default auto: follow the page's data-mode, else prefers-color-scheme).
 // Call defineMotionElements() once, after useSource(...). Both elements fit their box; give them a width (and the
 // show an aspect ratio). Sound is always off until the reader turns it on.
-import { createShow, showKey, fontsReady, loadFilm, mountScene, sceneSound, type Mounted, type Layout, type Mode, SIZES } from '../index.js';
+import { createShow, showKey, fontsReady, loadFilm, mountScene, sceneSound, descriptionFooter, type Mounted, type Layout, type Mode, SIZES } from '../index.js';
 
 const BTN = 'position:absolute;right:10px;bottom:10px;width:36px;height:36px;border-radius:50%;border:0;background:rgba(255,255,255,.85);cursor:pointer;font:16px system-ui';
 
@@ -74,21 +74,44 @@ class MotionScene extends HTMLElement {
 }
 
 class MotionShow extends HTMLElement {
-  static observedAttributes = ['film', 'locale', 'layout', 'mode'];
+  static observedAttributes = ['film', 'locale', 'layout', 'mode', 'description'];
   #show: Awaited<ReturnType<typeof createShow>> | null = null; #ro?: ResizeObserver;
   #box = document.createElement('div');
+  #foot: { el: HTMLElement; destroy: () => void } | null = null; #footKey = '';
+  /** The description footer is on: a Description button under the player opens the voiceover script. */
+  get #descOn() { return this.hasAttribute('description'); }
   connectedCallback() {
     this.style.display ||= 'block'; this.style.position ||= 'relative';
-    if (!this.#box.isConnected) { this.#box.style.cssText = 'position:absolute;inset:0;overflow:hidden'; this.append(this.#box); }
-    this.#ro = new ResizeObserver(() => this.#show?.fit(this.clientWidth, this.clientHeight)); this.#ro.observe(this);
+    if (!this.#box.isConnected) this.append(this.#box);
+    this.#layoutBox();
+    this.#ro = new ResizeObserver(() => { const b = this.#descOn ? this.#box : this; this.#show?.fit(b.clientWidth, b.clientHeight); }); this.#ro.observe(this);
     this.tabIndex = 0;
     this.addEventListener('keydown', this.#key);
     this.#start();
+    this.#syncFoot();
   }
-  disconnectedCallback() { this.#ro?.disconnect(); this.#show?.destroy(); this.removeEventListener('keydown', this.#key); }
-  attributeChangedCallback() { if (this.isConnected) this.#start(); }
+  disconnectedCallback() { this.#ro?.disconnect(); this.#show?.destroy(); this.#foot?.destroy(); this.#foot = null; this.#footKey = ''; this.removeEventListener('keydown', this.#key); }
+  attributeChangedCallback() { if (!this.isConnected) return; this.#layoutBox(); this.#syncFoot(); this.#start(); }
   /** The controller (next/prev/play/pause/setSound/setLayout/seek/on), for custom chrome. */
   get controller() { return this.#show; }
+  /** With a description the player keeps its own box (aspect ratio), so the footer flows below it; otherwise the
+   *  player fills the element, as before. */
+  #layoutBox() {
+    const [W, H] = SIZES[(this.getAttribute('layout') as Layout) || 'landscape'];
+    this.#box.style.cssText = this.#descOn ? `position:relative;width:100%;aspect-ratio:${W}/${H};overflow:hidden` : 'position:absolute;inset:0;overflow:hidden';
+  }
+  /** The description footer for the current film and locale; a footer a newer call overtook is dropped. */
+  async #syncFoot() {
+    const slug = this.getAttribute('film'), key = this.#descOn && slug ? `${slug}|${this.getAttribute('locale') || 'en'}` : '';
+    if (key === this.#footKey) return;
+    this.#footKey = key;
+    this.#foot?.destroy(); this.#foot = null;
+    if (!key) return;
+    const f = await descriptionFooter(slug!, { locale: this.getAttribute('locale') || 'en' });
+    if (this.#footKey !== key) return;   // overtook while loading; its panel never went up, so nothing to undo
+    this.#foot = f;
+    if (f) this.append(f.el);
+  }
   async #start() {
     const slug = this.getAttribute('film');
     if (!slug) return;

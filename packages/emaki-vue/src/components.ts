@@ -1,7 +1,7 @@
 // Vue 3 components over @senseihq/emaki, written as render functions so they need no SFC compiler.
 // Client-only (they need the DOM): in Nuxt wrap them in <ClientOnly>. Call setupMotion(...) once on the client first.
 import { defineComponent, h, onBeforeUnmount, onMounted, ref, shallowRef, toRaw, watch, type PropType } from 'vue';
-import { attachScene, createShow, figurePlayer, installCapture, showKey, ticks, type AttachedScene, type Layout, type Mode, type ScenePlayerState } from '@senseihq/emaki';
+import { attachScene, createShow, figurePlayer, installCapture, showKey, ticks, voiceLines, type AttachedScene, type Layout, type Mode, type ScenePlayerState, type VoiceLine } from '@senseihq/emaki';
 import { useScenePlayer, useShowState, useSize, type Show, type ShowState } from './composables.js';
 
 function attach(player: () => ScenePlayerState, locale: () => string, mode: () => Mode, autoplay: boolean) {
@@ -105,6 +105,8 @@ export const MotionShow = defineComponent({
     length: { type: String, default: '' },
     /** Where the full-screen link goes (e.g. /show/<film>); no link when empty. */
     fullscreenHref: { type: String, default: '' },
+    /** A Description button under the player that opens the film's voiceover script; hidden without one. */
+    description: { type: Boolean, default: false },
   },
   emits: { ready: (_show: Show) => true },
   setup(props, { emit, expose }) {
@@ -131,6 +133,14 @@ export const MotionShow = defineComponent({
     const open = () => { autoplay = true; waiting.value = false; start(); };
     onMounted(start);
     onBeforeUnmount(() => { ticket++; show.value?.destroy(); });
+    const lines = shallowRef<VoiceLine[] | null>(null), expanded = ref(false);
+    let dticket = 0;
+    watch([() => props.film, () => props.locale, () => props.description], async () => {
+      const mine = ++dticket;
+      if (!props.description) { lines.value = null; return; }
+      const l = await voiceLines(props.film, props.locale);
+      if (mine === dticket) lines.value = l;
+    }, { immediate: true });
     watch(() => [props.film, props.locale, props.mode], start);
     watch(() => props.layout, (l) => show.value?.setLayout(l));
     watch([size, () => st.value?.layout], () => show.value?.fit(size.value.w, size.value.h));
@@ -159,6 +169,12 @@ export const MotionShow = defineComponent({
         waiting.value ? playButton(props.title, props.length, open, props.cover)
           : s && x && !x.started ? playButton(props.title, props.length, () => s.start())
           : props.controls && s && x ? bar(s, x) : null,
+        props.description && lines.value
+          ? h('div', { style: 'padding:6px 12px 12px;font:14px/1.55 system-ui' }, [
+            h('button', { onClick: () => (expanded.value = !expanded.value), 'aria-expanded': expanded.value, style: 'background:none;border:0;padding:6px 0;cursor:pointer;font:inherit;color:inherit;opacity:.75;text-decoration:underline' }, `Description ${expanded.value ? '▾' : '▸'}`),
+            expanded.value ? h('div', lines.value.map((l) => h('p', { key: l.scene, style: 'margin:0 0 .7em' }, l.text))) : null,
+          ])
+          : null,
       ]);
     };
   },

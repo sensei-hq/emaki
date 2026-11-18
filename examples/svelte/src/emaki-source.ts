@@ -15,6 +15,7 @@ const g = {
   logos: import.meta.glob('/content/logos/*.svg', { eager: true, query: '?raw', import: 'default' }),
   site: import.meta.glob('/content/site.json', { eager: true, import: 'default' }),
   voice: import.meta.glob('/content/films/*/voice/*/*.m4a', { eager: true, query: '?url', import: 'default' }),
+  voiceText: import.meta.glob('/content/films/*/voice/*.json', { eager: true, import: 'default' }),
 };
 
 export const { filmSource, contentSource, logos, site } = viteSource(g as any);

@@ -3,14 +3,14 @@
 import { act, createElement as h, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { attachScene, createShow, installCapture, ScenePlayerState } from '@senseihq/emaki';
+import { attachScene, createShow, installCapture, ScenePlayerState, voiceLines, type VoiceLine } from '@senseihq/emaki';
 import { MotionScene, MotionShow, ScenePlayer, ShowPage } from '../src/index.js';
 import type { Show } from '../src/hooks.js';
 import { FakeResizeObserver, fakeShow, fakeView, type FakeShow } from './fakes.js';
 
 vi.mock('@senseihq/emaki', async (actual) => ({
   ...(await actual<typeof import('@senseihq/emaki')>()),
-  attachScene: vi.fn(), createShow: vi.fn(), installCapture: vi.fn(),
+  attachScene: vi.fn(), createShow: vi.fn(), installCapture: vi.fn(), voiceLines: vi.fn(),
 }));
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -24,6 +24,7 @@ beforeEach(() => {
   vi.mocked(attachScene).mockReset().mockImplementation(() => { const v = fakeView(); views.push(v); return v; });
   vi.mocked(createShow).mockReset().mockImplementation(async (_stage, _film, o) => { const s = fakeShow(3, !o?.poster); shows.push(s); return s as never; });
   vi.mocked(installCapture).mockReset().mockImplementation(async () => { const s = fakeShow(); shows.push(s); return s as never; });
+  vi.mocked(voiceLines).mockReset().mockResolvedValue([{ scene: 'a', text: 'Line A.' }, { scene: 'b', text: 'Line B.' }]);
 });
 afterEach(() => { act(() => root.unmount()); el.remove(); vi.unstubAllGlobals(); });
 const render = (node: ReactNode) => act(async () => root.render(node));
@@ -142,6 +143,30 @@ describe('MotionShow', () => {
     const late = fakeShow();
     await act(async () => resolve(late as unknown as Show));
     expect(late.destroy).toHaveBeenCalled();
+  });
+
+  it('with description, opens the voiceover script under a Description button; without lines, no button', async () => {
+    await render(h(MotionShow, { film: 'f', description: true }));
+    expect(vi.mocked(voiceLines)).toHaveBeenCalledWith('f', 'en');
+    expect(el.querySelector('p')).toBeNull();
+    click('Description ▸');
+    expect([...el.querySelectorAll('p')].map((p) => p.textContent)).toEqual(['Line A.', 'Line B.']);
+    expect(button('Description ▾').getAttribute('aria-expanded')).toBe('true');
+    click('Description ▾');
+    expect(el.querySelector('p')).toBeNull();
+
+    vi.mocked(voiceLines).mockResolvedValueOnce(null);
+    await render(h(MotionShow, { film: 'g', description: true }));
+    expect(el.textContent).not.toContain('Description');
+  });
+
+  it('drops lines that arrive after unmount', async () => {
+    let release!: (v: VoiceLine[] | null) => void;
+    vi.mocked(voiceLines).mockImplementationOnce(() => new Promise((r) => { release = r; }));
+    await render(h(MotionShow, { film: 'f', description: true }));
+    unmount();
+    await act(async () => release([{ scene: 'a', text: 'Late.' }]));
+    expect(el.querySelector('p')).toBeNull();
   });
 
   it('ignores keys until the show is ready', async () => {
