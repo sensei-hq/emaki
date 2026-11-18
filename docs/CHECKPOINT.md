@@ -1,20 +1,20 @@
 # Checkpoint
 
-**Slice:** none open — v0.2.0 shipped, Workers Builds previews fixed
+**Slice:** player description + captions default + mount coalescing + OpenSpec (toward v0.3.0)
 
 **Done**
-- v0.2.0 on npm (all six packages, author sensei-hq) and as a GitHub release; breaking: `playScore` takes
-  `{ from, to, at, end }`, `signMedia` takes `{ origin, path?, ttl?, now? }` (the last qlty smells).
-- Copyright holder and author are sensei-hq everywhere (PR #16).
-- Coverage 100% on packages/*/src, enforced in CI; the poster's python tests run in CI; the GitHub release runs only
-  for a tag.
-- Workers Builds: pull requests build previews with `bunx wrangler preview -c site/wrangler.jsonc` (root `/`);
-  site/wrangler.jsonc carries the `previews` block it needs, guarded by site/src/lib/deploy.test.ts (PR #17).
-  main's production deploy is green with it.
 
-**Remaining:** nothing.
+- `emaki build` burns captions only with `--captions` (BREAKING: `--no-captions` removed); sidecars still ship.
+- Optional VO-script description under the player: core `voiceText`/`voiceLines`/`descriptionFooter`,
+  `<motion-show description>`, Svelte/React/Vue `description` props; off by default everywhere.
+- OpenSpec adopted: `openspec/` (project, web-components spec, `fix-overlapping-element-mounts` change),
+  `AGENTS.md`, slash commands, CLAUDE.md wiring.
+- #19 fixed (mounts/starts coalesce on newest, restart-if-emptied); #8 verified fully resolved.
+- Issues #8 and #19 closed with evidence. Branch `feat/player-description-captions-mount-fix`, 4 commits.
 
-**Next command:** none pending; start the next slice from an issue.
+**Remaining:** PR checks green → merge → `bun run bump` (minor → 0.3.0, tag publishes).
+
+**Next command:** `gh pr checks --watch` on the branch PR, then merge.
 
 **Open questions:** none.
 
