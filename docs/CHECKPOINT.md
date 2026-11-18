@@ -1,21 +1,23 @@
 # Checkpoint
 
-**Slice:** release v0.1.3 (coverage gate + render fix) — done
+**Slice:** refactor/options-objects (the last two qlty smells) — PR open
 
 **Done**
-- v0.1.3 on npm (all six packages) and as a GitHub release; publish workflow green.
-- PR #13 merged: packages/*/src at 100% lines/branches/functions/statements; CI runs `bun run coverage`.
-- `emaki render` no longer hangs when ffmpeg quits mid-capture; it fails with 'ffmpeg failed'.
-- PR #12 merged: CI runs the poster's python tests; the GitHub release runs only for a tag.
-- Workers Builds "Previews base": root directory corrected from /site to the repo root, preview command
-  `bunx wrangler versions upload -c site/wrangler.jsonc` (set by the user in the dashboard).
+- v0.1.3 on npm (all six packages) and as a GitHub release.
+- `playScore(ctx, dest, score, { from, to, at, end })` (was 7 positional parameters; new `ScoreSpan` type).
+- `signMedia(key, secret, { origin, path?, ttl?, now? })` (was 6; new `SignOptions` type; defaults /m, 3600 s, now).
+- Callers moved: sound.ts, score.ts renderWav, desk machine.ts, CLI publish.js. Docs (README, docs/llms, site) show the
+  new call shapes.
+- `bun run coverage` 701 passed at 100%; types clean; browser check and site 34 green.
 
 **Remaining**
-- Confirm the Workers Builds preview check goes green on this PR, then merge it.
+- Merge the PR; release when wanted. Breaking for direct callers of either function, so the next bump is the place
+  to say so in the release notes.
 
-**Next command:** `gh pr checks <this PR>` then `gh pr merge <this PR> --merge --delete-branch`
+**Next command:** `gh pr merge <this PR> --merge --delete-branch`
 
 **Open questions**
-- qlty: 2 public-signature smells left (playScore 7 params, signMedia 6); changing them is a breaking API change.
+- Workers Builds previews: Previews base preview command `bunx wrangler preview -c site/wrangler.jsonc` not yet
+  confirmed green (last failure: the name check, under `versions upload`).
 
 **Known broken:** nothing known.
