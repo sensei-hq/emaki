@@ -47,7 +47,7 @@ const program = (inst: string, o: Partial<Program> = {}): Program => ({ inst, ga
 const score = (events: Ev[], programs: Record<string, Program> = {}, master = { gain: -6, fadeOut: 1.5 }): Score => ({ programs, events, master });
 const render = (s: Score, from = 0, to = 100, at = 0.05, end = 100) => {
   const { ctx, log } = recordingContext();
-  const h = play(ctx, ctx.destination, s, from, to, at, end);
+  const h = play(ctx, ctx.destination, s, { from, to, at, end });
   return { log, h };
 };
 

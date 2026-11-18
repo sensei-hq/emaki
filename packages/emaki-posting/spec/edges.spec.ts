@@ -33,7 +33,7 @@ describe('rules at their edges', () => {
 
   it('refuses a signature of the wrong length without comparing it', async () => {
     const now = Date.UTC(2026, 10, 20);
-    const url = new URL(await signMedia('a/short.mp4', 's', 'https://x.test', 3600, now));
+    const url = new URL(await signMedia('a/short.mp4', 's', { origin: 'https://x.test', now }));
     const exp = url.searchParams.get('exp')!, sig = url.searchParams.get('sig')!;
     expect(await checkSignature('a/short.mp4', exp, sig, 's', now)).toBe(true);
     expect(await checkSignature('a/short.mp4', exp, sig.slice(1), 's', now)).toBe(false);
