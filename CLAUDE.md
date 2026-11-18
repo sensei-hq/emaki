@@ -1,3 +1,22 @@
+<!-- OPENSPEC:START -->
+# OpenSpec Instructions
+
+These instructions are for AI assistants working in this project.
+
+Always open `@/openspec/AGENTS.md` when the request:
+- Mentions planning or proposals (words like proposal, spec, change, plan)
+- Introduces new capabilities, breaking changes, architecture shifts, or big performance/security work
+- Sounds ambiguous and you need the authoritative spec before coding
+
+Use `@/openspec/AGENTS.md` to learn:
+- How to create and apply change proposals
+- Spec format and conventions
+- Project structure and guidelines
+
+Keep this managed block so 'openspec update' can refresh the instructions.
+
+<!-- OPENSPEC:END -->
+
 # emaki: agent instructions
 
 Monorepo (bun workspaces) for the `@senseihq/emaki*` packages and the emaki Claude plugin.
@@ -19,6 +38,7 @@ site                     emaki.sensei-hq.com (SvelteKit + rokkit): landing, /doc
                          spec-checked), llms.txt; vitest browser specs
 config/                  bump.config.js, check-pins.mjs, publish-all.sh, spec/ (lockfile, library manifest, order)
 docs/llms                the reference corpus named by sensei.library.json
+openspec/                spec-driven development: project.md, specs/ (built truth), changes/ (proposals + tasks)
 ```
 
 ## Commands
@@ -40,3 +60,6 @@ cd site && bun run check && bun run test && bun run build   # the site (needs `b
 - Keys and tokens live only in environment variables or CI secrets; `set-voice` drops anything named key/secret/token.
 - One version for everything: never edit versions by hand; `bun run bump`.
 - Plugin docs refer to the npm packages and the `emaki` command, never to copied kit files or python tools.
+- Spec-driven work lives in `openspec/`: new capabilities, breaking changes and architecture shifts start as a
+  change proposal (`openspec/changes/<id>/`: proposal, tasks, spec deltas), validated with
+  `openspec validate <id> --strict` before implementing; bug fixes restoring specified behavior go direct.
