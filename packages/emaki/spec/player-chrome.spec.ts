@@ -2,7 +2,7 @@
 // pop-out) plus the caption overlay, driven by the show controller. Icons and ticks overridable.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createShow, useSource, type FilmJson } from '../src/index.js';
-import { DEFAULT_CHROME_ICONS, mountPlayerChrome } from '../src/player-chrome.js';
+import { CHROME_CSS, DEFAULT_CHROME_ICONS, mountPlayerChrome } from '../src/player-chrome.js';
 
 const film: FilmJson = {
   title: 'T',
@@ -262,6 +262,67 @@ describe('player chrome', () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(host.querySelector('.emk-bar')).toBeNull();
     show.destroy();
+  });
+
+  it('pins the caption over the stage, re-reading geometry on resize', async () => {
+    const { host, stage, show, chrome } = await setup();
+    Object.defineProperty(host, 'clientWidth', { value: 1000, configurable: true });
+    Object.defineProperty(host, 'clientHeight', { value: 600, configurable: true });
+    const hostRect = { left: 0, bottom: 600 };
+    const stageRect = { left: 100, bottom: 500, width: 800, height: 400 };
+    vi.spyOn(host, 'getBoundingClientRect').mockReturnValue(hostRect as DOMRect);
+    vi.spyOn(stage, 'getBoundingClientRect').mockReturnValue(stageRect as DOMRect);
+    const cap = host.querySelector('.emk-cap') as HTMLElement;
+    expect(cap.parentElement).toBe(host);
+    (host.querySelector('.emk-cc') as HTMLButtonElement).click();
+    expect(cap.style.left).toBe('500px');
+    expect(cap.style.bottom).toBe('116px');
+    expect(cap.style.maxWidth).toBe('656px');
+    stageRect.left = 0;
+    show.next();
+    expect(cap.style.left).toBe('500px');
+    Object.defineProperty(host, 'clientWidth', { value: 1200 });
+    show.prev();
+    expect(cap.style.left).toBe('400px');
+    chrome.destroy();
+    show.destroy();
+  });
+
+  it('positions the host unless already positioned', async () => {
+    const prestyled = document.createElement('div');
+    prestyled.style.position = 'absolute';
+    const stage = document.createElement('div');
+    prestyled.append(stage);
+    document.body.append(prestyled);
+    const show = await createShow(stage, 'f');
+    const chrome = mountPlayerChrome(prestyled, show, { film: 'f', stage });
+    expect(prestyled.style.position).toBe('absolute');
+    const { host } = await setup();
+    expect(host.style.position).toBe('relative');
+    chrome.destroy();
+    show.destroy();
+  });
+
+  it('positions a stylesheet-static host', async () => {
+    const css = document.createElement('style');
+    css.textContent = '.emk-static-host{position:static}';
+    document.head.append(css);
+    const host = document.createElement('div');
+    host.className = 'emk-static-host';
+    const stage = document.createElement('div');
+    host.append(stage);
+    document.body.append(host);
+    const show = await createShow(stage, 'f');
+    const chrome = mountPlayerChrome(host, show, { film: 'f', stage });
+    expect(host.style.position).toBe('relative');
+    chrome.destroy();
+    show.destroy();
+    css.remove();
+    host.remove();
+  });
+
+  it('themes progress from --emk-accent with a currentColor fallback', () => {
+    expect(CHROME_CSS).toContain('var(--emk-accent,currentColor)');
   });
 
   it('ignores stale control clicks after destroy', async () => {
