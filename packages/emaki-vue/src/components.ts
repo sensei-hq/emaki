@@ -1,8 +1,8 @@
 // Vue 3 components over @senseihq/emaki, written as render functions so they need no SFC compiler.
 // Client-only (they need the DOM): in Nuxt wrap them in <ClientOnly>. Call setupMotion(...) once on the client first.
-import { defineComponent, h, onBeforeUnmount, onMounted, ref, shallowRef, toRaw, watch, type PropType } from 'vue';
-import { attachScene, createShow, figurePlayer, installCapture, showKey, ticks, voiceLines, type AttachedScene, type Layout, type Mode, type ScenePlayerState, type VoiceLine } from '@senseihq/emaki';
-import { useScenePlayer, useShowState, useSize, type Show, type ShowState } from './composables.js';
+import { defineComponent, h, onBeforeUnmount, onMounted, ref, shallowRef, toRaw, watch, type PropType, type Ref, type VNodeRef } from 'vue';
+import { attachScene, createShow, figurePlayer, installCapture, mountPlayerChrome, showKey, voiceLines, type AttachedScene, type Layout, type Mode, type PlayerChrome, type PlayerChromeOptions, type ScenePlayerState, type VoiceLine } from '@senseihq/emaki';
+import { useScenePlayer, useShowState, useSize, type Show } from './composables.js';
 
 function attach(player: () => ScenePlayerState, locale: () => string, mode: () => Mode, autoplay: boolean) {
   const box = ref<HTMLElement | null>(null), host = ref<HTMLElement | null>(null);
@@ -68,9 +68,6 @@ export const ScenePlayer = defineComponent({
   },
 });
 
-const btn = 'min-width:34px;height:34px;border-radius:17px;border:1px solid currentColor;background:none;color:inherit;cursor:pointer;padding:0 10px';
-const tickTrack = 'linear-gradient(color-mix(in srgb, currentColor 18%, transparent), color-mix(in srgb, currentColor 18%, transparent)) center / 100% 4px no-repeat';
-
 /** The play button over a poster or a cover image: the label and the chip name the film and its length. */
 function playButton(title: string, length: string, onClick: () => void, cover?: string) {
   return h('button', { onClick, 'aria-label': `Play the film${title ? `: ${title}` : ''}`,
@@ -103,8 +100,14 @@ export const MotionShow = defineComponent({
     /** The film's name and running time, for the play button's label and chip. */
     title: { type: String, default: '' },
     length: { type: String, default: '' },
-    /** Where the full-screen link goes (e.g. /show/<film>); no link when empty. */
+    /** Where the pop-out link goes (the standalone player page, e.g. /show/<film>); an alias kept for playerHref. */
     fullscreenHref: { type: String, default: '' },
+    /** Where the pop-out link goes; fullscreenHref stays as an alias when this is absent. No link when both are empty. */
+    playerHref: { type: String, default: '' },
+    /** Glyph overrides for the chrome, merged over the core's defaults (complete <svg> strings). */
+    icons: { type: Object as PropType<PlayerChromeOptions['icons']>, default: undefined },
+    /** Custom tick HTML per scene (still seeks on click); void keeps the default progress tick. */
+    renderTick: { type: Function as PropType<PlayerChromeOptions['renderTick']>, default: undefined },
     /** A Description button under the player that opens the film's voiceover script; hidden without one. */
     description: { type: Boolean, default: false },
   },
@@ -132,7 +135,17 @@ export const MotionShow = defineComponent({
     }
     const open = () => { autoplay = true; waiting.value = false; start(); };
     onMounted(start);
-    onBeforeUnmount(() => { ticket++; show.value?.destroy(); });
+    // The standard chrome lives in the host div below the stage (its captions pinned over the stage). The host only renders
+    // once a running show is there, so the callback ref mounts the chrome exactly then — and drops it whenever the
+    // host goes: a film/locale/mode change drops it with the show, as do controls off and unmount.
+    let chrome: PlayerChrome | null = null;
+    const dropChrome = () => { chrome?.destroy(); chrome = null; };
+    const chromeHost: Exclude<VNodeRef, string | Ref> = (host) => {
+      dropChrome();
+      if (host) chrome = mountPlayerChrome(host as HTMLElement, show.value!, { film: props.film, locale: props.locale, stage: stage.value!,
+        playerHref: props.playerHref || props.fullscreenHref || undefined, icons: props.icons, renderTick: props.renderTick });
+    };
+    onBeforeUnmount(() => { ticket++; show.value?.destroy(); dropChrome(); });
     const lines = shallowRef<VoiceLine[] | null>(null), expanded = ref(false);
     let dticket = 0;
     watch([() => props.film, () => props.locale, () => props.description], async () => {
@@ -145,22 +158,9 @@ export const MotionShow = defineComponent({
     watch(() => props.layout, (l) => show.value?.setLayout(l));
     watch([size, () => st.value?.layout], () => show.value?.fit(size.value.w, size.value.h));
     expose({ show });
-    // Every key (←/→, Space, M, O, R, Home, F) from the core, so all players answer the same way.
+    // Every key (←/→, Space, M, O, R, Home, F) from the core, so all players answer the same way; keys from the
+    // chrome stop there (it answers Space/arrows/M/C/F itself), the rest bubble up here.
     const onKeydown = (e: KeyboardEvent) => { if (show.value && showKey(show.value, e, e.currentTarget as Element)) e.preventDefault(); };
-    const bar = (s: Show, x: ShowState) => h('div', { style: 'display:flex;gap:8px;align-items:center;justify-content:center;padding:8px;font:13px system-ui' }, [
-      h('button', { style: btn, onClick: () => s.prev(), 'aria-label': 'Previous scene' }, '‹'),
-      h('button', { style: btn, onClick: () => s.toggle(), 'aria-label': x.playing ? 'Pause' : 'Play' }, x.playing ? '❚❚' : '▶'),
-      h('button', { style: btn, onClick: () => s.next(), 'aria-label': 'Next scene' }, '›'),
-      h('div', { style: 'flex:1;display:flex;gap:3px;max-width:360px' }, ticks(s).map((tk, i) =>
-        h('button', { key: tk.id, onClick: () => s.go(i), 'aria-label': tk.name,
-          style: `flex:${tk.dur};min-width:0;height:18px;padding:7px 0;border:0;border-radius:0;background:${tickTrack};cursor:pointer;color:inherit` },
-          [h('span', { style: `display:block;height:4px;border-radius:2px;background:currentColor;width:${tk.fill * 100}%` })]))),
-      h('span', { style: 'opacity:.7;font-variant-numeric:tabular-nums' }, `${x.index + 1} / ${s.timeline.scenes.length}`),
-      h('button', { style: btn, onClick: () => s.setSound(!x.sound), 'aria-pressed': x.sound }, x.sound ? 'Sound on' : 'Sound off'),
-      props.fullscreenHref
-        ? h('a', { href: props.fullscreenHref, 'aria-label': 'Open full screen', title: 'Full screen', style: `${btn};display:grid;place-items:center;text-decoration:none;padding:0` }, '⤢')
-        : null,
-    ]);
     return () => {
       const s = show.value, x = st.value;
       return h('div', { tabindex: 0, role: 'application', 'aria-label': 'Story player', onKeydown,
@@ -168,7 +168,7 @@ export const MotionShow = defineComponent({
         h('div', { ref: fit, style: 'position:relative;flex:1;min-height:0;display:grid;place-items:center;overflow:hidden' }, [h('div', { ref: stage, style: 'position:relative' })]),
         waiting.value ? playButton(props.title, props.length, open, props.cover)
           : s && x && !x.started ? playButton(props.title, props.length, () => s.start())
-          : props.controls && s && x ? bar(s, x) : null,
+          : props.controls && s && x ? h('div', { ref: chromeHost }) : null,
         props.description && lines.value
           ? h('div', { style: 'padding:6px 12px 12px;font:14px/1.55 system-ui' }, [
             h('button', { onClick: () => (expanded.value = !expanded.value), 'aria-expanded': expanded.value, style: 'background:none;border:0;padding:6px 0;cursor:pointer;font:inherit;color:inherit;opacity:.75;text-decoration:underline' }, `Description ${expanded.value ? '▾' : '▸'}`),

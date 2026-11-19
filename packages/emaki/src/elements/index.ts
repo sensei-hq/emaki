@@ -4,9 +4,12 @@
 // Both take mode="light|dark|auto" (default auto: follow the page's data-mode, else prefers-color-scheme).
 // Call defineMotionElements() once, after useSource(...). Both elements fit their box; give them a width (and the
 // show an aspect ratio). Sound is always off until the reader turns it on.
-import { createShow, showKey, fontsReady, loadFilm, mountScene, sceneSound, descriptionFooter, type Mounted, type Layout, type Mode, SIZES } from '../index.js';
+// The show renders the standard player chrome (toolbar plus captions) by default; chrome="off" keeps the bare
+// stage for custom chrome, driven through the controller. `icons` and `renderTick` arrive as JS properties,
+// the pop-out link as a playerhref attribute.
+import { createShow, showKey, fontsReady, loadFilm, mountScene, sceneSound, descriptionFooter, mountPlayerChrome, DEFAULT_CHROME_ICONS, type Mounted, type Layout, type Mode, SIZES, type ChromeIconName, type ChromeTick, type PlayerChrome } from '../index.js';
 
-const BTN = 'position:absolute;right:10px;bottom:10px;width:36px;height:36px;border-radius:50%;border:0;background:rgba(255,255,255,.85);cursor:pointer;font:16px system-ui';
+const BTN = 'position:absolute;right:10px;bottom:10px;width:36px;height:36px;border-radius:50%;border:0;background:rgba(255,255,255,.85);cursor:pointer;display:grid;place-items:center;color:#111';
 
 /** The mode attribute: light, dark, or auto (the default: follow the page's data-mode, else the OS). */
 const modeOf = (el: Element): Mode => (['light', 'dark'].includes(el.getAttribute('mode') ?? '') ? el.getAttribute('mode') as Mode : 'auto');
@@ -20,9 +23,12 @@ class MotionScene extends HTMLElement {
     this.style.display ||= 'block'; this.style.position ||= 'relative';
     if (!this.#box.isConnected) {
       this.#box.style.cssText = 'position:relative;width:100%;overflow:hidden';
-      this.#btn.style.cssText = BTN; this.#btn.hidden = true; this.#btn.textContent = '🔈'; this.#btn.setAttribute('aria-label', 'Sound on');
+      this.#btn.style.cssText = BTN; this.#btn.hidden = true; this.#btn.className = 'emk-scene-sound';
+      this.#soundIcon(false);
       this.#btn.onclick = () => this.#toggleSound();
-      this.append(this.#box, this.#btn);
+      const style = document.createElement('style');
+      style.textContent = '.emk-scene-sound svg{width:20px;height:20px;fill:currentColor}';
+      this.append(this.#box, this.#btn, style);
     }
     this.#ro = new ResizeObserver(() => this.#fit()); this.#ro.observe(this);
     this.#io = new IntersectionObserver(([e]) => { this.#visible = e.isIntersecting; if (!this.#visible) this.#stopSound(); }, { threshold: 0.2 });
@@ -49,7 +55,7 @@ class MotionScene extends HTMLElement {
     // The scene's score slice and narration (sceneSound); a new film, scene or language starts it over, off.
     this.#sound?.destroy();
     const sound = (this.#sound = sceneSound(slug, id, locale));
-    this.#btn.textContent = '🔈'; this.#btn.setAttribute('aria-label', 'Sound on');
+    this.#soundIcon(false);
     this.#btn.hidden = !(await sound.available);
     if (token !== this.#gen) return;
     this.#fit();
@@ -70,43 +76,76 @@ class MotionScene extends HTMLElement {
     this.#box.style.height = `${H * s}px`;
     if (this.#m) this.#m.stage.style.transform = `scale(${s})`;
   }
-  #stopSound() { if (this.#sound?.on) this.#sound.toggle(); this.#btn.textContent = '🔈'; this.#btn.setAttribute('aria-label', 'Sound on'); }
+  /** The speaker glyph from the standard chrome set: off (Sound on) or on (Sound off). */
+  #soundIcon(on: boolean) {
+    this.#btn.innerHTML = on ? DEFAULT_CHROME_ICONS.soundOn : DEFAULT_CHROME_ICONS.soundOff;
+    this.#btn.setAttribute('aria-label', on ? 'Sound off' : 'Sound on');
+  }
+  #stopSound() { if (this.#sound?.on) this.#sound.toggle(); this.#soundIcon(false); }
   #toggleSound() {
     if (!this.#sound) return;
     if (this.#sound.on) return this.#stopSound();
-    this.#btn.textContent = '🔊'; this.#btn.setAttribute('aria-label', 'Sound off');
+    this.#soundIcon(true);
     // The sound is made right after the scene mounts, so a scene is always there by now.
     this.#sound.toggle(Math.min(this.#t, this.#m!.dur));
   }
 }
 
 class MotionShow extends HTMLElement {
-  static observedAttributes = ['film', 'locale', 'layout', 'mode', 'description'];
+  static observedAttributes = ['film', 'locale', 'layout', 'mode', 'description', 'playerhref', 'chrome'];
   #show: Awaited<ReturnType<typeof createShow>> | null = null; #ro?: ResizeObserver;
   #box = document.createElement('div');
+  #chrome: PlayerChrome | null = null;
+  #icons?: Partial<Record<ChromeIconName, string>>;
+  #renderTick?: (tick: ChromeTick, index: number) => string | void;
   #foot: { el: HTMLElement; destroy: () => void } | null = null; #footKey = '';
   #gen = 0; #pending = 0;
   /** The description footer is on: a Description button under the player opens the voiceover script. */
   get #descOn() { return this.hasAttribute('description'); }
+  /** The standard chrome is on unless chrome="off" (on is the default). */
+  get #chromeOn() { return this.getAttribute('chrome') !== 'off'; }
+  /** The box the stage fits: its own box when the bar or footer flows below it, else the whole element. */
+  get #fitBox(): HTMLElement { return this.#descOn || this.#chromeOn ? this.#box : this; }
+  /** Glyph overrides for the chrome (merged over DEFAULT_CHROME_ICONS); setting rebuilds the chrome. */
+  set icons(v: Partial<Record<ChromeIconName, string>>) { this.#icons = v; this.#syncChrome(); }
+  /** Custom tick HTML per scene (still seeks on click); setting rebuilds the chrome. */
+  set renderTick(v: (tick: ChromeTick, index: number) => string | void) { this.#renderTick = v; this.#syncChrome(); }
   connectedCallback() {
     this.style.display ||= 'block'; this.style.position ||= 'relative';
     if (!this.#box.isConnected) this.append(this.#box);
     this.#layoutBox();
-    this.#ro = new ResizeObserver(() => { const b = this.#descOn ? this.#box : this; this.#show?.fit(b.clientWidth, b.clientHeight); }); this.#ro.observe(this);
+    this.#ro = new ResizeObserver(() => this.#show?.fit(this.#fitBox.clientWidth, this.#fitBox.clientHeight)); this.#ro.observe(this);
     this.tabIndex = 0;
     this.addEventListener('keydown', this.#key);
     this.#start();
     this.#syncFoot();
   }
-  disconnectedCallback() { this.#ro?.disconnect(); this.#show?.destroy(); this.#foot?.destroy(); this.#foot = null; this.#footKey = ''; this.removeEventListener('keydown', this.#key); }
-  attributeChangedCallback() { if (!this.isConnected) return; this.#layoutBox(); this.#syncFoot(); this.#start(); }
+  disconnectedCallback() { this.#ro?.disconnect(); this.#show?.destroy(); this.#chrome?.destroy(); this.#chrome = null; this.#foot?.destroy(); this.#foot = null; this.#footKey = ''; this.removeEventListener('keydown', this.#key); }
+  attributeChangedCallback(name: string) {
+    if (!this.isConnected) return;
+    this.#layoutBox();
+    if (name === 'playerhref' || name === 'chrome') return this.#syncChrome();
+    this.#syncFoot(); this.#start();
+  }
   /** The controller (next/prev/play/pause/setSound/setLayout/seek/on), for custom chrome. */
   get controller() { return this.#show; }
-  /** With a description the player keeps its own box (aspect ratio), so the footer flows below it; otherwise the
-   *  player fills the element, as before. */
+  /** With a description or the chrome the player keeps its own box (aspect ratio), so the bar and footer flow
+   *  below it; otherwise the player fills the element, as before. */
   #layoutBox() {
     const [W, H] = SIZES[(this.getAttribute('layout') as Layout) || 'landscape'];
-    this.#box.style.cssText = this.#descOn ? `position:relative;width:100%;aspect-ratio:${W}/${H};overflow:hidden` : 'position:absolute;inset:0;overflow:hidden';
+    this.#box.style.cssText = (this.#descOn || this.#chromeOn) ? `position:relative;width:100%;aspect-ratio:${W}/${H};overflow:hidden` : 'position:absolute;inset:0;overflow:hidden';
+  }
+  /** The standard toolbar over the show (captions pinned over the stage box); order stays stage, bar, footer. */
+  #syncChrome() {
+    this.#chrome?.destroy(); this.#chrome = null;
+    const show = this.#show;
+    if (show && this.#chromeOn) {
+      this.#chrome = mountPlayerChrome(this, show, {
+        film: show.film.slug, locale: this.getAttribute('locale') || 'en', stage: this.#box,
+        playerHref: this.getAttribute('playerhref') || undefined, icons: this.#icons, renderTick: this.#renderTick,
+      });
+      if (this.#foot) this.append(this.#foot.el);
+    }
   }
   /** The description footer for the current film and locale; a footer a newer call overtook is dropped. */
   async #syncFoot() {
@@ -127,6 +166,7 @@ class MotionShow extends HTMLElement {
     const slug = this.getAttribute('film');
     if (!slug) return;
     this.#show?.destroy();
+    this.#chrome?.destroy(); this.#chrome = null;
     this.#pending++;
     try {
       const show = await createShow(this.#box, slug, { locale: this.getAttribute('locale') || 'en', layout: (this.getAttribute('layout') as Layout) || 'landscape', mode: modeOf(this) });
@@ -136,11 +176,17 @@ class MotionShow extends HTMLElement {
         return;
       }
       this.#show = show;
-      this.#show.fit(this.clientWidth, this.clientHeight);
+      this.#show.fit(this.#fitBox.clientWidth, this.#fitBox.clientHeight);
       this.#show.on((s) => this.dispatchEvent(new CustomEvent('showchange', { detail: s })));
+      this.#syncChrome();
     } finally { this.#pending--; }
   }
-  #key = (e: KeyboardEvent) => { if (this.#show && showKey(this.#show, e, this)) e.preventDefault(); };
+  #key = (e: KeyboardEvent) => {
+    if (!this.#show) return;
+    // The mounted chrome owns its keys (Space, arrows, M, C, F stop there); the element keeps O/R/Home.
+    if (this.#chrome && !['o', 'r', 'home'].includes(e.key.toLowerCase())) return;
+    if (showKey(this.#show, e, this)) e.preventDefault();
+  };
 }
 
 export function defineMotionElements() {

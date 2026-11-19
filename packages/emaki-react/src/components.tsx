@@ -1,7 +1,7 @@
 // React components over @senseihq/emaki. All are client components (they need the DOM); in Next.js import them
 // from a file marked 'use client'. Call setupMotion({ source, site, logos }) once on the client first.
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { attachScene, createShow, installCapture, showKey, ticks, voiceLines, type AttachedScene, type Layout, type Mode, type ScenePlayerState, type VoiceLine } from '@senseihq/emaki';
+import { attachScene, createShow, installCapture, mountPlayerChrome, showKey, voiceLines, type AttachedScene, type ChromeIconName, type ChromeTick, type Layout, type Mode, type ScenePlayerState, type VoiceLine } from '@senseihq/emaki';
 import { usePlayerFor, useScenePlayer, useShowState, useSize, useWidth, type Show } from './hooks.js';
 
 /** Mounts a player's scene into a div and keeps it fitted (shared by MotionScene and ScenePlayer). */
@@ -59,17 +59,20 @@ export interface MotionShowProps {
   cover?: string;
   /** The film's name and running time, for the play button's label and chip. */
   title?: string; length?: string;
-  /** Where the full-screen link goes (e.g. /show/<film>); no link when empty. */
+  /** Alias for `playerHref`: where the chrome's pop-out link goes (e.g. /show/<film>); no link when both are empty. */
   fullscreenHref?: string;
+  /** Where the chrome's pop-out link goes; `fullscreenHref` is used when this is absent. */
+  playerHref?: string;
+  /** Glyph overrides for the chrome, merged over the core's defaults (complete <svg> strings). */
+  icons?: Partial<Record<ChromeIconName, string>>;
+  /** Custom tick HTML per scene (void keeps the default progress tick). */
+  renderTick?: (tick: ChromeTick, index: number) => string | void;
   /** A Description button under the player that opens the film's voiceover script; hidden without one. */
   description?: boolean;
   /** The controller once ready (next/prev/play/pause/setSound/setLayout/seek/on), for custom chrome. */
   onReady?: (show: Show) => void;
   className?: string; style?: CSSProperties;
 }
-
-const btn: CSSProperties = { minWidth: 34, height: 34, borderRadius: 17, border: '1px solid currentColor', background: 'none', color: 'inherit', cursor: 'pointer', padding: '0 10px' };
-const tickTrack = 'linear-gradient(color-mix(in srgb, currentColor 18%, transparent), color-mix(in srgb, currentColor 18%, transparent)) center / 100% 4px no-repeat';
 
 /** The play button over a poster or a cover image: the label and the chip name the film and its length. */
 function PlayButton({ title, length, cover, onClick }: { title: string; length: string; cover?: string; onClick: () => void }) {
@@ -90,8 +93,9 @@ function PlayButton({ title, length, cover, onClick }: { title: string; length: 
 /** The story player: a film's scenes as slides, fitted to its box. Keys: ←/→ scene, Space play/pause, M sound,
  *  O orientation, R replay, Home from the top, F fullscreen. `poster` opens on the cover frame; `cover` paints an
  *  image and creates nothing until the first click. */
-export function MotionShow({ film, locale = 'en', layout = 'landscape', mode = 'auto', controls = true, slide = 1, loop = false, poster = false, cover = '', title = '', length = '', fullscreenHref = '', description = false, onReady, className, style }: MotionShowProps) {
+export function MotionShow({ film, locale = 'en', layout = 'landscape', mode = 'auto', controls = true, slide = 1, loop = false, poster = false, cover = '', title = '', length = '', fullscreenHref = '', playerHref = '', icons, renderTick, description = false, onReady, className, style }: MotionShowProps) {
   const stage = useRef<HTMLDivElement>(null);
+  const chromeHost = useRef<HTMLDivElement>(null);
   const [fitRef, size] = useSize<HTMLDivElement>();
   const [show, setShow] = useState<Show | null>(null);
   const [lines, setLines] = useState<VoiceLine[] | null>(null);
@@ -114,6 +118,15 @@ export function MotionShow({ film, locale = 'en', layout = 'landscape', mode = '
     });
     return () => { alive = false; made?.destroy(); setShow(null); };
   }, [film, locale, mode, waiting]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The standard chrome lives with the show: mounted when it is created, destroyed with it (and when controls
+  // flip off). The chrome stops the keys it handles (Space, arrows, M, C, F), so they never reach showKey below.
+  useEffect(() => {
+    if (!show || !controls) return;
+    const chrome = mountPlayerChrome(chromeHost.current!, show, {
+      film, locale, stage: stage.current!, playerHref: playerHref || fullscreenHref || undefined, icons, renderTick,
+    });
+    return () => { chrome.destroy(); };
+  }, [show, controls, film, locale, playerHref, fullscreenHref, icons, renderTick]);
   useEffect(() => {
     if (!description) { setLines(null); return; }
     let alive = true;
@@ -132,26 +145,10 @@ export function MotionShow({ film, locale = 'en', layout = 'landscape', mode = '
         <div ref={stage} style={{ position: 'relative' }} />
       </div>
       {waiting ? <PlayButton title={title} length={length} cover={cover} onClick={open} />
-        : show && st && !st.started ? <PlayButton title={title} length={length} onClick={() => show.start()} />
-        : controls && show && st && (
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center', padding: 8, font: '13px system-ui' }}>
-          <button style={btn} onClick={() => show.prev()} aria-label="Previous scene">‹</button>
-          <button style={btn} onClick={() => show.toggle()} aria-label={st.playing ? 'Pause' : 'Play'}>{st.playing ? '❚❚' : '▶'}</button>
-          <button style={btn} onClick={() => show.next()} aria-label="Next scene">›</button>
-          <div style={{ flex: 1, display: 'flex', gap: 3, maxWidth: 360 }}>
-            {ticks(show).map((tk, i) => (
-              <button key={tk.id} onClick={() => show.go(i)} aria-label={tk.name}
-                style={{ flex: tk.dur, minWidth: 0, height: 18, padding: '7px 0', border: 0, borderRadius: 0, background: tickTrack, cursor: 'pointer', color: 'inherit' }}>
-                <span style={{ display: 'block', height: 4, borderRadius: 2, background: 'currentColor', width: `${tk.fill * 100}%` }} />
-              </button>
-            ))}
-          </div>
-          <span style={{ opacity: 0.7, fontVariantNumeric: 'tabular-nums' }}>{st.index + 1} / {show.timeline.scenes.length}</span>
-          <button style={btn} onClick={() => show.setSound(!st.sound)} aria-pressed={st.sound}>{st.sound ? 'Sound on' : 'Sound off'}</button>
-          {fullscreenHref && <a href={fullscreenHref} aria-label="Open full screen" title="Full screen"
-            style={{ ...btn, display: 'grid', placeItems: 'center', textDecoration: 'none', padding: 0 }}>⤢</a>}
-        </div>
-      )}
+        : (<>
+          {show && st && !st.started ? <PlayButton title={title} length={length} onClick={() => show.start()} /> : null}
+          {controls && <div ref={chromeHost} />}
+        </>)}
       {description && lines && (
         <div style={{ padding: '6px 12px 12px', font: '14px/1.55 system-ui' }}>
           <button onClick={() => setExpanded(!expanded)} aria-expanded={expanded}
