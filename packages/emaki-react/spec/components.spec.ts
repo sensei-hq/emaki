@@ -235,6 +235,11 @@ describe('MotionShow poster, cover and progress (as the Svelte player)', () => {
     expect(el.textContent).toContain('1 / 3');
   });
 
+  it('names no film on the play button without a title or length', async () => {
+    await render(h(MotionShow, { film: 'f', poster: true }));
+    expect(button('Play the film').textContent).toBe('Play the film');
+  });
+
   it('draws a tick per scene that fills as it plays and jumps there on click, and pops out to fullscreenHref', async () => {
     await render(h(MotionShow, { film: 'f', fullscreenHref: '/show/f' }));
     expect(el.querySelector('.emk-popout')!.getAttribute('href')).toBe('/show/f');
@@ -309,5 +314,61 @@ describe('MotionShow chrome (the standard player chrome)', () => {
     const space = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true });
     act(() => { el.querySelector('.emk-toggle')!.dispatchEvent(space); });
     expect(shows[0].toggle).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('MotionShow aspect-locked stage', () => {
+  const fitBox = () => el.querySelector('[role=application]')!.firstElementChild as HTMLElement;
+
+  it('locks the fit box to the landscape ratio, width-driven, with no flex fill', async () => {
+    await render(h(MotionShow, { film: 'f', layout: 'landscape' }));
+    const fit = fitBox();
+    expect(fit.style.aspectRatio).toBe('1920 / 1080');
+    expect(fit.style.width).toBe('100%');
+    expect(fit.style.maxHeight).toBe('100%');
+    expect(fit.style.margin).toBe('auto');
+    expect(fit.style.flex).toBe('');
+    expect(fit.style.position).toBe('relative');
+    expect(fit.style.display).toBe('grid');
+    expect(fit.style.overflow).toBe('hidden');
+  });
+
+  it('locks the fit box to the portrait ratio, height-driven', async () => {
+    await render(h(MotionShow, { film: 'f', layout: 'portrait' }));
+    const fit = fitBox();
+    expect(fit.style.aspectRatio).toBe('1080 / 1920');
+    expect(fit.style.height).toBe('100%');
+    expect(fit.style.maxWidth).toBe('100%');
+    expect(fit.style.margin).toBe('auto');
+    expect(fit.style.flex).toBe('');
+  });
+
+  it('drives any other non-portrait layout by width (figure)', async () => {
+    await render(h(MotionShow, { film: 'f', layout: 'figure' }));
+    const fit = fitBox();
+    expect(fit.style.aspectRatio).toBe('1600 / 1000');
+    expect(fit.style.width).toBe('100%');
+    expect(fit.style.maxHeight).toBe('100%');
+  });
+
+  it('re-aspects when the layout prop changes', async () => {
+    await render(h(MotionShow, { film: 'f', layout: 'landscape' }));
+    expect(fitBox().style.aspectRatio).toBe('1920 / 1080');
+    await render(h(MotionShow, { film: 'f', layout: 'portrait' }));
+    expect(fitBox().style.aspectRatio).toBe('1080 / 1920');
+    expect(fitBox().style.height).toBe('100%');
+    await render(h(MotionShow, { film: 'f', layout: 'landscape' }));
+    expect(fitBox().style.aspectRatio).toBe('1920 / 1080');
+    expect(fitBox().style.width).toBe('100%');
+  });
+
+  it('re-aspects when the show itself changes layout (the O key)', async () => {
+    await render(h(MotionShow, { film: 'f', layout: 'landscape' }));
+    expect(fitBox().style.aspectRatio).toBe('1920 / 1080');
+    const app = el.querySelector('[role=application]')!;
+    act(() => { app.dispatchEvent(new KeyboardEvent('keydown', { key: 'o', bubbles: true, cancelable: true })); });
+    expect(shows[0].setLayout).toHaveBeenCalledWith('portrait');
+    expect(fitBox().style.aspectRatio).toBe('1080 / 1920');
+    expect(fitBox().style.height).toBe('100%');
   });
 });
