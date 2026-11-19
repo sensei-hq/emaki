@@ -3,7 +3,7 @@
 // scrolls away; <motion-show> starts its player when it has a film, restarts on a new one, fits on resize, and lets
 // keys through until the player is there.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useSource, type FilmJson, type SceneSpec } from '../src/index.js';
+import { DEFAULT_CHROME_ICONS, useSource, type ChromeTick, type FilmJson, type SceneSpec } from '../src/index.js';
 import { defineMotionElements } from '../src/elements/index.js';
 
 class FakeAudio {
@@ -179,6 +179,25 @@ describe('<motion-scene>', () => {
     el.querySelector('button')!.click();
     expect(FakeAudio.all).toHaveLength(0);
   });
+
+  it('shows the standard speaker SVG, not emoji, keeping the Sound on/off labels', async () => {
+    const el = scene({ film: 'f', scene: 'a', layout: 'landscape' });
+    const btn = el.querySelector('button')!;
+    await vi.waitFor(() => expect(btn.hidden).toBe(false));
+    const glyph = () => btn.querySelector('svg path')!.getAttribute('d');
+    expect(btn.querySelector('svg')).not.toBeNull();
+    expect(btn.textContent).toBe('');
+    expect(DEFAULT_CHROME_ICONS.soundOff).toContain(`d="${glyph()}"`);
+    expect(btn.getAttribute('aria-label')).toBe('Sound on');
+    intersect(true);
+    btn.click();
+    expect(btn.getAttribute('aria-label')).toBe('Sound off');
+    expect(DEFAULT_CHROME_ICONS.soundOn).toContain(`d="${glyph()}"`);
+    btn.click();
+    expect(btn.getAttribute('aria-label')).toBe('Sound on');
+    expect(DEFAULT_CHROME_ICONS.soundOff).toContain(`d="${glyph()}"`);
+    el.remove();
+  });
 });
 
 describe('<motion-show>', () => {
@@ -209,22 +228,22 @@ describe('<motion-show>', () => {
     const box = el.querySelector('div')!;
     expect(box.style.position).toBe('relative');
     expect(box.style.aspectRatio).toBe('1080/1920');
-    const btn = () => el.querySelector('button')!;
+    const btn = () => [...el.querySelectorAll('button')].find((b) => b.textContent?.startsWith('Description'))!;
     await vi.waitFor(() => expect(btn()).toBeTruthy());
     expect(btn().textContent).toBe('Description ▸');
-    expect([...el.querySelectorAll('p')].map((p) => p.textContent)).toEqual(['Line A.', 'Line B.']);
+    expect([...btn().parentElement!.querySelectorAll('p')].map((p) => p.textContent)).toEqual(['Line A.', 'Line B.']);
     btn().click();
-    expect(el.querySelector<HTMLElement>('div div')!.hidden).toBe(false);
+    expect(btn().parentElement!.querySelector<HTMLElement>('div')!.hidden).toBe(false);
     Watch.all[0].cb([]);
     expect(stage(el)!.style.transform).toBe('scale(0)');
     const foot = btn().parentElement!;
     el.setAttribute('mode', 'light');
     expect(btn().parentElement).toBe(foot);
     el.removeAttribute('description');
-    expect(el.querySelector('button')).toBeNull();
-    expect(box.style.position).toBe('absolute');
+    expect([...el.querySelectorAll('button')].find((b) => b.textContent?.startsWith('Description'))).toBeUndefined();
+    expect(box.style.position).toBe('relative');
     el.setAttribute('description', '');
-    await vi.waitFor(() => expect(el.querySelector('button')).toBeTruthy());
+    await vi.waitFor(() => expect([...el.querySelectorAll('button')].find((b) => b.textContent?.startsWith('Description'))).toBeTruthy());
     el.remove();
   });
 
@@ -233,12 +252,13 @@ describe('<motion-show>', () => {
     el.setAttribute('description', '');
     el.setAttribute('locale', 'es');
     document.body.appendChild(el);
+    const script = () => [...el.querySelectorAll('button')].find((b) => b.textContent?.startsWith('Description'));
     await new Promise((r) => setTimeout(r, 10));
-    expect(el.querySelector('button')).toBeNull();
+    expect(script()).toBeUndefined();
     el.setAttribute('film', 'g');
     await vi.waitFor(() => expect(el.controller).toBeTruthy());
     await new Promise((r) => setTimeout(r, 10));
-    expect(el.querySelector('button')).toBeNull();
+    expect(script()).toBeUndefined();
     el.remove();
   });
 
@@ -261,14 +281,15 @@ describe('<motion-show>', () => {
     el.setAttribute('film', 'f');
     el.setAttribute('description', '');
     document.body.appendChild(el);
-    await vi.waitFor(() => expect(el.querySelector('button')).toBeTruthy());
+    const scripts = () => [...el.querySelectorAll('button')].filter((b) => b.textContent?.startsWith('Description'));
+    await vi.waitFor(() => expect(scripts()).toHaveLength(1));
     el.setAttribute('film', 'g');
     el.setAttribute('film', 'f');
-    await vi.waitFor(() => expect(el.querySelectorAll('button')).toHaveLength(1));
+    await vi.waitFor(() => expect(scripts()).toHaveLength(1));
     release([{ scene: 'g', text: 'G.' }]);
     await new Promise((r) => setTimeout(r, 10));
-    expect(el.querySelectorAll('button')).toHaveLength(1);
-    expect(el.querySelector('p')!.textContent).toBe('F.');
+    expect(scripts()).toHaveLength(1);
+    expect(scripts()[0].parentElement!.querySelector('p')!.textContent).toBe('F.');
     el.remove();
   });
 
@@ -298,6 +319,125 @@ describe('<motion-show>', () => {
     await new Promise((r) => setTimeout(r, 10));
     expect((el.controller as unknown as { film: { slug: string } }).film.slug).toBe('g');
     expect(stage(el)!.querySelector('.t-a')!.textContent).toBe('g-a');
+    el.remove();
+  });
+
+  type ChromeEl = HTMLElement & {
+    controller: { state: { index: number; playing: boolean; sound: boolean; layout: string }; go: (i: number) => void } | null;
+    icons: Partial<Record<string, string>>;
+    renderTick: (tick: ChromeTick, index: number) => string | void;
+  };
+  const show = (attrs: Record<string, string>) => {
+    const el = document.createElement('motion-show') as ChromeEl;
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+    document.body.appendChild(el);
+    return el;
+  };
+  const barLabels = (el: Element) =>
+    [...el.querySelectorAll('.emk-bar button, .emk-bar a')].map((b) => b.getAttribute('aria-label'));
+
+  it('renders the standard chrome by default, driving the controller', async () => {
+    const el = show({ film: 'f' });
+    await vi.waitFor(() => expect(el.controller).toBeTruthy());
+    await vi.waitFor(() => expect(el.querySelector('.emk-bar')).not.toBeNull());
+    expect(barLabels(el)).toEqual([
+      'Previous scene', 'Pause', 'Next scene', 'Scene 1: A', 'Scene 2: B', 'Captions', 'Sound on', 'Full screen',
+    ]);
+    expect(el.querySelector('.emk-count')?.textContent).toBe('1 / 2');
+    const cap = el.querySelector('.emk-cap')!;
+    expect(cap.parentElement).toBe(el);
+    const box = el.querySelector('div')!;
+    (el.querySelector('.emk-next') as HTMLButtonElement).click();
+    expect(el.controller!.state.index).toBe(1);
+    Object.defineProperties(box, {
+      clientWidth: { value: 960, configurable: true },
+      clientHeight: { value: 540, configurable: true },
+    });
+    Watch.all[0].cb([]);
+    expect(stage(el)!.style.transform).toBe('scale(0.5)');
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    expect(el.controller!.state.playing).toBe(false);
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'o', bubbles: true }));
+    expect(el.controller!.state.layout).toBe('portrait');
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'x', bubbles: true }));
+    expect(el.controller!.state.index).toBe(1);
+    el.remove();
+  });
+
+  it('chrome="off" renders the bare stage for custom chrome', async () => {
+    const el = show({ film: 'f', chrome: 'off' });
+    await vi.waitFor(() => expect(el.controller).toBeTruthy());
+    await new Promise((r) => setTimeout(r, 10));
+    expect(el.querySelector('.emk-bar')).toBeNull();
+    expect(el.querySelector('.emk-cap')).toBeNull();
+    expect(el.querySelector('div')!.style.position).toBe('absolute');
+    el.controller!.go(1);
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
+    expect(el.controller!.state.index).toBe(0);
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'x', bubbles: true }));
+    expect(el.controller!.state.index).toBe(0);
+    Object.defineProperties(el, {
+      clientWidth: { value: 960, configurable: true },
+      clientHeight: { value: 540, configurable: true },
+    });
+    Watch.all[0].cb([]);
+    expect(stage(el)!.style.transform).toBe('scale(0.5)');
+    el.remove();
+  });
+
+  it('renders the pop-out link from playerhref and re-syncs it on change', async () => {
+    const el = show({ film: 'f', playerhref: '/p/f' });
+    await vi.waitFor(() => expect(el.querySelector('.emk-popout')).not.toBeNull());
+    expect(el.querySelector('.emk-popout')!.getAttribute('href')).toBe('/p/f');
+    const first = el.controller;
+    el.setAttribute('playerhref', '/p/g');
+    await vi.waitFor(() => expect(el.querySelector('.emk-popout')!.getAttribute('href')).toBe('/p/g'));
+    expect(el.controller).toBe(first);
+    el.removeAttribute('playerhref');
+    await vi.waitFor(() => expect(el.querySelector('.emk-popout')).toBeNull());
+    expect(el.controller).toBe(first);
+    el.remove();
+  });
+
+  it('icons and renderTick properties rebuild the chrome', async () => {
+    const el = show({ film: 'f' });
+    el.icons = { pause: '<svg class="mine"></svg>' };
+    await vi.waitFor(() => expect(el.controller).toBeTruthy());
+    await vi.waitFor(() => expect(el.querySelector('.emk-toggle .mine')).not.toBeNull());
+    expect(el.querySelector('.emk-prev svg')).not.toBeNull();
+    el.renderTick = (t) => `<i>${t.id}</i>`;
+    await vi.waitFor(() => expect(el.querySelector('.emk-tick i')).not.toBeNull());
+    expect(el.querySelector('.emk-tick i')?.textContent).toBe('a');
+    (el.querySelectorAll('.emk-tick')[1] as HTMLButtonElement).click();
+    expect(el.controller!.state.index).toBe(1);
+    el.remove();
+  });
+
+  it('toggles the chrome at runtime via the chrome attribute', async () => {
+    const el = show({ film: 'f' });
+    await vi.waitFor(() => expect(el.querySelector('.emk-bar')).not.toBeNull());
+    el.setAttribute('chrome', 'off');
+    expect(el.querySelector('.emk-bar')).toBeNull();
+    expect(el.controller).toBeTruthy();
+    el.removeAttribute('chrome');
+    await vi.waitFor(() => expect(el.querySelector('.emk-bar')).not.toBeNull());
+    el.remove();
+  });
+
+  it('keeps stage, bar and footer in order with a description', async () => {
+    const el = show({ film: 'f', description: '' });
+    await vi.waitFor(() => expect(el.querySelector('.emk-bar')).not.toBeNull());
+    await vi.waitFor(() =>
+      expect([...el.querySelectorAll('button')].find((b) => b.textContent?.startsWith('Description'))).toBeTruthy(),
+    );
+    const box = el.querySelector('div')!;
+    const bar = el.querySelector('.emk-bar')!;
+    const foot = [...el.querySelectorAll('button')].find((b) => b.textContent?.startsWith('Description'))!.parentElement!;
+    expect(box.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(bar.compareDocumentPosition(foot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    el.setAttribute('playerhref', '/p/f');
+    await vi.waitFor(() => expect(el.querySelector('.emk-popout')).not.toBeNull());
+    expect(el.querySelector('.emk-bar')!.compareDocumentPosition(foot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     el.remove();
   });
 });
