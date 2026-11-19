@@ -1,7 +1,7 @@
 // Vue 3 components over @senseihq/emaki, written as render functions so they need no SFC compiler.
 // Client-only (they need the DOM): in Nuxt wrap them in <ClientOnly>. Call setupMotion(...) once on the client first.
 import { defineComponent, h, onBeforeUnmount, onMounted, ref, shallowRef, toRaw, watch, type PropType, type Ref, type VNodeRef } from 'vue';
-import { attachScene, createShow, figurePlayer, installCapture, mountPlayerChrome, showKey, voiceLines, type AttachedScene, type Layout, type Mode, type PlayerChrome, type PlayerChromeOptions, type ScenePlayerState, type VoiceLine } from '@senseihq/emaki';
+import { attachScene, createShow, figurePlayer, installCapture, mountPlayerChrome, SIZES, showKey, voiceLines, type AttachedScene, type Layout, type Mode, type PlayerChrome, type PlayerChromeOptions, type ScenePlayerState, type VoiceLine } from '@senseihq/emaki';
 import { useScenePlayer, useShowState, useSize, type Show } from './composables.js';
 
 function attach(player: () => ScenePlayerState, locale: () => string, mode: () => Mode, autoplay: boolean) {
@@ -163,9 +163,15 @@ export const MotionShow = defineComponent({
     const onKeydown = (e: KeyboardEvent) => { if (show.value && showKey(show.value, e, e.currentTarget as Element)) e.preventDefault(); };
     return () => {
       const s = show.value, x = st.value;
+      // The stage wrapper keeps the content aspect ratio for the layout (no letterbox gutters): width-driven off
+      // portrait, height-driven on it. No flex growth (it breaks the ratio); the caps fall back to contain.
+      const [W, H] = SIZES[props.layout];
+      const fitStyle = props.layout === 'portrait'
+        ? `position:relative;aspect-ratio:${W}/${H};height:100%;max-width:100%;margin:auto;display:grid;place-items:center;overflow:hidden`
+        : `position:relative;aspect-ratio:${W}/${H};width:100%;max-height:100%;margin:auto;display:grid;place-items:center;overflow:hidden`;
       return h('div', { tabindex: 0, role: 'application', 'aria-label': 'Story player', onKeydown,
         style: 'position:relative;width:100%;height:100%;display:flex;flex-direction:column;outline:none' }, [
-        h('div', { ref: fit, style: 'position:relative;flex:1;min-height:0;display:grid;place-items:center;overflow:hidden' }, [h('div', { ref: stage, style: 'position:relative' })]),
+        h('div', { ref: fit, style: fitStyle }, [h('div', { ref: stage, style: 'position:relative' })]),
         waiting.value ? playButton(props.title, props.length, open, props.cover)
           : s && x && !x.started ? playButton(props.title, props.length, () => s.start())
           : props.controls && s && x ? h('div', { ref: chromeHost }) : null,
