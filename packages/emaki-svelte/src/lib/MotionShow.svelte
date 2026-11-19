@@ -7,7 +7,7 @@
   // without JS). Give it a size (it fills its parent). bind:show to drive it from your own chrome.
   import { onMount, untrack } from 'svelte';
   import {
-    createShow, mountPlayerChrome, showKey, voiceLines,
+    createShow, mountPlayerChrome, showKey, SIZES, voiceLines,
     type ChromeIconName, type ChromeTick, type Layout, type Mode, type PlayerChrome, type VoiceLine,
   } from '@senseihq/emaki';
   import { reactiveShow, type ShowHandle } from './player.svelte.js';
@@ -32,6 +32,16 @@
   let box: HTMLDivElement, stage: HTMLDivElement;
   let w = $state(0), h = $state(0);
   const s = reactiveShow();
+
+  // The fit box keeps the content aspect ratio for the show's layout (core SIZES): width-driven, except
+  // portrait which is height-driven. Flex growth would break the ratio, so centering comes from margin auto;
+  // the max cap degrades to contain in capped shells.
+  const fitStyle = $derived.by(() => {
+    const [W, H] = SIZES[s.layout];
+    return s.layout === 'portrait'
+      ? `aspect-ratio: ${W} / ${H}; height: 100%; max-width: 100%; margin: auto;`
+      : `aspect-ratio: ${W} / ${H}; width: 100%; max-height: 100%; margin: auto;`;
+  });
 
   // Each (re)start gets a ticket, so a slow createShow that a newer one overtook is thrown away. The poster shows
   // only until the reader first plays: a language or mode change after that restarts without it.
@@ -91,7 +101,7 @@
 
 <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
 <div class="motion-show" bind:this={box} tabindex="0" role="application" aria-label="Story player" {onkeydown}>
-  <div class="ms-fit" bind:clientWidth={w} bind:clientHeight={h}><div class="ms-stage" bind:this={stage}></div></div>
+  <div class="ms-fit" style={fitStyle} bind:clientWidth={w} bind:clientHeight={h}><div class="ms-stage" bind:this={stage}></div></div>
   {#snippet play()}
     <span class="ms-play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" /></svg></span>
     <span class="ms-chip">Play the film{length ? ` · ${length}` : ''}</span>
@@ -116,7 +126,7 @@
 
 <style>
   .motion-show { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; outline: none; }
-  .ms-fit { position: relative; flex: 1; min-height: 0; display: grid; place-items: center; overflow: hidden; }
+  .ms-fit { position: relative; min-height: 0; display: grid; place-items: center; overflow: hidden; }
   .ms-stage { position: relative; }
   .ms-desc { padding: 6px 12px 12px; font: 14px/1.55 system-ui; }
   .ms-desc button { background: none; border: 0; padding: 6px 0; cursor: pointer; font: inherit; color: inherit; opacity: .75; text-decoration: underline; }
