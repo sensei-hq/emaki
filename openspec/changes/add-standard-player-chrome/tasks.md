@@ -22,3 +22,10 @@
 - [x] 4.1 All specs green; coverage still 100/100/100/100; `tsc` clean per package
 - [x] 4.2 Example app shows the default chrome (screenshots, Chromium check green)
 - [x] 4.3 READMEs, `docs/llms` texts and plugin references updated where they describe the player
+
+## 5. Aspect-locked stage (follow-up: no letterbox gutters)
+
+- [ ] 5.1 Element `#box`: aspect-ratio from layout always (not just with description), width-driven landscape / height-driven portrait, centered within caps (red specs first)
+- [ ] 5.2 Svelte/React/Vue fit containers: same aspect treatment, reactive to layout (red specs first)
+- [ ] 5.3 Browser check asserts the stage fills its box edge-to-edge in the example app
+- [ ] 5.4 Gates green (specs, 100% coverage, tsc); release notes mention the layout change

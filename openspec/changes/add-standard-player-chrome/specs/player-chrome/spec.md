@@ -88,3 +88,18 @@ progress).
 
 - **WHEN** chrome mounts without `renderTick` and the show is mid scene 2 of 6
 - **THEN** tick 1 is full, tick 2 fills to the scene progress, and ticks 3–6 are empty
+
+### Requirement: Aspect-locked stage
+
+The show's stage wrapper SHALL keep the content aspect ratio for the current layout, so the
+fitted stage fills its box edge-to-edge (within rounding) with the toolbar below it.
+
+#### Scenario: Landscape stage fills its box
+
+- **WHEN** a landscape show settles
+- **THEN** the stage rect matches its wrapper rect within 2 px on every side
+
+#### Scenario: Layout switch re-aspects
+
+- **WHEN** the layout flips landscape to portrait
+- **THEN** the wrapper keeps the portrait ratio and stays centered within its caps
