@@ -217,6 +217,42 @@ describe('MotionShow', () => {
   });
 });
 
+describe('MotionShow aspect-locked stage', () => {
+  const fitStyle = () => (el.querySelector('[role=application]')!.firstElementChild as HTMLElement).getAttribute('style') ?? '';
+  const flat = (s: string) => s.replace(/\s+/g, '');
+
+  it('keeps the content aspect ratio: width-driven off portrait, height-driven on it, never flex-filled', async () => {
+    await mount(MotionShow, { film: 'f', layout: 'landscape' });
+    let style = flat(fitStyle());
+    expect(style).toContain('aspect-ratio:1920/1080');
+    expect(style).toContain('width:100%');
+    expect(style).toContain('max-height:100%');
+    expect(style).toContain('margin:auto');
+    expect(style).not.toMatch(/flex:1|flex-grow/);
+    unmount();
+
+    await mount(MotionShow, { film: 'f', layout: 'portrait' });
+    style = flat(fitStyle());
+    expect(style).toContain('aspect-ratio:1080/1920');
+    expect(style).toContain('height:100%');
+    expect(style).toContain('max-width:100%');
+    expect(style).toContain('margin:auto');
+    expect(style).not.toMatch(/flex:1|flex-grow/);
+  });
+
+  it('re-aspects the stage when the layout prop changes, still fitting the show to the box', async () => {
+    const props = await mount(MotionShow, { film: 'f', layout: 'landscape' as 'landscape' | 'portrait' });
+    expect(flat(fitStyle())).toContain('aspect-ratio:1920/1080');
+    props.layout = 'portrait';
+    await settle();
+    const style = flat(fitStyle());
+    expect(style).toContain('aspect-ratio:1080/1920');
+    expect(style).toContain('height:100%');
+    expect(shows[0].setLayout).toHaveBeenCalledWith('portrait');
+    expect(shows[0].fit).toHaveBeenCalled();
+  });
+});
+
 describe('ShowPage', () => {
   it('without capture, is a full-window story player', async () => {
     await mount(ShowPage, { film: 'f', layout: 'portrait', locale: 'de' });
