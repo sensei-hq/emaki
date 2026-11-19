@@ -3,7 +3,7 @@
 import { act, createElement as h, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { attachScene, createShow, installCapture, ScenePlayerState, voiceLines, type VoiceLine } from '@senseihq/emaki';
+import { attachScene, createShow, installCapture, ScenePlayerState, useSource, voiceLines, type VoiceLine } from '@senseihq/emaki';
 import { MotionScene, MotionShow, ScenePlayer, ShowPage } from '../src/index.js';
 import type { Show } from '../src/hooks.js';
 import { FakeResizeObserver, fakeShow, fakeView, type FakeShow } from './fakes.js';
@@ -25,6 +25,9 @@ beforeEach(() => {
   vi.mocked(createShow).mockReset().mockImplementation(async (_stage, _film, o) => { const s = fakeShow(3, !o?.poster); shows.push(s); return s as never; });
   vi.mocked(installCapture).mockReset().mockImplementation(async () => { const s = fakeShow(); shows.push(s); return s as never; });
   vi.mocked(voiceLines).mockReset().mockResolvedValue([{ scene: 'a', text: 'Line A.' }, { scene: 'b', text: 'Line B.' }]);
+  // The chrome reads voice lines through the core's own import (past this file's voiceLines mock), so the core
+  // gets a source: one line, enough to keep the CC toggle.
+  useSource({ films: async () => [], css: async () => '', scene: async () => null, voiceText: async () => [{ scene: 's0', text: 'Line.' }] });
 });
 afterEach(() => { act(() => root.unmount()); el.remove(); vi.unstubAllGlobals(); });
 const render = (node: ReactNode) => act(async () => root.render(node));
@@ -108,8 +111,8 @@ describe('MotionShow', () => {
     expect(show.prev).toHaveBeenCalled();
     click('Pause');
     expect(show.state.playing).toBe(false);
-    click('Sound off');
-    expect(button('Sound on').getAttribute('aria-pressed')).toBe('true');
+    click('Sound on');
+    expect(button('Sound off').getAttribute('aria-pressed')).toBe('true');
 
     const app = el.querySelector('[role=application]')!;
     const right = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true });
@@ -148,12 +151,12 @@ describe('MotionShow', () => {
   it('with description, opens the voiceover script under a Description button; without lines, no button', async () => {
     await render(h(MotionShow, { film: 'f', description: true }));
     expect(vi.mocked(voiceLines)).toHaveBeenCalledWith('f', 'en');
-    expect(el.querySelector('p')).toBeNull();
+    expect(el.querySelector('p:not(.emk-cap)')).toBeNull();
     click('Description ▸');
-    expect([...el.querySelectorAll('p')].map((p) => p.textContent)).toEqual(['Line A.', 'Line B.']);
+    expect([...el.querySelectorAll('p:not(.emk-cap)')].map((p) => p.textContent)).toEqual(['Line A.', 'Line B.']);
     expect(button('Description ▾').getAttribute('aria-expanded')).toBe('true');
     click('Description ▾');
-    expect(el.querySelector('p')).toBeNull();
+    expect(el.querySelector('p:not(.emk-cap)')).toBeNull();
 
     vi.mocked(voiceLines).mockResolvedValueOnce(null);
     await render(h(MotionShow, { film: 'g', description: true }));
@@ -166,7 +169,7 @@ describe('MotionShow', () => {
     await render(h(MotionShow, { film: 'f', description: true }));
     unmount();
     await act(async () => release([{ scene: 'a', text: 'Late.' }]));
-    expect(el.querySelector('p')).toBeNull();
+    expect(el.querySelector('p:not(.emk-cap)')).toBeNull();
   });
 
   it('ignores keys until the show is ready', async () => {
@@ -210,7 +213,8 @@ describe('MotionShow poster, cover and progress (as the Svelte player)', () => {
     await render(h(MotionShow, { film: 'f', poster: true, title: 'F', length: '1 min' }));
     expect(vi.mocked(createShow).mock.calls[0][2]).toMatchObject({ poster: true });
     expect(button('Play the film: F').textContent).toContain('Play the film · 1 min');
-    expect(button('Next scene')).toBeUndefined();
+    // The chrome mounts with the show, under the poster overlay; the poster's button still starts it.
+    expect(el.querySelector('[role=toolbar]')).not.toBeNull();
     await act(async () => button('Play the film: F').dispatchEvent(new MouseEvent('click', { bubbles: true })));
     expect(shows[0].start).toHaveBeenCalledOnce();
     expect(el.textContent).toContain('1 / 3');
@@ -231,14 +235,78 @@ describe('MotionShow poster, cover and progress (as the Svelte player)', () => {
     expect(el.textContent).toContain('1 / 3');
   });
 
-  it('draws a tick per scene that fills as it plays and jumps there on click, and links to full screen', async () => {
+  it('draws a tick per scene that fills as it plays and jumps there on click, and pops out to fullscreenHref', async () => {
     await render(h(MotionShow, { film: 'f', fullscreenHref: '/show/f' }));
-    expect(el.querySelector('a')!.getAttribute('href')).toBe('/show/f');
-    click('Scene 3');
+    expect(el.querySelector('.emk-popout')!.getAttribute('href')).toBe('/show/f');
+    click('Scene 3: Scene 3');
     expect(shows[0].go).toHaveBeenCalledWith(2);
     shows[0].advance(1);
     frame();
-    const fills = ['Scene 1', 'Scene 2', 'Scene 3'].map((n) => (button(n).firstElementChild as HTMLElement).style.width);
+    const fills = ['Scene 1: Scene 1', 'Scene 2: Scene 2', 'Scene 3: Scene 3'].map((n) => (button(n).firstElementChild as HTMLElement).style.width);
     expect(fills).toEqual(['100%', '100%', '50%']);
+  });
+});
+
+describe('MotionShow chrome (the standard player chrome)', () => {
+  it('renders the icon bar with svg buttons, ticks, count, CC, mute and fullscreen, and captions over the stage', async () => {
+    await render(h(MotionShow, { film: 'f' }));
+    const bar = el.querySelector('[role=toolbar]')!;
+    expect(bar.getAttribute('aria-label')).toBe('Player controls');
+    expect([...bar.querySelectorAll('button')].map((b) => b.getAttribute('aria-label'))).toEqual([
+      'Previous scene', 'Pause', 'Next scene',
+      'Scene 1: Scene 1', 'Scene 2: Scene 2', 'Scene 3: Scene 3',
+      'Captions', 'Sound on', 'Full screen',
+    ]);
+    expect(bar.querySelectorAll('svg').length).toBeGreaterThan(0);
+    expect(bar.querySelector('.emk-count')!.textContent).toBe('1 / 3');
+    const stage = vi.mocked(createShow).mock.calls[0][0] as HTMLElement;
+    expect(stage.querySelector('.emk-cap')).not.toBeNull();
+  });
+
+  it('pops out to playerHref, falls back to fullscreenHref, and hides the link without either', async () => {
+    await render(h(MotionShow, { film: 'f', playerHref: '/show/f' }));
+    expect(el.querySelector('.emk-popout')!.getAttribute('href')).toBe('/show/f');
+    await render(h(MotionShow, { film: 'f', playerHref: '/show/f', fullscreenHref: '/alias' }));
+    expect(el.querySelector('.emk-popout')!.getAttribute('href')).toBe('/show/f');
+    await render(h(MotionShow, { film: 'f', fullscreenHref: '/alias' }));
+    expect(el.querySelector('.emk-popout')!.getAttribute('href')).toBe('/alias');
+    await render(h(MotionShow, { film: 'f' }));
+    expect(el.querySelector('.emk-popout')).toBeNull();
+  });
+
+  it('overrides icons and tick HTML', async () => {
+    await render(h(MotionShow, { film: 'f', icons: { pause: '<svg data-custom="pause"></svg>' }, renderTick: () => '<i>tick</i>' }));
+    expect(el.querySelector('.emk-toggle')!.innerHTML).toContain('data-custom="pause"');
+    for (const t of el.querySelectorAll('.emk-tick')) expect(t.innerHTML).toBe('<i>tick</i>');
+  });
+
+  it('with controls=false renders no chrome; toggling controls off destroys it without leaking its subscription', async () => {
+    await render(h(MotionShow, { film: 'f', controls: false }));
+    expect(el.querySelector('[role=toolbar]')).toBeNull();
+    await render(h(MotionShow, { film: 'f' }));
+    expect(el.querySelector('[role=toolbar]')).not.toBeNull();
+    expect(shows[0].listeners.size).toBe(2);
+    await render(h(MotionShow, { film: 'f', controls: false }));
+    expect(el.querySelector('[role=toolbar]')).toBeNull();
+    expect(shows[0].listeners.size).toBe(1);
+  });
+
+  it('destroys the chrome with the show: on film change the old bar is gone, on unmount its keys are dead', async () => {
+    await render(h(MotionShow, { film: 'f' }));
+    const show = shows[0];
+    await render(h(MotionShow, { film: 'g' }));
+    expect(show.destroy).toHaveBeenCalled();
+    expect(el.querySelectorAll('[role=toolbar]').length).toBe(1);
+    const host = el.querySelector('[role=toolbar]')!.parentElement!;
+    unmount();
+    host.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    expect(shows[1].next).not.toHaveBeenCalled();
+  });
+
+  it('chrome keys stop at the chrome: Space toggles once, not twice through the wrapper handler', async () => {
+    await render(h(MotionShow, { film: 'f' }));
+    const space = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true });
+    act(() => { el.querySelector('.emk-toggle')!.dispatchEvent(space); });
+    expect(shows[0].toggle).toHaveBeenCalledTimes(1);
   });
 });
