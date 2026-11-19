@@ -28,6 +28,7 @@ afterEach(() => { if (app) unmount(app); el.remove(); vi.unstubAllGlobals(); });
 const settle = async () => { for (let i = 0; i < 4; i++) { await Promise.resolve(); flushSync(); } };
 const button = (name: string) => [...el.querySelectorAll('button')].find((b) => b.getAttribute('aria-label') === name || b.textContent === name)!;
 const click = async (name: string) => { button(name).click(); await settle(); };
+const fitStyle = () => el.querySelector('.ms-fit')!.getAttribute('style')?.replace(/\s+/g, ' ') ?? '';
 
 describe('@senseihq/emaki-svelte', () => {
   it('exports the components, the reactive bindings and the core setup', () => {
@@ -232,5 +233,55 @@ describe('MotionShow', () => {
     expect(el.textContent).toContain('1 / 3');
     // start() plays with sound on: the chrome's mute toggle shows it pressed.
     expect(button('Sound off').getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('locks the fit box to the layout aspect ratio from core SIZES', async () => {
+    app = mount(pkg.MotionShow, { target: el, props: { film: 'f' } });
+    await settle();
+    expect(fitStyle()).toContain('aspect-ratio: 1920 / 1080');
+    expect(fitStyle()).toContain('width: 100%');
+    expect(fitStyle()).toContain('max-height: 100%');
+    expect(fitStyle()).toContain('margin: auto');
+    unmount(app);
+
+    app = mount(pkg.MotionShow, { target: el, props: { film: 'f', layout: 'figure' } });
+    await settle();
+    expect(fitStyle()).toContain('aspect-ratio: 1600 / 1000');
+    expect(fitStyle()).toContain('width: 100%');
+    expect(fitStyle()).toContain('max-height: 100%');
+    unmount(app);
+
+    app = mount(pkg.MotionShow, { target: el, props: { film: 'f', layout: 'portrait' } });
+    await settle();
+    expect(fitStyle()).toContain('aspect-ratio: 1080 / 1920');
+    expect(fitStyle()).toContain('height: 100%');
+    expect(fitStyle()).toContain('max-width: 100%');
+    expect(fitStyle()).toContain('margin: auto');
+  });
+
+  it('re-aspects the fit box when the show layout changes, keeping fit() wired', async () => {
+    app = mount(pkg.MotionShow, { target: el, props: { film: 'f', layout: 'portrait' } });
+    flushSync();
+    // The show has not attached yet: the box rests at the default landscape ratio.
+    expect(fitStyle()).toContain('aspect-ratio: 1920 / 1080');
+    await settle();
+    // Attached and synced to portrait: height-driven now.
+    expect(fitStyle()).toContain('aspect-ratio: 1080 / 1920');
+    expect(fitStyle()).toContain('height: 100%');
+    expect(shows[0].fit).toHaveBeenCalled();
+  });
+
+  it('keeps the cover filling over the aspect-locked box until the first click', async () => {
+    app = mount(pkg.MotionShow, { target: el, props: { film: 'f', cover: '/covers/f.jpg', title: 'F' } });
+    await settle();
+    expect(createShow).not.toHaveBeenCalled();
+    expect(fitStyle()).toContain('aspect-ratio: 1920 / 1080');
+    const img = el.querySelector('img.ms-cover')!;
+    expect(img.getAttribute('src')).toBe('/covers/f.jpg');
+    expect(img.closest('button.ms-poster')).not.toBeNull();
+
+    await click('Play the film: F');
+    expect(el.querySelector('img.ms-cover')).toBeNull();
+    expect(fitStyle()).toContain('aspect-ratio: 1920 / 1080');
   });
 });
