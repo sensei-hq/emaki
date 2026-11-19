@@ -260,7 +260,8 @@ describe('MotionShow chrome (the standard player chrome)', () => {
     expect(bar.querySelectorAll('svg').length).toBeGreaterThan(0);
     expect(bar.querySelector('.emk-count')!.textContent).toBe('1 / 3');
     const stage = vi.mocked(createShow).mock.calls[0][0] as HTMLElement;
-    expect(stage.querySelector('.emk-cap')).not.toBeNull();
+    expect(stage.querySelector('.emk-cap')).toBeNull();
+    expect(el.querySelector('.emk-cap')).not.toBeNull();
   });
 
   it('pops out to playerHref, falls back to fullscreenHref, and hides the link without either', async () => {
