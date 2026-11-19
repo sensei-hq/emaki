@@ -60,7 +60,7 @@ export const CHROME_CSS = [
   '.emk-bar svg{width:20px;height:20px;fill:currentColor}',
   '.emk-ticks{flex:1;display:flex;gap:4px;min-width:2rem}',
   '.emk-ticks .emk-tick{flex:1;min-width:0;height:18px;padding:7px 0;background:linear-gradient(color-mix(in srgb,currentColor 18%,transparent),color-mix(in srgb,currentColor 18%,transparent)) center/100% 4px no-repeat}',
-  '.emk-ticks .emk-tick span{display:block;height:4px;border-radius:2px;background:currentColor}',
+  '.emk-ticks .emk-tick span{display:block;height:4px;border-radius:2px;background:var(--emk-accent,currentColor)}',
   '.emk-count{font-variant-numeric:tabular-nums;opacity:.7;white-space:nowrap}',
   '.emk-cap{position:absolute;left:50%;bottom:4%;transform:translateX(-50%);max-width:82%;margin:0;padding:.45em .9em;border-radius:.4rem;background:rgb(17 27 42/.82);color:#fff;font:clamp(.85rem,1.6vw,1.25rem)/1.4 system-ui;text-align:center}',
 ].join('\n');
@@ -115,18 +115,36 @@ export function mountPlayerChrome(host: HTMLElement, show: Show, opts: PlayerChr
     a.title = 'Open the player on its own page';
     bar.append(a);
   }
-  host.append(style, bar);
-  opts.stage.append(cap);
+  // The caption anchors to the host (light DOM always paints; stage hosts carry shadow roots
+  // that would swallow it) and is geometrically pinned over the stage below.
+  const pos = host.style.position || getComputedStyle(host).position;
+  if (!pos || pos === 'static') host.style.position = 'relative';
+  host.append(style, bar, cap);
 
   let lines: VoiceLine[] | null = null;
   let ccOn = false;
   let dead = false;
   let raf = 0;
   let last = '';
+  let geoKey = '';
   const byScene = () => new Map((lines ?? []).map((l) => [l.scene, l.text]));
+
+  // Pins the overlay caption over the stage (centered, 4% above its bottom edge). Geometry is
+  // re-read only when the host size moves, never per frame.
+  const placeCaption = () => {
+    const key = `${host.clientWidth}x${host.clientHeight}`;
+    if (key === geoKey) return;
+    geoKey = key;
+    const hr = host.getBoundingClientRect();
+    const sr = opts.stage.getBoundingClientRect();
+    cap.style.left = `${sr.left - hr.left + sr.width / 2}px`;
+    cap.style.bottom = `${hr.bottom - sr.bottom + sr.height * 0.04}px`;
+    cap.style.maxWidth = `${sr.width * 0.82}px`;
+  };
 
   const render = () => {
     if (dead) return;
+    placeCaption();
     const s = show.state;
     const scenes = show.timeline.scenes;
     const current = ticks(show);
