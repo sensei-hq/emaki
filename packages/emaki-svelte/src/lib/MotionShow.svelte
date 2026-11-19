@@ -1,22 +1,30 @@
 <script lang="ts">
-  // The story player: a film's scenes as slides, fitted to its box. Keys: ←/→ scene, Space play/pause, M sound,
-  // O orientation, R replay the scene, Home from the top, F fullscreen. With `poster` it opens on the film's cover
-  // with a play button, and the first click plays it from the top with sound on. With `cover` it paints that image
-  // instead and creates nothing until the first click (a fast first paint, and a sensible page without JS). Give it a
-  // size (it fills its parent). bind:show to drive it from your own chrome.
+  // The story player: a film's scenes as slides, fitted to its box, under the standard chrome (prev/play/next,
+  // scene ticks, count, captions, mute, fullscreen, pop-out). Keys: ←/→ scene, Space play/pause, M sound, C
+  // captions, O orientation, R replay the scene, Home from the top, F fullscreen. With `poster` it opens on the
+  // film's cover with a play button, and the first click plays it from the top with sound on. With `cover` it
+  // paints that image instead and creates nothing until the first click (a fast first paint, and a sensible page
+  // without JS). Give it a size (it fills its parent). bind:show to drive it from your own chrome.
   import { onMount, untrack } from 'svelte';
-  import { createShow, showKey, voiceLines, type Layout, type Mode, type VoiceLine } from '@senseihq/emaki';
+  import {
+    createShow, mountPlayerChrome, showKey, voiceLines,
+    type ChromeIconName, type ChromeTick, type Layout, type Mode, type PlayerChrome, type VoiceLine,
+  } from '@senseihq/emaki';
   import { reactiveShow, type ShowHandle } from './player.svelte.js';
 
   let {
     film, locale = 'en', layout = 'landscape', mode = 'auto', controls = true, slide = 1, loop = false,
-    poster = false, cover = '', title = '', length = '', fullscreenHref = '', description = false, show = $bindable(),
+    poster = false, cover = '', title = '', length = '', fullscreenHref = '', playerHref = '',
+    icons = undefined, renderTick = undefined, description = false, show = $bindable(),
   }: {
     film: string; locale?: string; layout?: Layout; mode?: Mode; controls?: boolean; slide?: number; loop?: boolean;
     /** Open on the cover with a play button. */ poster?: boolean;
     /** An image (URL) to show with the play button; the show is created on the first click. */ cover?: string;
     /** The film's name and running time, for the poster's label and chip. */ title?: string; length?: string;
-    /** Where the full-screen link goes (e.g. /show/<film>); no link when empty. */ fullscreenHref?: string;
+    /** Where the pop-out link goes (e.g. /show/<film>); no link when empty. Kept as an alias of playerHref. */ fullscreenHref?: string;
+    /** Where the pop-out link goes; fullscreenHref is used when this is empty. */ playerHref?: string;
+    /** Glyph overrides for the chrome (complete <svg> strings), merged over the defaults. */ icons?: Partial<Record<ChromeIconName, string>>;
+    /** Custom tick HTML per scene; void keeps the default progress tick. */ renderTick?: (tick: ChromeTick, index: number) => string | void;
     /** A Description button under the player that opens the film's voiceover script; hidden without one. */ description?: boolean;
     show?: ShowHandle;
   } = $props();
@@ -51,15 +59,33 @@
     const l = await voiceLines(film, locale);
     if (mine === dticket) lines = l;
   }
-  onMount(() => () => { ticket++; dticket++; s.detach(); });
+  // The standard chrome over the show, remounted with it and whenever its inputs change; gone without
+  // controls, under a poster (it mounts with the start), or on unmount.
+  let chrome: PlayerChrome | null = null;
+  $effect(() => {
+    const api = s.api, ready = s.started, on = controls, href = playerHref || fullscreenHref, ic = icons, rt = renderTick;
+    untrack(() => {
+      chrome?.destroy();
+      chrome = null;
+      if (!on || !api || !ready) return;
+      chrome = mountPlayerChrome(box, api, { film, locale, stage, playerHref: href || undefined, icons: ic, renderTick: rt });
+    });
+  });
+  onMount(() => () => { ticket++; dticket++; chrome?.destroy(); chrome = null; s.detach(); });
   // Starts on mount and restarts when the film, language or mode changes (and on nothing else: untrack).
   $effect(() => { film; locale; mode; if (!waiting) untrack(start); });
   $effect(() => { film; locale; description; untrack(loadLines); });
   $effect(() => { if (s.api && s.layout !== layout) s.api.setLayout(layout); });
   $effect(() => { s.layout; s.api?.fit(w, h); });
 
+  // The chrome takes Space/arrows/M/C/F (stopping them); the box keeps O/R/Home.
   function onkeydown(e: KeyboardEvent) {
-    if (s.api && showKey(s.api, e, box)) e.preventDefault();
+    if (!s.api) return;
+    const k = e.key.toLowerCase();
+    if (k === 'o' || k === 'r' || k === 'home') {
+      showKey(s.api, e, box);
+      e.preventDefault();
+    }
   }
 </script>
 
@@ -79,20 +105,6 @@
     <button class="ms-poster" onclick={() => s.api?.start()} aria-label="Play the film{title ? `: ${title}` : ''}">
       {@render play()}
     </button>
-  {:else if controls && s.api}
-    <div class="ms-bar">
-      <button onclick={() => s.api?.prev()} aria-label="Previous scene">‹</button>
-      <button onclick={() => s.api?.toggle()} aria-label={s.playing ? 'Pause' : 'Play'}>{s.playing ? '❚❚' : '▶'}</button>
-      <button onclick={() => s.api?.next()} aria-label="Next scene">›</button>
-      <div class="ms-ticks">
-        {#each s.ticks as tk, i (tk.id)}
-          <button style="flex:{tk.dur}" onclick={() => s.api?.go(i)} aria-label={tk.name}><span style="width:{tk.fill * 100}%"></span></button>
-        {/each}
-      </div>
-      <span class="ms-count">{s.index + 1} / {s.count}</span>
-      <button onclick={() => s.api?.setSound(!s.sound)} aria-pressed={s.sound}>{s.sound ? 'Sound on' : 'Sound off'}</button>
-      {#if fullscreenHref}<a class="ms-full" href={fullscreenHref} aria-label="Open full screen" title="Full screen">⤢</a>{/if}
-    </div>
   {/if}
   {#if description && lines}
     <div class="ms-desc">
@@ -106,13 +118,6 @@
   .motion-show { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; outline: none; }
   .ms-fit { position: relative; flex: 1; min-height: 0; display: grid; place-items: center; overflow: hidden; }
   .ms-stage { position: relative; }
-  .ms-bar { display: flex; gap: 8px; align-items: center; justify-content: center; padding: 8px; font: 13px system-ui; }
-  .ms-bar button { min-width: 34px; height: 34px; border-radius: 17px; border: 1px solid currentColor; background: none; color: inherit; cursor: pointer; padding: 0 10px; }
-  .ms-count { font-variant-numeric: tabular-nums; opacity: .7; }
-  .ms-ticks { flex: 1; display: flex; gap: 3px; max-width: 360px; }
-  .ms-bar .ms-ticks button { min-width: 0; height: 18px; padding: 7px 0; border: 0; border-radius: 0; background: linear-gradient(color-mix(in srgb, currentColor 18%, transparent), color-mix(in srgb, currentColor 18%, transparent)) center / 100% 4px no-repeat; }
-  .ms-ticks span { display: block; height: 4px; border-radius: 2px; background: currentColor; }
-  .ms-full { min-width: 34px; height: 34px; border-radius: 17px; border: 1px solid currentColor; display: grid; place-items: center; color: inherit; text-decoration: none; }
   .ms-desc { padding: 6px 12px 12px; font: 14px/1.55 system-ui; }
   .ms-desc button { background: none; border: 0; padding: 6px 0; cursor: pointer; font: inherit; color: inherit; opacity: .75; text-decoration: underline; }
   .ms-desc p { margin: 0 0 .7em; }
