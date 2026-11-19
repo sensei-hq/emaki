@@ -59,7 +59,7 @@
   nav button[aria-pressed='true'] { background: #1d1b17; color: #f6f3ec; }
   h1 { font-size: 40px; line-height: 1.1; margin: 24px 0 8px; }
   .dek { font-size: 20px; color: #5b564c; }
-  .player { aspect-ratio: 16 / 10; margin: 24px 0 40px; background: #fff; border-radius: 12px; overflow: hidden; }
+  .player { margin: 24px 0 40px; background: #fff; border-radius: 12px; overflow: hidden; }
   .eyebrow { text-transform: uppercase; letter-spacing: .08em; font-size: 12px; color: #c25237; margin: 32px 0 0; }
   h2 { margin: 4px 0 8px; }
   figure { margin: 20px 0; border-radius: 12px; overflow: hidden; background: #fff; }
