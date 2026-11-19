@@ -21,7 +21,7 @@ Call `setupMotion({ source, site, logos })` once on the client first (`emaki ini
 | Export | What |
 |---|---|
 | `MotionScene` | `film`, `scene`, `layout` (`figure`), `locale`, `mode` (`auto`), `autoplay` |
-| `MotionShow` | `film`, `locale`, `layout`, `mode` (`auto`), `poster` (cover frame first; `title`, `length` on it), `cover` (an image URL shown with the play button; the show is created on the first click, sound on), `fullscreenHref`, `controls`, `slide`, `loop`, `description` (the voiceover script under a Description button), `onReady(show)`; the controls show a progress tick per scene |
+| `MotionShow` | `film`, `locale`, `layout`, `mode` (`auto`), `poster` (cover frame first; `title`, `length` on it), `cover` (an image URL shown with the play button; the show is created on the first click, sound on), `playerHref` (pop-out link; `fullscreenHref` is an alias), `controls`, `slide`, `loop`, `description` (the voiceover script under a Description button), `icons` (glyph overrides), `renderTick` (custom tick HTML), `onReady(show)`; the standard icon toolbar (prev/play/next, ticks, count, CC, mute, full screen; keys Space/arrows/M/C/F) |
 | `ScenePlayer` | `player`, `locale`, `mode` (`auto`), `controls` |
 | `ShowPage` | `film`, `layout`, `locale`, `mode` (capture: `light`), `src` (`json`/`js`, forces the scene source), `capture` |
 | `useScenePlayer(player)` | re-renders on every change of a `ScenePlayerState` (useSyncExternalStore) |

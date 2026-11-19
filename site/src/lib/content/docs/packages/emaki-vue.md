@@ -26,8 +26,10 @@ Every component takes `mode`: `light`, `dark` or `auto` (the default). Auto foll
 from.
 
 `MotionShow` props: `film`, `locale`, `layout`, `mode`, `poster` (cover frame first; `title`, `length` on it), `cover` (an
-image URL shown with the play button; the show is created on the first click, sound on), `fullscreenHref`, `controls`,
-`slide`, `loop`, `description` (the voiceover script under a Description button); `@ready(show)`. Its controls show a progress tick per scene.
+image URL shown with the play button; the show is created on the first click, sound on), `playerHref` (pop-out link;
+`fullscreenHref` is an alias), `controls`, `slide`, `loop`, `description` (the voiceover script under a Description
+button), `icons` (glyph overrides), `renderTick` (custom tick HTML); `@ready(show)`. The standard icon toolbar
+(prev/play/next, ticks, count, CC, mute, full screen; keys Space/arrows/M/C/F).
 
 Call `setupMotion({ source, site, logos })` once on the client first. Composables: `useScenePlayer(player)` (a
 reactive snapshot of a `ScenePlayerState`) and `useShowState(showRef)` (`{ index, local, playing, sound, layout, started }`, the playhead followed once a frame).
