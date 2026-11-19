@@ -10,6 +10,7 @@ export { pageMode } from './mode.js';
 export * from './sound.js';
 export { collectScore, play as playScore, type Score, type ScoreSpan } from './score.js';
 export * from './show.js';
+export * from './player-chrome.js';
 export * from './description.js';
 export * from './i18n.js';
 export * from './content.js';

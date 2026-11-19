@@ -171,7 +171,7 @@ export async function installCapture(host: HTMLElement, slug: string, layout: La
   return show;
 }
 
-type Show = Awaited<ReturnType<typeof createShow>>;
+export type Show = Awaited<ReturnType<typeof createShow>>;
 
 /** F: leave fullscreen, or put `el` (default the whole page) into it. */
 function toggleFullscreen(el?: Element) {
