@@ -6,9 +6,9 @@ import type { Layout } from '@senseihq/emaki';
 export type ShowState = { index: number; local: number; playing: boolean; sound: boolean; layout: Layout; started: boolean };
 
 /** A story player controller with the core's surface; its state moves the way the real one's does. */
-export function fakeShow(scenes = 3) {
+export function fakeShow(scenes = 3, started = true) {
   const listeners = new Set<(s: ShowState) => void>();
-  const st: ShowState = { index: 0, local: 0, playing: true, sound: false, layout: 'landscape', started: true };
+  const st: ShowState = { index: 0, local: 0, playing: started, sound: false, layout: 'landscape', started };
   const emit = () => listeners.forEach((l) => l({ ...st }));
   const go = (i: number) => { st.index = (i + scenes) % scenes; st.local = 0; emit(); };
   return {
@@ -25,7 +25,7 @@ export function fakeShow(scenes = 3) {
     play: vi.fn(() => { st.playing = true; emit(); }),
     pause: vi.fn(() => { st.playing = false; emit(); }),
     toggle: vi.fn(() => { st.playing = !st.playing; emit(); }),
-    start: vi.fn(async () => { st.started = true; emit(); }),
+    start: vi.fn(async () => { Object.assign(st, { started: true, playing: true, sound: true, index: 0, local: 0 }); emit(); }),
     replay: vi.fn(),
     restart: vi.fn(),
     setSound: vi.fn((on: boolean) => { st.sound = on; emit(); }),

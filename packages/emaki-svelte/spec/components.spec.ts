@@ -2,7 +2,7 @@
 // createShow) into its element, renders chrome from reactivePlayer/reactiveShow, and tears it down on unmount.
 import { flushSync, mount, unmount } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { attachScene, createShow, installCapture, ScenePlayerState, voiceLines, type VoiceLine } from '@senseihq/emaki';
+import { attachScene, createShow, installCapture, ScenePlayerState, useSource, voiceLines, type VoiceLine } from '@senseihq/emaki';
 import * as pkg from '../src/lib/index.js';
 import { FakeResizeObserver, fakeShow, fakeView, type FakeShow } from './fakes.js';
 
@@ -12,13 +12,17 @@ vi.mock('@senseihq/emaki', async (actual) => ({
 }));
 
 let el: HTMLElement, views: ReturnType<typeof fakeView>[], shows: FakeShow[], app: Record<string, unknown> | null;
+// What the chrome's own voice-line lookup sees (it reads the film source directly, past the voiceLines mock above).
+let chromeLines: VoiceLine[] | null;
 beforeEach(() => {
   el = document.body.appendChild(document.createElement('div'));
   views = []; shows = []; app = null;
   vi.stubGlobal('ResizeObserver', FakeResizeObserver);
   vi.mocked(attachScene).mockReset().mockImplementation(() => { const v = fakeView(); views.push(v); return v; });
-  vi.mocked(createShow).mockReset().mockImplementation(async () => { const s = fakeShow(); shows.push(s); return s as never; });
+  vi.mocked(createShow).mockReset().mockImplementation(async (_host, _slug, opts) => { const s = fakeShow(3, !opts?.poster); shows.push(s); return s as never; });
   vi.mocked(voiceLines).mockReset().mockResolvedValue([{ scene: 'a', text: 'Line A.' }, { scene: 'b', text: 'Line B.' }]);
+  chromeLines = [{ scene: 'a', text: 'Line A.' }, { scene: 'b', text: 'Line B.' }];
+  useSource({ films: async () => [], css: async () => '', scene: async () => null, voiceText: async () => chromeLines });
 });
 afterEach(() => { if (app) unmount(app); el.remove(); vi.unstubAllGlobals(); });
 const settle = async () => { for (let i = 0; i < 4; i++) { await Promise.resolve(); flushSync(); } };
@@ -59,31 +63,139 @@ describe('ScenePlayer', () => {
 });
 
 describe('MotionShow', () => {
-  it('creates the show, mirrors it in its controls, and destroys it on unmount', async () => {
+  it('creates the show, drives it from the standard chrome, and destroys both on unmount', async () => {
     app = mount(pkg.MotionShow, { target: el, props: { film: 'f' } });
     await settle();
     expect(vi.mocked(createShow).mock.calls[0].slice(1)).toEqual(['f', { locale: 'en', layout: 'landscape', mode: 'auto', slide: 1, loop: false, poster: false }]);
     const show = shows[0];
-    expect(el.textContent).toContain('1 / 3');
+    // The standard icon bar: prev/play/next, per-scene ticks, count, CC, mute, fullscreen — and no pop-out
+    // without an href.
+    const bar = el.querySelector('.emk-bar')!;
+    expect(bar.getAttribute('role')).toBe('toolbar');
+    expect([...bar.querySelectorAll('button')].map((b) => b.getAttribute('aria-label'))).toEqual([
+      'Previous scene', 'Pause', 'Next scene',
+      'Scene 1: Scene 1', 'Scene 2: Scene 2', 'Scene 3: Scene 3',
+      'Captions', 'Sound on', 'Full screen',
+    ]);
+    expect(bar.querySelector('.emk-count')!.textContent).toBe('1 / 3');
+    expect(bar.querySelector('a')).toBeNull();
+    expect(bar.querySelector('svg')).not.toBeNull();
+
     await click('Next scene');
     expect(el.textContent).toContain('2 / 3');
-    await click('Sound off');
-    expect(button('Sound on').getAttribute('aria-pressed')).toBe('true');
+    await click('Scene 1: Scene 1');
+    expect(show.go).toHaveBeenCalledWith(0);
+    expect(el.textContent).toContain('1 / 3');
+    await click('Sound on');
+    expect(button('Sound off').getAttribute('aria-pressed')).toBe('true');
+    await click('Pause');
+    expect(show.toggle).toHaveBeenCalledOnce();
+    expect(button('Play')).toBeTruthy();
+
     unmount(app); app = null;
     expect(show.destroy).toHaveBeenCalled();
     expect(show.listeners.size).toBe(0);
+  });
+
+  it('captions the current scene when CC is on, and hides CC without voice lines', async () => {
+    chromeLines = [
+      { scene: 's0', text: 'Opening line.' }, { scene: 's1', text: 'Second line.' }, { scene: 's2', text: 'Closing line.' },
+    ];
+    app = mount(pkg.MotionShow, { target: el, props: { film: 'f' } });
+    await settle();
+    const cap = () => el.querySelector<HTMLElement>('.emk-cap')!;
+    expect(cap().hidden).toBe(true);
+    await click('Captions');
+    expect(button('Captions').getAttribute('aria-pressed')).toBe('true');
+    expect(cap().hidden).toBe(false);
+    expect(cap().textContent).toBe('Opening line.');
+    await click('Next scene');
+    expect(cap().textContent).toBe('Second line.');
+    unmount(app);
+
+    chromeLines = null;
+    app = mount(pkg.MotionShow, { target: el, props: { film: 'g' } });
+    await settle();
+    expect(el.querySelector('.emk-cc')).toBeNull();
+  });
+
+  it('links the pop-out to playerHref, or to fullscreenHref when playerHref is absent', async () => {
+    app = mount(pkg.MotionShow, { target: el, props: { film: 'f', playerHref: '/show/f' } });
+    await settle();
+    expect(el.querySelector('a.emk-popout')!.getAttribute('href')).toBe('/show/f');
+    unmount(app);
+
+    app = mount(pkg.MotionShow, { target: el, props: { film: 'f', fullscreenHref: '/show/f' } });
+    await settle();
+    expect(el.querySelector('a.emk-popout')!.getAttribute('href')).toBe('/show/f');
+    unmount(app);
+
+    app = mount(pkg.MotionShow, { target: el, props: { film: 'f', playerHref: '/p', fullscreenHref: '/fs' } });
+    await settle();
+    expect(el.querySelector('a.emk-popout')!.getAttribute('href')).toBe('/p');
+  });
+
+  it('swaps the chrome glyphs in icons', async () => {
+    app = mount(pkg.MotionShow, { target: el, props: { film: 'f', icons: { pause: '<svg data-x="1"></svg>' } } });
+    await settle();
+    expect(el.querySelector('.emk-toggle')!.innerHTML).toContain('data-x="1"');
+    expect(el.querySelector('.emk-next')!.innerHTML).not.toContain('data-x="1"');
+  });
+
+  it('renders custom ticks from renderTick, void keeping the default', async () => {
+    app = mount(pkg.MotionShow, { target: el, props: { film: 'f', renderTick: (_t, i) => (i === 0 ? '<em>first</em>' : undefined) } });
+    await settle();
+    const ticks = [...el.querySelectorAll('.emk-tick')];
+    expect(ticks).toHaveLength(3);
+    expect(ticks[0].innerHTML).toBe('<em>first</em>');
+    expect(ticks[1].querySelector('span')).not.toBeNull();
+  });
+
+  it('with controls=false, plays the show with no chrome', async () => {
+    app = mount(pkg.MotionShow, { target: el, props: { film: 'f', controls: false } });
+    await settle();
+    expect(createShow).toHaveBeenCalledOnce();
+    expect(el.querySelector('.emk-bar')).toBeNull();
+  });
+
+  it('keeps O/R/Home keys on the box while the chrome takes the rest', async () => {
+    app = mount(pkg.MotionShow, { target: el, props: { film: 'f' } });
+    await settle();
+    const show = shows[0], box = el.querySelector('.motion-show')!;
+    box.dispatchEvent(new KeyboardEvent('keydown', { key: 'r', bubbles: true }));
+    expect(show.replay).toHaveBeenCalledOnce();
+    box.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
+    expect(show.restart).toHaveBeenCalledOnce();
+    box.dispatchEvent(new KeyboardEvent('keydown', { key: 'o', bubbles: true }));
+    expect(show.setLayout).toHaveBeenCalledWith('portrait');
+    // Space reaches the chrome exactly once: the box must not handle it too.
+    box.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    expect(show.toggle).toHaveBeenCalledOnce();
+  });
+
+  it('with poster, opens on the cover until played, mounting the chrome with the start', async () => {
+    app = mount(pkg.MotionShow, { target: el, props: { film: 'f', poster: true, title: 'F' } });
+    await settle();
+    expect(vi.mocked(createShow).mock.calls[0][2]).toMatchObject({ poster: true });
+    expect(el.querySelector('.emk-bar')).toBeNull();
+    expect(button('Play the film: F')).toBeTruthy();
+
+    await click('Play the film: F');
+    expect(shows[0].start).toHaveBeenCalledOnce();
+    expect(el.querySelector('.emk-bar')).not.toBeNull();
+    expect(el.textContent).toContain('1 / 3');
   });
 
   it('with description, opens the voiceover script under a Description button; without lines, no button', async () => {
     app = mount(pkg.MotionShow, { target: el, props: { film: 'f', description: true } });
     await settle();
     expect(vi.mocked(voiceLines)).toHaveBeenCalledWith('f', 'en');
-    expect(el.querySelector('p')).toBeNull();
+    expect(el.querySelector('.ms-desc p')).toBeNull();
     await click('Description ▸');
-    expect([...el.querySelectorAll('p')].map((p) => p.textContent)).toEqual(['Line A.', 'Line B.']);
+    expect([...el.querySelectorAll('.ms-desc p')].map((p) => p.textContent)).toEqual(['Line A.', 'Line B.']);
     expect(button('Description ▾').getAttribute('aria-expanded')).toBe('true');
     await click('Description ▾');
-    expect(el.querySelector('p')).toBeNull();
+    expect(el.querySelector('.ms-desc p')).toBeNull();
     unmount(app);
 
     vi.mocked(voiceLines).mockResolvedValueOnce(null);
@@ -107,6 +219,7 @@ describe('MotionShow', () => {
     app = mount(pkg.MotionShow, { target: el, props: { film: 'f', cover: '/covers/f.jpg', title: 'F', length: '1 min' } });
     await settle();
     expect(createShow).not.toHaveBeenCalled();
+    expect(el.querySelector('.emk-bar')).toBeNull();
     const img = el.querySelector('img')!;
     expect(img.getAttribute('src')).toBe('/covers/f.jpg');
     expect(button('Play the film: F').textContent).toContain('Play the film · 1 min');
@@ -117,5 +230,7 @@ describe('MotionShow', () => {
     expect(shows[0].start).toHaveBeenCalledOnce();
     expect(el.querySelector('img')).toBeNull();
     expect(el.textContent).toContain('1 / 3');
+    // start() plays with sound on: the chrome's mute toggle shows it pressed.
+    expect(button('Sound off').getAttribute('aria-pressed')).toBe('true');
   });
 });
