@@ -118,6 +118,19 @@ describe('<motion-scene> voice cut', () => {
     el.remove();
   });
 
+  it('a voice cut before the figure mounts applies once it does', async () => {
+    const el = scene({ layout: 'landscape' });
+    el.setAttribute('voice', 'off');
+    el.setAttribute('film', 'f');
+    el.setAttribute('scene', 'a');
+    await vi.waitFor(() => expect(speaker(el).hidden).toBe(false));
+    intersect(true);
+    speaker(el).click();
+    await new Promise((r) => setTimeout(r, 10));
+    expect(playing()).toHaveLength(0);
+    el.remove();
+  });
+
   it('flipping voice off mid-take silences it, flipping on resumes it', async () => {
     const el = scene({ film: 'f', scene: 'a', layout: 'landscape' });
     await vi.waitFor(() => expect(speaker(el).hidden).toBe(false));
