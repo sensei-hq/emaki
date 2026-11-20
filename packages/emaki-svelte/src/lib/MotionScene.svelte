@@ -113,7 +113,7 @@
   .emk-scene-cc { right: 52px; font: 700 11px/1 system-ui; letter-spacing: .04em; display: grid; place-items: center; }
   .ms-snd:hover, .ms-snd:focus-visible, .ms-snd[aria-pressed='true'],
   .emk-scene-cc:hover, .emk-scene-cc:focus-visible, .emk-scene-cc[aria-pressed='true'] { opacity: 1; }
-  .ms-snd svg { width: 100%; height: 100%; fill: currentColor; }
+  .ms-snd :global(svg) { width: 100%; height: 100%; fill: currentColor; }
   .emk-scene-cap {
     position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); max-width: 82%; margin: 0;
     padding: .35em .8em; border-radius: .4rem; background: rgb(20 18 15 / 0.78); color: #fff;
