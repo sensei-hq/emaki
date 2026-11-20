@@ -2,9 +2,9 @@
   "library": "emaki",
   "ecosystem": "npm",
   "version": ">=0.1",
-  "documents": "0.5.0",
+  "documents": "0.5.1",
   "repo": "https://github.com/sensei-hq/emaki",
-  "ref": "v0.5.0",
+  "ref": "v0.5.1",
   "packages": [
     "@senseihq/emaki",
     "@senseihq/emaki-cli",

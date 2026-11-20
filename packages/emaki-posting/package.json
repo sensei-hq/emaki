@@ -1,6 +1,6 @@
 {
   "name": "@senseihq/emaki-posting",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "The motion stories posting desk: stage, approve exactly what was staged, post on schedule. Framework-free core with Cloudflare (D1/R2/Access) and SvelteKit adapters.",
   "type": "module",
   "license": "MIT",
