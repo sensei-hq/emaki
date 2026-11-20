@@ -3,12 +3,12 @@
 import { vi } from 'vitest';
 import type { Layout } from '@senseihq/emaki';
 
-export type ShowState = { index: number; local: number; playing: boolean; sound: boolean; layout: Layout; started: boolean };
+export type ShowState = { index: number; local: number; playing: boolean; sound: boolean; voiceOn: boolean; layout: Layout; started: boolean };
 
 /** A story player controller with the core's surface; its state moves the way the real one's does. */
 export function fakeShow(scenes = 3, started = true) {
   const listeners = new Set<(s: ShowState) => void>();
-  const st: ShowState = { index: 0, local: 0, playing: started, sound: false, layout: 'landscape', started };
+  const st: ShowState = { index: 0, local: 0, playing: started, sound: false, voiceOn: true, layout: 'landscape', started };
   const emit = () => listeners.forEach((l) => l({ ...st }));
   const go = (i: number) => { st.index = (i + scenes) % scenes; st.local = 0; emit(); };
   return {
@@ -29,6 +29,7 @@ export function fakeShow(scenes = 3, started = true) {
     replay: vi.fn(),
     restart: vi.fn(),
     setSound: vi.fn((on: boolean) => { st.sound = on; emit(); }),
+    setVoice: vi.fn((on: boolean) => { st.voiceOn = on; emit(); }),
     setLayout: vi.fn((l: Layout) => { st.layout = l; emit(); }),
     seek: vi.fn(async () => {}),
     fit: vi.fn(),

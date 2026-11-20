@@ -69,14 +69,14 @@ describe('MotionShow', () => {
     await settle();
     expect(vi.mocked(createShow).mock.calls[0].slice(1)).toEqual(['f', { locale: 'en', layout: 'landscape', mode: 'auto', slide: 1, loop: false, poster: false }]);
     const show = shows[0];
-    // The standard icon bar: prev/play/next, per-scene ticks, count, CC, mute, fullscreen — and no pop-out
-    // without an href.
+    // The standard icon bar: prev/play/next, per-scene ticks, count, CC, mute, voice, fullscreen — and no
+    // pop-out without an href.
     const bar = el.querySelector('.emk-bar')!;
     expect(bar.getAttribute('role')).toBe('toolbar');
     expect([...bar.querySelectorAll('button')].map((b) => b.getAttribute('aria-label'))).toEqual([
       'Previous scene', 'Pause', 'Next scene',
       'Scene 1: Scene 1', 'Scene 2: Scene 2', 'Scene 3: Scene 3',
-      'Captions', 'Sound on', 'Full screen',
+      'Captions', 'Sound on', 'Voice on', 'Full screen',
     ]);
     expect(bar.querySelector('.emk-count')!.textContent).toBe('1 / 3');
     expect(bar.querySelector('a')).toBeNull();
