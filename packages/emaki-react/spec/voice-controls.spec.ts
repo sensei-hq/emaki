@@ -96,6 +96,26 @@ describe('MotionScene captions', () => {
     act(() => { (el.querySelector('.emk-scene-cc') as HTMLButtonElement).dispatchEvent(new MouseEvent('click', { bubbles: true })); });
     expect(onCcChange).toHaveBeenCalledWith(true);
   });
+
+  it('a controlled cc keeps the prop while the toggle emits onCcChange', async () => {
+    const onCcChange = vi.fn();
+    await render(h(MotionScene, controlled({ film: 'f', scene: 'a', cc: true, onCcChange })));
+    act(() => { (el.querySelector('.emk-scene-cc') as HTMLButtonElement).dispatchEvent(new MouseEvent('click', { bubbles: true })); });
+    expect(onCcChange).toHaveBeenCalledWith(false);
+    expect((el.querySelector('.emk-scene-cap') as HTMLElement).hidden).toBe(false);
+  });
+
+  it('drops a caption that arrives after the figure moves on', async () => {
+    let release!: (line: string | null) => void;
+    const gate = new Promise<string | null>((r) => { release = r; });
+    vi.mocked(sceneSound).mockReset()
+      .mockImplementationOnce(() => { const s = fakeSceneSound(); sounds.push(s); return { ...s, caption: gate } as never; })
+      .mockImplementation(() => { const s = fakeSceneSound('Line B.'); sounds.push(s); return s as never; });
+    await render(h(MotionScene, { film: 'f', scene: 'a' }));
+    await render(h(MotionScene, { film: 'f', scene: 'b' }));
+    await act(async () => release('Stale line.'));
+    expect((el.querySelector('.emk-scene-cap') as HTMLElement).textContent).toBe('Line B.');
+  });
 });
 
 describe('MotionScene controlled sound and voice', () => {
@@ -104,6 +124,12 @@ describe('MotionScene controlled sound and voice', () => {
     expect(sceneSound).toHaveBeenCalled();
     expect(sounds[0].toggle).toHaveBeenCalled();
     expect(sounds[0].on).toBe(true);
+  });
+
+  it('a controlled sound=false stays silent', async () => {
+    await render(h(MotionScene, controlled({ film: 'f', scene: 'a', sound: false })));
+    expect(sounds[0].toggle).not.toHaveBeenCalled();
+    expect(sounds[0].on).toBe(false);
   });
 
   it('a controlled voice reaches the figure sound', async () => {
@@ -146,6 +172,24 @@ describe('MotionShow controlled sound, captions and voice', () => {
     expect(onCcChange).toHaveBeenCalledWith(true);
   });
 
+  it('uncontrolled toggles emit their change events', async () => {
+    const onSoundChange = vi.fn();
+    await render(h(MotionShow, controlled({ film: 'f', onSoundChange })));
+    click('Sound on');
+    expect(onSoundChange).toHaveBeenCalledWith(true);
+  });
+
+  it('a controlled cc keeps the prop while the toggle emits onCcChange', async () => {
+    const onCcChange = vi.fn();
+    await render(h(MotionShow, controlled({ film: 'f', cc: true, onCcChange })));
+    const cc = el.querySelector('.emk-cc') as HTMLButtonElement;
+    expect(cc.getAttribute('aria-pressed')).toBe('true');
+    act(() => { cc.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
+    expect(onCcChange).toHaveBeenCalledWith(false);
+    expect(cc.getAttribute('aria-pressed')).toBe('true');
+    expect((el.querySelector('.emk-cap') as HTMLElement).hidden).toBe(false);
+  });
+
   it('a controlled voice reaches the show', async () => {
     await render(h(MotionShow, controlled({ film: 'f', voice: false })));
     expect((shows[0] as unknown as { setVoice: unknown }).setVoice).toBeTypeOf('function');
@@ -160,6 +204,25 @@ describe('MotionShow controlled sound, captions and voice', () => {
     act(() => { vo.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
     expect(onVoiceChange).toHaveBeenCalledWith(false);
     expect(vo.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('an uncontrolled VO toggle cuts the voice and emits onVoiceChange', async () => {
+    const onVoiceChange = vi.fn();
+    await render(h(MotionShow, controlled({ film: 'f', onVoiceChange })));
+    const vo = el.querySelector('.emk-voice') as HTMLButtonElement;
+    act(() => { vo.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
+    expect(shows[0].setVoice).toHaveBeenCalledWith(false);
+    expect(onVoiceChange).toHaveBeenCalledWith(false);
+    expect(vo.getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('a controlled cc without voice lines renders no toggle and never crashes', async () => {
+    useSource({ films: async () => [], css: async () => '', scene: async () => null, voiceText: async () => [] });
+    await render(h(MotionShow, controlled({ film: 'f', cc: false })));
+    expect(el.querySelector('.emk-cc')).toBeNull();
+    expect(el.querySelector('.emk-voice')).toBeNull();
+    await render(h(MotionShow, controlled({ film: 'f', cc: true })));
+    expect(el.querySelector('.emk-cc')).toBeNull();
   });
 
   it('one app state drives the show and its figures', async () => {
