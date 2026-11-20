@@ -54,6 +54,7 @@ afterEach(() => { if (app) unmount(app); el.remove(); vi.unstubAllGlobals(); });
 const settle = async () => { for (let i = 0; i < 6; i++) { await Promise.resolve(); flushSync(); } };
 const button = (name: string) => [...el.querySelectorAll('button')].find((b) => b.getAttribute('aria-label') === name || b.textContent === name)!;
 const click = async (name: string) => { button(name).click(); await settle(); };
+const key = async (k: string) => { el.querySelector('.emk-bar')!.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })); await settle(); };
 // Controlled props do not exist on the components yet: props crossing that surface go as `any` (type-clean red).
 const controlled = (props: Record<string, unknown>) => props as never;
 
@@ -148,6 +149,31 @@ describe('MotionShow controlled sound, captions and voice', () => {
     expect(onsoundchange).toHaveBeenCalledWith(true);
     expect(shows[0].setSound).not.toHaveBeenCalledWith(true);
     expect(button('Sound on').getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('the M key emits onsoundchange while a defined sound wins', async () => {
+    const onsoundchange = vi.fn();
+    app = mount(pkg.MotionShow, { target: el, props: controlled({ film: 'f', sound: false, onsoundchange }) });
+    await settle();
+    await key('m');
+    expect(onsoundchange).toHaveBeenCalledWith(true);
+    expect(shows[0].setSound).not.toHaveBeenCalledWith(true);
+  });
+
+  it('the M key flips an uncontrolled show', async () => {
+    app = mount(pkg.MotionShow, { target: el, props: { film: 'f' } });
+    await settle();
+    await key('m');
+    expect(shows[0].setSound).toHaveBeenCalledWith(true);
+  });
+
+  it('other keys pass through untouched', async () => {
+    const onsoundchange = vi.fn();
+    app = mount(pkg.MotionShow, { target: el, props: controlled({ film: 'f', sound: false, onsoundchange }) });
+    await settle();
+    await key('x');
+    expect(onsoundchange).not.toHaveBeenCalled();
+    expect(shows[0].setSound).not.toHaveBeenCalledWith(true);
   });
 
   it('a controlled cc shows captions without a click', async () => {

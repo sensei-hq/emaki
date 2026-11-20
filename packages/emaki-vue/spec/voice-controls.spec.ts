@@ -63,6 +63,7 @@ async function mount<P extends object>(c: Component, props: P, attrs: Record<str
 const unmount = () => { app!.unmount(); app = null; };
 const button = (name: string) => [...el.querySelectorAll('button')].find((b) => b.getAttribute('aria-label') === name || b.textContent === name)!;
 const click = async (name: string) => { button(name).dispatchEvent(new MouseEvent('click', { bubbles: true })); await settle(); };
+const key = async (k: string) => { el.querySelector('.emk-bar')!.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })); await settle(); };
 // Controlled props do not exist on the components yet: props crossing that surface go as `any` (type-clean red).
 const controlled = (props: Record<string, unknown>) => props as never;
 
@@ -148,6 +149,28 @@ describe('MotionShow controlled sound, captions and voice', () => {
     expect(onUpdateSound).toHaveBeenCalledWith(true);
     expect(shows[0].setSound).not.toHaveBeenCalledWith(true);
     expect(button('Sound on').getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('the M key emits update:sound while a defined sound wins', async () => {
+    const onUpdateSound = vi.fn();
+    await mount(MotionShow, controlled({ film: 'f', sound: false }), { 'onUpdate:sound': onUpdateSound });
+    await key('m');
+    expect(onUpdateSound).toHaveBeenCalledWith(true);
+    expect(shows[0].setSound).not.toHaveBeenCalledWith(true);
+  });
+
+  it('the M key flips an uncontrolled show', async () => {
+    await mount(MotionShow, { film: 'f' });
+    await key('m');
+    expect(shows[0].setSound).toHaveBeenCalledWith(true);
+  });
+
+  it('other keys pass through untouched', async () => {
+    const onUpdateSound = vi.fn();
+    await mount(MotionShow, controlled({ film: 'f', sound: false }), { 'onUpdate:sound': onUpdateSound });
+    await key('x');
+    expect(onUpdateSound).not.toHaveBeenCalled();
+    expect(shows[0].setSound).not.toHaveBeenCalledWith(true);
   });
 
   it('a controlled cc shows captions without a click', async () => {

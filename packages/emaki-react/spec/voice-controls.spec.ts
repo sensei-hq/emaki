@@ -58,6 +58,7 @@ const render = (node: ReactNode) => act(async () => root.render(node));
 const unmount = () => { act(() => root.unmount()); root = createRoot(el); };
 const button = (name: string) => [...el.querySelectorAll('button')].find((b) => b.getAttribute('aria-label') === name || b.textContent === name)!;
 const click = (name: string) => act(() => button(name).dispatchEvent(new MouseEvent('click', { bubbles: true })));
+const key = (k: string) => act(() => el.querySelector('.emk-bar')!.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })));
 // Controlled props do not exist on the components yet: props crossing that surface go as `any` (type-clean red).
 const controlled = (props: Record<string, unknown>) => props as never;
 
@@ -156,6 +157,28 @@ describe('MotionShow controlled sound, captions and voice', () => {
     expect(onSoundChange).toHaveBeenCalledWith(true);
     expect(shows[0].setSound).not.toHaveBeenCalledWith(true);
     expect(button('Sound on').getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('the M key emits onSoundChange while a defined sound wins', async () => {
+    const onSoundChange = vi.fn();
+    await render(h(MotionShow, controlled({ film: 'f', sound: false, onSoundChange })));
+    key('m');
+    expect(onSoundChange).toHaveBeenCalledWith(true);
+    expect(shows[0].setSound).not.toHaveBeenCalledWith(true);
+  });
+
+  it('the M key flips an uncontrolled show', async () => {
+    await render(h(MotionShow, { film: 'f' }));
+    key('m');
+    expect(shows[0].setSound).toHaveBeenCalledWith(true);
+  });
+
+  it('other keys pass through untouched', async () => {
+    const onSoundChange = vi.fn();
+    await render(h(MotionShow, controlled({ film: 'f', sound: false, onSoundChange })));
+    key('x');
+    expect(onSoundChange).not.toHaveBeenCalled();
+    expect(shows[0].setSound).not.toHaveBeenCalledWith(true);
   });
 
   it('a controlled cc shows captions without a click', async () => {
