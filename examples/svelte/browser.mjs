@@ -42,6 +42,12 @@ try {
 	nTicks === 5 ? ok('a progress tick per scene') : fail(`progress ticks: ${nTicks}`)
 	const full = await page.getAttribute('[data-testid="player"] .emk-popout', 'href', { timeout: 2000 }).catch(() => null)
 	full === '/show/measure-the-right-work' ? ok('pop-out link (fullscreenHref alias)') : fail(`pop-out link: ${full}`)
+	const slack = await page.evaluate(() => {
+		const fit = document.querySelector('[data-testid="player"] .ms-fit').getBoundingClientRect();
+		const st = document.querySelector('[data-testid="player"] .ms-stage').getBoundingClientRect();
+		return Math.max(Math.abs(fit.width - st.width), Math.abs(fit.height - st.height));
+	})
+	slack <= 2 ? ok(`stage fills its box (slack ${slack.toFixed(1)}px)`) : fail(`letterbox gutters: ${slack.toFixed(1)}px`)
 	const before = await page.textContent('[data-testid="player"] .emk-count')
 	await page.click('[aria-label="Next scene"]')
 	const after = await page.textContent('[data-testid="player"] .emk-count')

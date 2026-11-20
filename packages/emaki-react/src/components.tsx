@@ -1,7 +1,7 @@
 // React components over @senseihq/emaki. All are client components (they need the DOM); in Next.js import them
 // from a file marked 'use client'. Call setupMotion({ source, site, logos }) once on the client first.
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { attachScene, createShow, installCapture, mountPlayerChrome, showKey, voiceLines, type AttachedScene, type ChromeIconName, type ChromeTick, type Layout, type Mode, type ScenePlayerState, type VoiceLine } from '@senseihq/emaki';
+import { SIZES, attachScene, createShow, installCapture, mountPlayerChrome, showKey, voiceLines, type AttachedScene, type ChromeIconName, type ChromeTick, type Layout, type Mode, type ScenePlayerState, type VoiceLine } from '@senseihq/emaki';
 import { usePlayerFor, useScenePlayer, useShowState, useSize, useWidth, type Show } from './hooks.js';
 
 /** Mounts a player's scene into a div and keeps it fitted (shared by MotionScene and ScenePlayer). */
@@ -105,6 +105,14 @@ export function MotionShow({ film, locale = 'en', layout = 'landscape', mode = '
   const [waiting, setWaiting] = useState(() => !!cover);
   const autoplay = useRef(false), begun = useRef(false);
   const st = useShowState(show);
+  // The fit box keeps the content aspect ratio for the current layout (the show's own once it reports one, so
+  // the O key re-aspects too): width-driven, except portrait, which is height-driven. No flex growth — it would
+  // stretch the box off-ratio; the max cap degrades to contain in a capped shell.
+  const current = st?.layout ?? layout;
+  const [W, H] = SIZES[current];
+  const fitStyle: CSSProperties = current === 'portrait'
+    ? { position: 'relative', aspectRatio: `${W} / ${H}`, height: '100%', maxWidth: '100%', margin: 'auto', display: 'grid', placeItems: 'center', overflow: 'hidden' }
+    : { position: 'relative', aspectRatio: `${W} / ${H}`, width: '100%', maxHeight: '100%', margin: 'auto', display: 'grid', placeItems: 'center', overflow: 'hidden' };
   useEffect(() => { if (st?.started && show) begun.current = true; }, [st?.started, show]);
   useEffect(() => {
     if (waiting) return;
@@ -141,7 +149,7 @@ export function MotionShow({ film, locale = 'en', layout = 'landscape', mode = '
   return (
     <div tabIndex={0} role="application" aria-label="Story player" onKeyDown={onKeyDown} className={className}
       style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', outline: 'none', ...style }}>
-      <div ref={fitRef} style={{ position: 'relative', flex: 1, minHeight: 0, display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
+      <div ref={fitRef} style={fitStyle}>
         <div ref={stage} style={{ position: 'relative' }} />
       </div>
       {waiting ? <PlayButton title={title} length={length} cover={cover} onClick={open} />

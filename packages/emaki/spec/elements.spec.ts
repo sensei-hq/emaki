@@ -370,7 +370,10 @@ describe('<motion-show>', () => {
     await new Promise((r) => setTimeout(r, 10));
     expect(el.querySelector('.emk-bar')).toBeNull();
     expect(el.querySelector('.emk-cap')).toBeNull();
-    expect(el.querySelector('div')!.style.position).toBe('absolute');
+    const bare = el.querySelector('div')!;
+    expect(bare.style.position).toBe('relative');
+    expect(bare.style.aspectRatio).toBe('1920/1080');
+    expect(bare.style.maxHeight).toBe('100%');
     el.controller!.go(1);
     el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
     expect(el.controller!.state.index).toBe(0);
@@ -421,6 +424,64 @@ describe('<motion-show>', () => {
     expect(el.controller).toBeTruthy();
     el.removeAttribute('chrome');
     await vi.waitFor(() => expect(el.querySelector('.emk-bar')).not.toBeNull());
+    el.remove();
+  });
+
+  it('locks the stage box to the content aspect ratio, width-driven unless portrait', () => {
+    // No film, so no show starts and no fit() overwrites the driven dimension: the pure pattern shows.
+    const land = show({ layout: 'landscape' });
+    const lbox = land.querySelector('div')!;
+    expect(lbox.style.position).toBe('relative');
+    expect(lbox.style.aspectRatio).toBe('1920/1080');
+    expect(lbox.style.width).toBe('100%');
+    expect(lbox.style.maxHeight).toBe('100%');
+    expect(lbox.style.margin).toBe('auto');
+    const fig = show({ layout: 'figure' });
+    const fbox = fig.querySelector('div')!;
+    expect(fbox.style.aspectRatio).toBe('1600/1000');
+    expect(fbox.style.width).toBe('100%');
+    expect(fbox.style.maxHeight).toBe('100%');
+    const port = show({ layout: 'portrait' });
+    const pbox = port.querySelector('div')!;
+    expect(pbox.style.aspectRatio).toBe('1080/1920');
+    expect(pbox.style.width).toBe('');
+    expect(pbox.style.height).toBe('100%');
+    expect(pbox.style.maxWidth).toBe('100%');
+    expect(pbox.style.margin).toBe('auto');
+    // A layout change re-aspects the box even before any show exists.
+    land.setAttribute('layout', 'portrait');
+    expect(lbox.style.aspectRatio).toBe('1080/1920');
+    expect(lbox.style.height).toBe('100%');
+    expect(land.controller).toBeNull();
+    land.remove(); fig.remove(); port.remove();
+  });
+
+  it('re-aspects the stage box on a layout change without restarting the show', async () => {
+    const el = show({ film: 'f' });
+    await vi.waitFor(() => expect(el.controller).toBeTruthy());
+    const first = el.controller;
+    const box = el.querySelector('div')!;
+    expect(box.style.aspectRatio).toBe('1920/1080');
+    el.setAttribute('layout', 'portrait');
+    await vi.waitFor(() => expect(el.controller!.state.layout).toBe('portrait'));
+    expect(el.controller).toBe(first);
+    expect(box.style.aspectRatio).toBe('1080/1920');
+    expect(box.style.maxWidth).toBe('100%');
+    // fit() still fills the re-aspected box: a 540x960 shell scales the 1080x1920 stage by 0.5.
+    Object.defineProperties(box, {
+      clientWidth: { value: 540, configurable: true },
+      clientHeight: { value: 960, configurable: true },
+    });
+    Watch.all[0].cb([]);
+    // setLayout() remounts the scene asynchronously; the redrawn stage keeps the fitted scale.
+    await vi.waitFor(() => expect(stage(el)).not.toBeNull());
+    expect(stage(el)!.style.transform).toBe('scale(0.5)');
+    // Dropping the attribute falls back to landscape, still without a restart.
+    el.removeAttribute('layout');
+    await vi.waitFor(() => expect(el.controller!.state.layout).toBe('landscape'));
+    expect(el.controller).toBe(first);
+    expect(box.style.aspectRatio).toBe('1920/1080');
+    expect(box.style.maxHeight).toBe('100%');
     el.remove();
   });
 

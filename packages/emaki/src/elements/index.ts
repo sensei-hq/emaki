@@ -125,15 +125,25 @@ class MotionShow extends HTMLElement {
     if (!this.isConnected) return;
     this.#layoutBox();
     if (name === 'playerhref' || name === 'chrome') return this.#syncChrome();
+    // A layout change re-aspects the live show in place (the O key's path): the same controller, a new ratio.
+    if (name === 'layout' && this.#show) {
+      this.#show.setLayout((this.getAttribute('layout') as Layout) || 'landscape');
+      this.#show.fit(this.#fitBox.clientWidth, this.#fitBox.clientHeight);
+      return;
+    }
     this.#syncFoot(); this.#start();
   }
   /** The controller (next/prev/play/pause/setSound/setLayout/seek/on), for custom chrome. */
   get controller() { return this.#show; }
-  /** With a description or the chrome the player keeps its own box (aspect ratio), so the bar and footer flow
-   *  below it; otherwise the player fills the element, as before. */
+  /** The stage box keeps the content aspect ratio for the current layout (SIZES): width-driven and capped by
+   *  the shell's height, or height-driven and capped by the shell's width in portrait, margin auto centring it
+   *  when a cap leaves gutters. The bar and footer flow below it. */
   #layoutBox() {
-    const [W, H] = SIZES[(this.getAttribute('layout') as Layout) || 'landscape'];
-    this.#box.style.cssText = (this.#descOn || this.#chromeOn) ? `position:relative;width:100%;aspect-ratio:${W}/${H};overflow:hidden` : 'position:absolute;inset:0;overflow:hidden';
+    const layout = (this.getAttribute('layout') as Layout) || 'landscape';
+    const [W, H] = SIZES[layout];
+    this.#box.style.cssText = layout === 'portrait'
+      ? `position:relative;height:100%;aspect-ratio:${W}/${H};max-width:100%;margin:auto;overflow:hidden`
+      : `position:relative;width:100%;aspect-ratio:${W}/${H};max-height:100%;margin:auto;overflow:hidden`;
   }
   /** The standard toolbar over the show (captions pinned over the stage box); order stays stage, bar, footer. */
   #syncChrome() {

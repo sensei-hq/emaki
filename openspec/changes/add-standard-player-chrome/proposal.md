@@ -36,6 +36,10 @@ explicit opt-out.
   markup or callbacks); the three wrappers expose them as props.
 - The Svelte, React and Vue `MotionShow` components adopt the core chrome, replacing their
   text-button bars; props stay compatible (`cover`, `poster`, `controls`, `description`, …).
+- The stage wrapper keeps the content aspect ratio for the current layout (from SIZES) with the
+  toolbar below it, so the fitted stage fills its box edge-to-edge instead of letterboxing:
+  landscape is width-driven, portrait height-driven, both centered and capped, degrading to
+  today's contain-fit gracefully in capped shells.
 - Docs follow: package READMEs, `docs/llms` texts, the example app (showing the default), and
   the plugin references where they describe the player.
 
