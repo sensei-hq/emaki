@@ -1,7 +1,7 @@
 // Vue 3 components over @senseihq/emaki, written as render functions so they need no SFC compiler.
 // Client-only (they need the DOM): in Nuxt wrap them in <ClientOnly>. Call setupMotion(...) once on the client first.
-import { defineComponent, h, onBeforeUnmount, onMounted, ref, shallowRef, toRaw, watch, type PropType, type Ref, type VNodeRef } from 'vue';
-import { attachScene, createShow, figurePlayer, installCapture, mountPlayerChrome, SIZES, showKey, voiceLines, type AttachedScene, type Layout, type Mode, type PlayerChrome, type PlayerChromeOptions, type ScenePlayerState, type VoiceLine } from '@senseihq/emaki';
+import { computed, defineComponent, h, onBeforeUnmount, onMounted, ref, shallowRef, toRaw, watch, type PropType, type Ref, type VNodeRef } from 'vue';
+import { attachScene, createShow, figurePlayer, installCapture, mountPlayerChrome, sceneSound, SIZES, showKey, voiceLines, type AttachedScene, type Layout, type Mode, type PlayerChrome, type PlayerChromeOptions, type ScenePlayerState, type VoiceLine } from '@senseihq/emaki';
 import { useScenePlayer, useShowState, useSize, type Show } from './composables.js';
 
 function attach(player: () => ScenePlayerState, locale: () => string, mode: () => Mode, autoplay: boolean) {
@@ -16,7 +16,17 @@ function attach(player: () => ScenePlayerState, locale: () => string, mode: () =
   return { box, host };
 }
 
-/** An article figure: one scene, looping while it is on screen. */
+/** One controlled toggle: every press emits the requested value, but only an uncontrolled player acts on it —
+ *  under a defined prop the app's state wins over the press. Shared by both components' toggles. */
+function controlledToggle(prop: boolean | undefined, requested: boolean, emitChange: (on: boolean) => void, apply: () => void) {
+  emitChange(requested);
+  if (prop === undefined) apply();
+}
+
+/** An article figure: one scene, looping while it is on screen. While CC is on, a caption overlay shows the
+ *  scene's voice line (no caption UI without one). `sound` and `voice` are app-driven inputs — figures have no
+ *  speaker or voice toggle of their own, the voice is cut app-wide from the show's chrome — and `cc` may be
+ *  app-driven too; every CC press emits `update:cc`, and undefined props keep per-instance behavior. */
 export const MotionScene = defineComponent({
   name: 'MotionScene',
   props: {
@@ -26,12 +36,55 @@ export const MotionScene = defineComponent({
     locale: { type: String, default: 'en' },
     mode: { type: String as PropType<Mode>, default: 'auto' },
     autoplay: { type: Boolean, default: true },
+    /** Controlled sound: a defined value drives the figure's sound (silent until the app says so). */
+    sound: { type: Boolean as PropType<boolean | undefined>, default: undefined },
+    /** Controlled captions: a defined value shows or hides the overlay; undefined leaves it to the CC toggle. */
+    cc: { type: Boolean as PropType<boolean | undefined>, default: undefined },
+    /** Controlled voice: a defined value cuts or restores the figure's narration; undefined leaves it on. */
+    voice: { type: Boolean as PropType<boolean | undefined>, default: undefined },
   },
-  setup(props) {
+  emits: { 'update:cc': (_on: boolean) => true },
+  setup(props, { emit }) {
     const player = figurePlayer({ film: props.film, scene: props.scene, layout: props.layout });
     watch(() => [props.film, props.scene, props.layout] as const, ([film, scene, layout]) => player.load({ film, scene, layout }));
     const { box, host } = attach(() => player, () => props.locale, () => props.mode, props.autoplay);
-    return () => h('div', { ref: box, class: 'motion-scene', style: 'width:100%' }, [h('div', { ref: host })]);
+    // The figure's sound: its slice of the score plus its narration. The voice drive runs first, so a figure
+    // told to sound with its voice cut starts on the score alone.
+    let snd = sceneSound(props.film, props.scene, props.locale);
+    onBeforeUnmount(() => snd.destroy());
+    const driveSound = () => { const on = props.sound; if (on !== undefined && on !== snd.on) void snd.toggle(); };
+    const driveVoice = () => { const on = props.voice; if (on !== undefined) snd.setVoice(on); };
+    const line = shallowRef<string | null>(null);
+    const loadCaption = async () => { line.value = await snd.caption; };
+    void loadCaption();
+    watch(() => props.voice, driveVoice, { immediate: true });
+    watch(() => props.sound, driveSound, { immediate: true });
+    watch([() => props.film, () => props.scene], ([film, scene]) => {
+      snd.destroy();
+      snd = sceneSound(film, scene, props.locale);
+      driveVoice();
+      driveSound();
+      void loadCaption();
+    });
+    watch(() => props.locale, (l) => { snd.setLocale(l); void loadCaption(); });
+    const ccOn = ref(false);
+    const ccShown = computed(() => props.cc ?? ccOn.value);
+    const toggleCc = () => {
+      const next = !ccShown.value;
+      controlledToggle(props.cc, next, (on) => emit('update:cc', on), () => { ccOn.value = next; });
+    };
+    return () => h('div', { ref: box, class: 'motion-scene', style: 'position:relative;width:100%' }, [
+      h('div', { ref: host }),
+      line.value === null ? null : h('button', {
+        class: 'emk-scene-cc', 'aria-label': 'Captions', 'aria-pressed': String(ccShown.value), title: 'Captions',
+        style: 'position:absolute;left:10px;bottom:10px;min-width:34px;height:34px;padding:0 8px;border-radius:8px;border:1px solid rgb(255 255 255/0.3);background:rgb(20 18 15/0.7);color:#fff;cursor:pointer;font:12px system-ui',
+        onClick: toggleCc,
+      }, 'CC'),
+      line.value === null ? null : h('p', {
+        class: 'emk-scene-cap', 'aria-live': 'polite', hidden: !ccShown.value,
+        style: 'position:absolute;left:50%;bottom:12px;transform:translateX(-50%);max-width:82%;margin:0;padding:.45em .9em;border-radius:.4rem;background:rgb(17 27 42/.82);color:#fff;font:clamp(.85rem,1.6vw,1.25rem)/1.4 system-ui;text-align:center',
+      }, line.value),
+    ]);
   },
 });
 
@@ -110,8 +163,14 @@ export const MotionShow = defineComponent({
     renderTick: { type: Function as PropType<PlayerChromeOptions['renderTick']>, default: undefined },
     /** A Description button under the player that opens the film's voiceover script; hidden without one. */
     description: { type: Boolean, default: false },
+    /** Controlled sound: a defined value drives mute (the app's state wins over the toggle); undefined stays per-instance. */
+    sound: { type: Boolean as PropType<boolean | undefined>, default: undefined },
+    /** Controlled captions: a defined value shows or hides the caption overlay; undefined leaves it to the CC toggle. */
+    cc: { type: Boolean as PropType<boolean | undefined>, default: undefined },
+    /** Controlled voice: a defined value cuts or restores the narration; undefined leaves it to the VO toggle. */
+    voice: { type: Boolean as PropType<boolean | undefined>, default: undefined },
   },
-  emits: { ready: (_show: Show) => true },
+  emits: { ready: (_show: Show) => true, 'update:sound': (_on: boolean) => true, 'update:cc': (_on: boolean) => true, 'update:voice': (_on: boolean) => true },
   setup(props, { emit, expose }) {
     const stage = ref<HTMLElement | null>(null), fit = ref<HTMLElement | null>(null);
     const show = shallowRef<Show | null>(null);
@@ -123,6 +182,14 @@ export const MotionShow = defineComponent({
     const waiting = ref(!!props.cover);
     let autoplay = false, begun = false, ticket = 0;
     watch(() => st.value?.started, (on) => { if (on) begun = true; });
+    // Controlled sound and voice: defined props drive the show (the app's state wins over the chrome's
+    // toggles). Captions live inside the chrome (see applyCc below): the show never hears about them.
+    const driveShow = () => {
+      const s = show.value;
+      if (!s) return;
+      if (props.sound !== undefined) s.setSound(props.sound);
+      if (props.voice !== undefined) s.setVoice(props.voice);
+    };
     async function start() {
       if (waiting.value) return;
       const mine = ++ticket, play = autoplay;
@@ -130,7 +197,7 @@ export const MotionShow = defineComponent({
       show.value?.destroy(); show.value = null;
       const s = await createShow(stage.value!, props.film, { locale: props.locale, layout: props.layout, mode: props.mode, slide: props.slide, loop: props.loop, poster: (props.poster || play) && !begun });
       if (mine !== ticket) return s.destroy();
-      show.value = s; s.fit(size.value.w, size.value.h); emit('ready', s);
+      show.value = s; driveShow(); s.fit(size.value.w, size.value.h); emit('ready', s);
       if (play) await s.start();
     }
     const open = () => { autoplay = true; waiting.value = false; start(); };
@@ -140,14 +207,35 @@ export const MotionShow = defineComponent({
     // host goes: a film/locale/mode change drops it with the show, as do controls off and unmount.
     let chrome: PlayerChrome | null = null;
     let chromeEl: HTMLElement | null = null;
-    const dropChrome = () => { chrome?.destroy(); chrome = null; chromeEl = null; };
+    // Controlled captions live one level down: the chrome owns the CC toggle state, so this mirrors it
+    // (chromeCc) and keeps the chrome's original CC handler (ccOrig) to drive it with. Both reset with
+    // the chrome: a remount starts from a fresh, captions-off chrome.
+    let chromeCc = false, ccOrig: (() => void) | null = null;
+    const applyCc = () => {
+      if (props.cc === undefined || props.cc === chromeCc || !ccOrig) return;
+      ccOrig();
+      chromeCc = props.cc;
+    };
+    const dropChrome = () => { chrome?.destroy(); chrome = null; chromeEl = null; ccOrig = null; chromeCc = false; };
     // Vue re-invokes callback refs on re-render: remount only for a new host, or toggles (CC/mute)
     // would wipe on every scene change. Input changes remount through the watch below instead.
+    // Controlled props never remount: they drive the show and the chrome in place (see the watches).
     const mount = (host: HTMLElement) => {
       dropChrome();
       chromeEl = host;
       chrome = mountPlayerChrome(host, show.value!, { film: props.film, locale: props.locale, stage: stage.value!,
         playerHref: props.playerHref || props.fullscreenHref || undefined, icons: props.icons, renderTick: props.renderTick });
+      // The chrome's own toggles stay the interaction point, but under a controlled prop a press only
+      // emits: the prop, not the press, drives the player. (The buttons always exist right after mount;
+      // the chrome only removes CC/VO later, when the film has no voice lines.)
+      const mute = host.querySelector('.emk-mute') as HTMLButtonElement, vo = host.querySelector('.emk-voice') as HTMLButtonElement,
+        cc = host.querySelector('.emk-cc') as HTMLButtonElement;
+      const origMute = mute.onclick as () => void, origVo = vo.onclick as () => void, origCc = cc.onclick as () => void;
+      ccOrig = origCc;
+      mute.onclick = () => controlledToggle(props.sound, !show.value!.state.sound, (on) => emit('update:sound', on), origMute);
+      vo.onclick = () => controlledToggle(props.voice, !show.value!.state.voiceOn, (on) => emit('update:voice', on), origVo);
+      cc.onclick = () => controlledToggle(props.cc, !chromeCc, (on) => emit('update:cc', on), () => { chromeCc = !chromeCc; origCc(); });
+      applyCc();
     };
     const chromeHost: Exclude<VNodeRef, string | Ref> = (host) => {
       if (!host) { dropChrome(); return; }
@@ -167,6 +255,9 @@ export const MotionShow = defineComponent({
       if (mine === dticket) lines.value = l;
     }, { immediate: true });
     watch(() => [props.film, props.locale, props.mode], start);
+    watch(() => props.sound, driveShow, { immediate: true });
+    watch(() => props.voice, driveShow, { immediate: true });
+    watch(() => props.cc, applyCc);
     watch(() => props.layout, (l) => show.value?.setLayout(l));
     watch([size, () => st.value?.layout], () => show.value?.fit(size.value.w, size.value.h));
     expose({ show });
