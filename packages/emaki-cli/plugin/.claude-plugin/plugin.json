@@ -1,6 +1,6 @@
 {
   "name": "emaki",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "Build a multilingual site of motion stories (articles, story player and narrated videos from one set of JSON scenes) through a guided, gated program: interview, outline, item cards, pilot, automated batches, review loop.",
   "author": {
     "name": "sensei-hq"
