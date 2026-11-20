@@ -39,6 +39,6 @@ The pilot's decisions become the **style guide** (`project/style-guide.md`) ever
 
 ## Gate E · Release
 - Site builds; every published story prerendered per locale; links, hreflang, sitemap, og images.
-- Accessibility: keyboard (player: ←/→, space, M), focus visible, captions, `prefers-reduced-motion` (figures show
+- Accessibility: keyboard (player: ←/→, space, M, V, C), focus visible, captions, `prefers-reduced-motion` (figures show
   the final frame, the player doesn't autoplay), alt text for covers, language attributes.
 - Performance: pages ≤ 200 KB JS before media; figures start only when visible; videos lazy-loaded.

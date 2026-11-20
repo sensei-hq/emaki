@@ -70,11 +70,14 @@ come back and repeats the frame.
   (mono AAC 64k, -16 LUFS, about 8 KB a second) and records `voice` (the lead, 0.6 s) per scene in
   `timing.<locale>.json`. With sound on, the story player speaks the scene on screen from where the picture is and
   ducks the score under it; an article figure's sound button plays its scene's take with its slice of the score.
-  Commit the `.m4a` files with the story; rerun `voice-web` after re-recording a take (a scene whose take is gone
+  The voice is its own cut: the chrome's VO toggle (`V`) silences the narration while the score plays on unducked
+  (`show.setVoice(false)` does the same from code), and hides with CC when the film has no voice lines. Commit the
+  `.m4a` files with the story; rerun `voice-web` after re-recording a take (a scene whose take is gone
   loses its file). Vite apps glob them as URLs (`voice` in the source, written by `emaki init`); the fetch loader
   reads them from the published content folder.
 - **Captions** come from the voice text (`.vtt` for the site player, `.srt` for uploads, burned in with `build --captions`). Review them in
-  every locale.
+  every locale. On the site, the player's CC toggle captions the scene on screen, and an article figure whose scene
+  has a voice line gains its own CC toggle with a polite caption overlay; without a line neither renders.
 - **Freeze, the safety net**: when a take is longer than its scene in the render (a take re-recorded after the render,
   or `fit` skipped), `build` freezes the scene's last frame until the voice has finished, loops the score under the
   hold and moves every later scene along. `build --check` shows it in the `ext` column. A freeze is a still picture;
@@ -87,6 +90,37 @@ come back and repeats the frame.
   (`<site url>/<locale>/stories/<slug>`, or `storyUrl` in `emaki.config.json`, e.g. `{site}/articles/{slug}`).
 - **Credentials**: every provider key lives in the environment only; never in files, never committed, never printed,
   never pasted into chat. Each take run records which provider and voice made it (`takes/provider.json`).
+
+## One film-level state
+
+A film plus its figures behave as one film: lift a single `{ sound, cc, voice }` object over the article and pass
+it to the show and every figure as controlled props. A defined prop drives the player (the app wins over the
+toggles) while every toggle still reports through its change event; an undefined prop keeps per-instance toggles.
+The elements (`<motion-show>`, `<motion-scene>`) stay uncontrolled.
+
+```svelte
+<script lang="ts">
+  import { MotionScene, MotionShow } from '@senseihq/emaki-svelte';
+  let film = $state({ sound: false, cc: false, voice: true });
+</script>
+
+<MotionShow
+  film="phishing-101" locale="en"
+  sound={film.sound} cc={film.cc} voice={film.voice}
+  onsoundchange={(on) => (film.sound = on)}
+  onccchange={(on) => (film.cc = on)}
+  onvoicechange={(on) => (film.voice = on)}
+/>
+<MotionScene
+  film="phishing-101" scene="signs" locale="en"
+  sound={film.sound} cc={film.cc} voice={film.voice}
+  onsoundchange={(on) => (film.sound = on)}
+  onccchange={(on) => (film.cc = on)}
+/>
+```
+
+React names the events `onSoundChange`/`onCcChange`/`onVoiceChange` (figures only report captions); Vue emits
+`update:sound`/`update:cc`/`update:voice` (figures: `update:cc`).
 
 ## Delivery checklist
 
