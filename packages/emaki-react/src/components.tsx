@@ -226,11 +226,23 @@ export function MotionShow({ film, locale = 'en', layout = 'landscape', mode = '
       else if (t.classList.contains('emk-cc')) c.onCcChange(pressed);
       else c.onVoiceChange(pressed);
     };
+    // M reaches straight into the show: emit the request, and under a defined sound keep it from the
+    // chrome. (V and C arrive as toggle clicks, which the capture above sees.)
+    const onKeyCapture = (e: Event) => {
+      if ((e as KeyboardEvent).key.toLowerCase() !== 'm') return;
+      const c = ctl.current;
+      c.onSoundChange(!(c.sound ?? show.state.sound));
+      if (c.sound === undefined) return;
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    };
     host.addEventListener('click', onCapture, true);
     host.addEventListener('click', onBubble);
+    host.addEventListener('keydown', onKeyCapture, true);
     return () => {
       host.removeEventListener('click', onCapture, true);
       host.removeEventListener('click', onBubble);
+      host.removeEventListener('keydown', onKeyCapture, true);
       chrome.destroy();
     };
   }, [show, controls, film, locale, playerHref, fullscreenHref, icons, renderTick]);

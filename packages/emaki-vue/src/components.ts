@@ -216,7 +216,12 @@ export const MotionShow = defineComponent({
       ccOrig();
       chromeCc = props.cc;
     };
-    const dropChrome = () => { chrome?.destroy(); chrome = null; chromeEl = null; ccOrig = null; chromeCc = false; };
+    let keyCapture: ((e: KeyboardEvent) => void) | null = null;
+    const dropChrome = () => {
+      if (keyCapture) chromeEl!.removeEventListener('keydown', keyCapture, true);
+      keyCapture = null;
+      chrome?.destroy(); chrome = null; chromeEl = null; ccOrig = null; chromeCc = false;
+    };
     // Vue re-invokes callback refs on re-render: remount only for a new host, or toggles (CC/mute)
     // would wipe on every scene change. Input changes remount through the watch below instead.
     // Controlled props never remount: they drive the show and the chrome in place (see the watches).
@@ -235,6 +240,16 @@ export const MotionShow = defineComponent({
       mute.onclick = () => controlledToggle(props.sound, !show.value!.state.sound, (on) => emit('update:sound', on), origMute);
       vo.onclick = () => controlledToggle(props.voice, !show.value!.state.voiceOn, (on) => emit('update:voice', on), origVo);
       cc.onclick = () => controlledToggle(props.cc, !chromeCc, (on) => emit('update:cc', on), () => { chromeCc = !chromeCc; origCc(); });
+      // M reaches straight into the show: emit the request, and under a defined sound keep it from the
+      // chrome. (V and C arrive as toggle clicks, which the wrapped handlers above see.)
+      keyCapture = (e: KeyboardEvent) => {
+        if (e.key.toLowerCase() !== 'm') return;
+        emit('update:sound', !(props.sound ?? show.value!.state.sound));
+        if (props.sound === undefined) return;
+        e.stopImmediatePropagation();
+        e.preventDefault();
+      };
+      host.addEventListener('keydown', keyCapture, true);
       applyCc();
     };
     const chromeHost: Exclude<VNodeRef, string | Ref> = (host) => {
