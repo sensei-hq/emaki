@@ -16,17 +16,18 @@ export interface ShowOptions {
   /** Open on the film's cover, paused, until start() (which plays from the top with sound on). */
   poster?: boolean;
 }
-export type ShowListener = (s: { index: number; local: number; playing: boolean; sound: boolean; layout: Layout; started: boolean }) => void;
+export type ShowListener = (s: { index: number; local: number; playing: boolean; sound: boolean; voiceOn: boolean; layout: Layout; started: boolean }) => void;
 
 /** A running show: what it plays, where the playhead is, and the stage, clock and sound it drives. */
 interface ShowRun {
   host: HTMLElement; f: FilmMeta; tl: ReturnType<typeof timeline>; opts: ShowOptions; locale: string; mode: Mode;
-  layout: Layout; index: number; local: number; playing: boolean; sound: boolean; scale: number; started: boolean;
+  layout: Layout; index: number; local: number; playing: boolean; sound: boolean; voiceOn: boolean; scale: number; started: boolean;
+  sounded: boolean;
   dead: boolean; m: Mounted | null; key: string; chain: Promise<void>; raf: number; last: number;
   audio: ReturnType<typeof scorePlayer>; words: ReturnType<typeof narration>; listeners: Set<ShowListener>;
 }
 
-const snapshot = (r: ShowRun) => ({ index: r.index, local: r.local, playing: r.playing, sound: r.sound, layout: r.layout, started: r.started });
+const snapshot = (r: ShowRun) => ({ index: r.index, local: r.local, playing: r.playing, sound: r.sound, voiceOn: r.voiceOn, layout: r.layout, started: r.started });
 const emit = (r: ShowRun) => r.listeners.forEach((l) => l(snapshot(r)));
 /** The mount key of the scene and layout on screen. */
 const keyOf = (r: ShowRun) => `${r.index}:${r.layout}`;
@@ -64,14 +65,19 @@ function draw(r: ShowRun) {
 }
 
 // Sound follows the picture: the score from the playhead, and the scene's narration over it (the score ducked).
+// Narration is audible only with sound and voice both on; the score ducks only while it actually speaks.
 async function syncAudio(r: ShowRun) {
-  if (!(r.sound && r.playing)) { r.audio.stop(); r.words.stop(); return; }
+  // Silence only what was started: a show that never sounded has nothing to stop (a late voice cut
+  // on a silent show still stops the take and score it once started, so toggling voice while off
+  // can only ever hush, never start, anything).
+  if (!(r.sound && r.playing)) { if (r.sounded) { r.audio.stop(); r.words.stop(); } return; }
+  r.sounded = true;
   const s = r.tl.scenes[r.index];
-  r.audio.duck(r.words.has(s.id));
-  await Promise.all([r.audio.start(s.start + r.local), r.words.start(s.id, r.local)]);
+  r.audio.duck(r.voiceOn && r.words.has(s.id));
+  await Promise.all([r.audio.start(s.start + r.local), r.voiceOn ? r.words.start(s.id, r.local) : (r.words.stop(), false)]);
 }
 /** Changes what the show does and tells the picture, the sound and the listeners. */
-function update(r: ShowRun, change: Partial<Pick<ShowRun, 'index' | 'local' | 'playing' | 'sound' | 'layout' | 'started'>>, redraw = true) {
+function update(r: ShowRun, change: Partial<Pick<ShowRun, 'index' | 'local' | 'playing' | 'sound' | 'voiceOn' | 'layout' | 'started'>>, redraw = true) {
   Object.assign(r, change);
   if (redraw) draw(r);
   syncAudio(r);
@@ -110,7 +116,7 @@ export async function createShow(host: HTMLElement, slug: string, opts: ShowOpti
   const r: ShowRun = {
     host, f, tl, opts, locale, mode,
     layout: opts.layout ?? 'landscape', index: Math.max(0, Math.min(tl.scenes.length - 1, (opts.slide ?? 1) - 1)),
-    local: 0, playing: !opts.capture && !opts.poster, sound: false, scale: 1, started: !opts.poster,
+    local: 0, playing: !opts.capture && !opts.poster, sound: false, voiceOn: true, scale: 1, started: !opts.poster, sounded: false,
     dead: false, m: null, key: '', chain: Promise.resolve(), raf: 0, last: 0,
     audio: scorePlayer(f), words: narration(f, locale), listeners: new Set<ShowListener>(),
   };
@@ -135,6 +141,8 @@ export async function createShow(host: HTMLElement, slug: string, opts: ShowOpti
     play() { update(r, { playing: true }, false); }, pause() { update(r, { playing: false }, false); },
     toggle() { r.playing ? api.pause() : api.play(); },
     setSound(on: boolean) { update(r, { sound: on }, false); },
+    /** Cut (or restore) the narration; the score keeps playing, unducked. */
+    setVoice(on: boolean) { update(r, { voiceOn: on }, false); },
     setLayout(l: Layout) { r.layout = l; draw(r); emit(r); },
     /** Seek to film time t (s): picks the scene and draws it. Resolves when drawn. */
     async seek(t: number) { place(r, t); await draw(r); },
@@ -185,15 +193,16 @@ const KEYS: Record<string, (show: Show, fullscreen?: Element) => void> = {
   arrowleft: (show) => show.prev(),
   ' ': (show) => { show.state.started ? show.toggle() : show.start(); },
   m: (show) => show.setSound(!show.state.sound),
+  v: (show) => show.setVoice(!show.state.voiceOn),
   o: (show) => show.setLayout(show.state.layout === 'landscape' ? 'portrait' : 'landscape'),
   r: (show) => show.replay(),
   home: (show) => show.restart(),
   f: (_show, fullscreen) => toggleFullscreen(fullscreen),
 };
 
-/** The story player's keys, for every wrapper: ←/→ scene, Space play/pause, M sound, O orientation, R replay the
- *  scene, Home from the top, F fullscreen (on `fullscreen`, default the whole page). True when the key was used, so
- *  the caller can preventDefault. */
+/** The story player's keys, for every wrapper: ←/→ scene, Space play/pause, M sound, V voice, O orientation,
+ *  R replay the scene, Home from the top, F fullscreen (on `fullscreen`, default the whole page). True when the
+ *  key was used, so the caller can preventDefault. */
 export function showKey(show: Show, e: KeyboardEvent, fullscreen?: Element): boolean {
   const k = e.key.toLowerCase();
   if (!Object.hasOwn(KEYS, k)) return false;

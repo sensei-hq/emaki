@@ -2,6 +2,7 @@
 // running start; a sound placed after a pause moves with it), the offline render the video pipeline asks for, and the
 // narration (each scene's voice take, served for the web) that plays over the ducked score.
 import { collectScore, play, renderWav, type Score } from './score.js';
+import { voiceLines } from './description.js';
 import { narration } from './narration.js';
 import { getSource, loadFilm, timeline, unwarp } from './registry.js';
 import type { FilmMeta } from './types.js';
@@ -66,7 +67,7 @@ async function placeScene(film: string, scene: string, l: string) {
 /** What an article figure's sound holds: its audio graph, what is sounding, the scene's window in the film, the
  *  narration and the score for the current locale (`ready`). */
 interface FigureSound {
-  film: string; scene: string; locale: string;
+  film: string; scene: string; locale: string; voiceOn: boolean;
   ctx: AudioContext | null; bus: GainNode | null; voice: { stop: () => void } | null;
   from: number; to: number; end: number; words: ReturnType<typeof narration> | null;
   ready: Promise<{ score: Score | null; spoken: boolean }>;
@@ -90,13 +91,15 @@ async function openFigure(st: FigureSound) {
   await st.ctx.resume();
 }
 
-/** Starts the narration and the score's slice `at` seconds into the scene; the score is ducked under a narration. */
+/** Starts the narration and the score's slice `at` seconds into the scene; the score is ducked under a narration.
+ *  With the voice cut the score plays alone, unducked. */
 async function soundFigure(st: FigureSound, r: Awaited<FigureSound['ready']>, at: number) {
-  const speaking = r.spoken && st.words ? st.words.start(st.scene, at) : Promise.resolve(false);
+  const audible = st.voiceOn && r.spoken;
+  const speaking = audible && st.words ? st.words.start(st.scene, at) : Promise.resolve(false);
   if (r.score && st.ctx) {
     const c = st.ctx;
     if (!st.bus) { st.bus = c.createGain(); st.bus.connect(c.destination); }
-    st.bus.gain.value = r.spoken ? DUCK : 1;
+    st.bus.gain.value = audible ? DUCK : 1;
     st.voice = play(c, st.bus, r.score, { from: st.from + at, to: st.to, at: c.currentTime + 0.03, end: st.end });
   }
   await speaking;
@@ -105,12 +108,25 @@ async function soundFigure(st: FigureSound, r: Awaited<FigureSound['ready']>, at
 /** One scene's sound for an article figure: its slice of the film's score and its narration. Off until toggled on,
  *  then cue(at) restarts both at `at` seconds into the scene (call it whenever the scene starts over, with 0) and
  *  stop() silences them (call it when the figure scrolls away). `available` resolves false when the scene has
- *  neither, so the button can stay hidden; setLocale() follows the figure into another language. */
+ *  neither, so the button can stay hidden; setVoice() cuts the narration while the score plays on; `caption`
+ *  resolves the scene's voice line for the overlay (null without one); setLocale() follows the figure into
+ *  another language. */
 export function sceneSound(film: string, scene: string, locale = 'en') {
-  const st: FigureSound = { film, scene, locale, ctx: null, bus: null, voice: null, from: 0, to: 0, end: 0, words: null, ready: Promise.resolve({ score: null, spoken: false }) };
+  const st: FigureSound = { film, scene, locale, voiceOn: true, ctx: null, bus: null, voice: null, from: 0, to: 0, end: 0, words: null, ready: Promise.resolve({ score: null, spoken: false }) };
   st.ready = loadFigure(st, locale);
   const api = {
     get available() { return st.ready.then((r) => !!r.score || r.spoken); },
+    get voiceOn() { return st.voiceOn; },
+    /** The scene's voice line in the figure's language, for the caption overlay (null without a line). */
+    get caption() {
+      const { film, scene, locale } = st;
+      return voiceLines(film, locale).then((lines) => lines?.find((l) => l.scene === scene)?.text ?? null);
+    },
+    /** Cut (or restore) the narration; a sounding score keeps playing, unducked. */
+    setVoice(on: boolean) {
+      st.voiceOn = on;
+      if (!on) { st.words?.stop(); if (st.bus) st.bus.gain.value = 1; }
+    },
     on: false,
     async toggle(at = 0) {
       api.on = !api.on;

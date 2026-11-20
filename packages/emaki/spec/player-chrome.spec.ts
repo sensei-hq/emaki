@@ -1,4 +1,4 @@
-// The standard player chrome: icon toolbar (prev/play/next/ticks/count/CC/mute/full screen/
+// The standard player chrome: icon toolbar (prev/play/next/ticks/count/CC/mute/VO/full screen/
 // pop-out) plus the caption overlay, driven by the show controller. Icons and ticks overridable.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createShow, useSource, type FilmJson } from '../src/index.js';
@@ -76,6 +76,7 @@ describe('player chrome', () => {
       'Scene 3: C',
       'Captions',
       'Sound on',
+      'Voice on',
       'Full screen',
       'Open the player on its own page',
     ]);
@@ -172,7 +173,7 @@ describe('player chrome', () => {
     expect(host.querySelector('.emk-toggle .mine')).not.toBeNull();
     expect(host.querySelector('.emk-prev svg')).not.toBeNull();
     expect(Object.keys(DEFAULT_CHROME_ICONS).sort()).toEqual(
-      ['cc', 'fullscreenEnter', 'fullscreenExit', 'next', 'pause', 'play', 'popout', 'prev', 'soundOff', 'soundOn'].sort(),
+      ['cc', 'fullscreenEnter', 'fullscreenExit', 'next', 'pause', 'play', 'popout', 'prev', 'soundOff', 'soundOn', 'voice'].sort(),
     );
     chrome.destroy();
     show.destroy();
