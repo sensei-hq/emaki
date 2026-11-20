@@ -113,6 +113,16 @@ describe('MotionScene controlled sound and voice', () => {
     expect(sounds[0].on).toBe(true);
   });
 
+  it('a controlled sound:false stays silent until the app flips it', async () => {
+    const props = await mount(MotionScene, { film: 'f', scene: 'a', sound: false } as { film: string; scene: string; sound: boolean });
+    expect(sounds[0].toggle).not.toHaveBeenCalled();
+    expect(sounds[0].on).toBe(false);
+    props.sound = true;
+    await settle();
+    expect(sounds[0].toggle).toHaveBeenCalledOnce();
+    expect(sounds[0].on).toBe(true);
+  });
+
   it('a controlled voice reaches the figure sound', async () => {
     await mount(MotionScene, controlled({ film: 'f', scene: 'a', sound: true, voice: false }));
     expect(sounds[0].setVoice).toHaveBeenCalledWith(false);
@@ -152,6 +162,21 @@ describe('MotionShow controlled sound, captions and voice', () => {
     await mount(MotionShow, controlled({ film: 'f' }), { 'onUpdate:cc': onUpdateCc });
     await click('Captions');
     expect(onUpdateCc).toHaveBeenCalledWith(true);
+  });
+
+  it('a cc change while the chrome is dropped applies when it comes back', async () => {
+    const props = await mount(MotionShow, { film: 'f', cc: false, controls: true } as { film: string; cc: boolean; controls: boolean });
+    expect((el.querySelector('.emk-cap') as HTMLElement).hidden).toBe(true);
+    props.controls = false;
+    await settle();
+    expect(el.querySelector('.emk-bar')).toBeNull();
+    props.cc = true;
+    await settle();
+    props.controls = true;
+    await settle();
+    const cap = el.querySelector('.emk-cap') as HTMLElement;
+    expect(cap.hidden).toBe(false);
+    expect(cap.textContent).toBe('Opening line.');
   });
 
   it('a controlled voice reaches the show', async () => {
