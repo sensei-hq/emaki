@@ -20,15 +20,19 @@ Call `setupMotion({ source, site, logos })` once on the client first (`emaki ini
 
 | Export | What |
 |---|---|
-| `MotionScene` | `film`, `scene`, `layout` (`figure`), `locale`, `mode` (`auto`), `autoplay` |
-| `MotionShow` | `film`, `locale`, `layout`, `mode` (`auto`), `poster` (cover frame first; `title`, `length` on it), `cover` (an image URL shown with the play button; the show is created on the first click, sound on), `playerHref` (pop-out link; `fullscreenHref` is an alias), `controls`, `slide`, `loop`, `description` (the voiceover script under a Description button), `icons` (glyph overrides), `renderTick` (custom tick HTML), `onReady(show)`; the standard icon toolbar (prev/play/next, ticks, count, CC, mute, full screen; keys Space/arrows/M/C/F) |
+| `MotionScene` | `film`, `scene`, `layout` (`figure`), `locale`, `mode` (`auto`), `autoplay`, controlled `sound`/`cc`/`voice` + `onCcChange`; sounds only when the app drives it; a CC toggle + caption overlay when the scene has a voice line |
+| `MotionShow` | `film`, `locale`, `layout`, `mode` (`auto`), `poster` (cover frame first; `title`, `length` on it), `cover` (an image URL shown with the play button; the show is created on the first click, sound on), `playerHref` (pop-out link; `fullscreenHref` is an alias), `controls`, `slide`, `loop`, `description` (the voiceover script under a Description button), `icons` (glyph overrides), `renderTick` (custom tick HTML), controlled `sound`/`cc`/`voice` + `onSoundChange`/`onCcChange`/`onVoiceChange`, `onReady(show)`; the standard icon toolbar (prev/play/next, ticks, count, CC, mute, voice, full screen; keys Space/arrows/M/V/C/F) |
 | `ScenePlayer` | `player`, `locale`, `mode` (`auto`), `controls` |
 | `ShowPage` | `film`, `layout`, `locale`, `mode` (capture: `light`), `src` (`json`/`js`, forces the scene source), `capture` |
 | `useScenePlayer(player)` | re-renders on every change of a `ScenePlayerState` (useSyncExternalStore) |
 | `usePlayerFor(ref)` | a player you own, pointed at `{ film, scene, layout }` |
-| `useShowState(show)` | `{ index, local, playing, sound, layout, started }` of a player controller (the playhead followed once a frame) |
+| `useShowState(show)` | `{ index, local, playing, sound, voiceOn, layout, started }` of a player controller (the playhead followed once a frame) |
 
 `mode` is `light`, `dark` or `auto`. Auto follows the page's `data-mode` (as rokkit's `themable` sets it), else the
 OS, and the scenes redraw when it changes. A film draws dark only if it has a dark look (see @senseihq/emaki).
+
+A defined `sound`/`cc`/`voice` prop drives the player (the app wins over the toggles) while every toggle still
+reports through its change event, so one film-level state object can hold a show plus its figures; undefined keeps
+per-instance toggles (see One film-level state in the Voice and video guide).
 
 MIT © sensei-hq

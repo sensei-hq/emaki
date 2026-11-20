@@ -341,7 +341,7 @@ describe('<motion-show>', () => {
     await vi.waitFor(() => expect(el.controller).toBeTruthy());
     await vi.waitFor(() => expect(el.querySelector('.emk-bar')).not.toBeNull());
     expect(barLabels(el)).toEqual([
-      'Previous scene', 'Pause', 'Next scene', 'Scene 1: A', 'Scene 2: B', 'Captions', 'Sound on', 'Full screen',
+      'Previous scene', 'Pause', 'Next scene', 'Scene 1: A', 'Scene 2: B', 'Captions', 'Sound on', 'Voice on', 'Full screen',
     ]);
     expect(el.querySelector('.emk-count')?.textContent).toBe('1 / 2');
     const cap = el.querySelector('.emk-cap')!;

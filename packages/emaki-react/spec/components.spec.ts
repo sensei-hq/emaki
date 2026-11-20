@@ -253,14 +253,14 @@ describe('MotionShow poster, cover and progress (as the Svelte player)', () => {
 });
 
 describe('MotionShow chrome (the standard player chrome)', () => {
-  it('renders the icon bar with svg buttons, ticks, count, CC, mute and fullscreen, and captions over the stage', async () => {
+  it('renders the icon bar with svg buttons, ticks, count, CC, mute, voice and fullscreen, and captions over the stage', async () => {
     await render(h(MotionShow, { film: 'f' }));
     const bar = el.querySelector('[role=toolbar]')!;
     expect(bar.getAttribute('aria-label')).toBe('Player controls');
     expect([...bar.querySelectorAll('button')].map((b) => b.getAttribute('aria-label'))).toEqual([
       'Previous scene', 'Pause', 'Next scene',
       'Scene 1: Scene 1', 'Scene 2: Scene 2', 'Scene 3: Scene 3',
-      'Captions', 'Sound on', 'Full screen',
+      'Captions', 'Sound on', 'Voice on', 'Full screen',
     ]);
     expect(bar.querySelectorAll('svg').length).toBeGreaterThan(0);
     expect(bar.querySelector('.emk-count')!.textContent).toBe('1 / 3');

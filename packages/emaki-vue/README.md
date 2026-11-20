@@ -28,10 +28,19 @@ from.
 `MotionShow` props: `film`, `locale`, `layout`, `mode`, `poster` (cover frame first; `title`, `length` on it), `cover` (an
 image URL shown with the play button; the show is created on the first click, sound on), `playerHref` (pop-out link;
 `fullscreenHref` is an alias), `controls`, `slide`, `loop`, `description` (the voiceover script under a Description
-button), `icons` (glyph overrides), `renderTick` (custom tick HTML); `@ready(show)`. The standard icon toolbar
-(prev/play/next, ticks, count, CC, mute, full screen; keys Space/arrows/M/C/F).
+button), `icons` (glyph overrides), `renderTick` (custom tick HTML), controlled `sound`/`cc`/`voice`;
+`@ready(show)`, `@update:sound`, `@update:cc`, `@update:voice`. The standard icon toolbar
+(prev/play/next, ticks, count, CC, mute, voice, full screen; keys Space/arrows/M/V/C/F).
+
+`MotionScene` props: `film`, `scene`, `layout`, `locale`, `mode`, `autoplay`, controlled `sound`/`cc`/`voice`;
+`@update:cc`. Figures sound only when the app drives them; a CC toggle + caption overlay appears when the scene
+has a voice line.
+
+A defined `sound`/`cc`/`voice` prop drives the player (the app wins over the toggles) while every toggle still
+reports through its change event, so one film-level state object can hold a show plus its figures; undefined keeps
+per-instance toggles (see One film-level state in the Voice and video guide).
 
 Call `setupMotion({ source, site, logos })` once on the client first. Composables: `useScenePlayer(player)` (a
-reactive snapshot of a `ScenePlayerState`) and `useShowState(showRef)` (`{ index, local, playing, sound, layout, started }`, the playhead followed once a frame).
+reactive snapshot of a `ScenePlayerState`) and `useShowState(showRef)` (`{ index, local, playing, sound, voiceOn, layout, started }`, the playhead followed once a frame).
 
 MIT © sensei-hq

@@ -17,7 +17,7 @@ export function useScenePlayer(held: ScenePlayerState) {
 }
 
 export type Show = Awaited<ReturnType<typeof createShow>>;
-export interface ShowState { index: number; local: number; playing: boolean; sound: boolean; layout: Layout; started: boolean }
+export interface ShowState { index: number; local: number; playing: boolean; sound: boolean; voiceOn: boolean; layout: Layout; started: boolean }
 
 /** Reactive state of a story player controller (from <MotionShow @ready>), following the playhead (read once a
  *  frame; it moves without notifications). `started` is false on a poster. */
