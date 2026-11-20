@@ -120,6 +120,23 @@ describe('MotionShow', () => {
     expect(el.querySelector('.emk-cc')).toBeNull();
   });
 
+  it('keeps CC on across scenes (no chrome remount on advance)', async () => {
+    chromeLines = [
+      { scene: 's0', text: 'Opening line.' }, { scene: 's1', text: 'Second line.' }, { scene: 's2', text: 'Closing line.' },
+    ];
+    app = mount(pkg.MotionShow, { target: el, props: { film: 'f' } });
+    await settle();
+    await click('Captions');
+    const bar = el.querySelector('.emk-bar')!;
+    await click('Next scene');
+    expect(el.querySelector('.emk-bar')).toBe(bar);
+    expect(button('Captions').getAttribute('aria-pressed')).toBe('true');
+    const cap = el.querySelector<HTMLElement>('.emk-cap')!;
+    expect(cap.hidden).toBe(false);
+    expect(cap.textContent).toBe('Second line.');
+    unmount(app);
+  });
+
   it('links the pop-out to playerHref, or to fullscreenHref when playerHref is absent', async () => {
     app = mount(pkg.MotionShow, { target: el, props: { film: 'f', playerHref: '/show/f' } });
     await settle();

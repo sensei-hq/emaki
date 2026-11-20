@@ -70,10 +70,21 @@
     if (mine === dticket) lines = l;
   }
   // The standard chrome over the show, remounted with it and whenever its inputs change; gone without
-  // controls, under a poster (it mounts with the start), or on unmount.
+  // controls, under a poster (it mounts with the start), or on unmount. Toggles (CC/mute) live in the
+  // chrome, so it must NOT remount on show notifications (scene changes would wipe them): the gate below
+  // flips once, while s.started re-reads on every notification.
   let chrome: PlayerChrome | null = null;
+  let startedOnce = $state(false);
   $effect(() => {
-    const api = s.api, ready = s.started, on = controls, href = playerHref || fullscreenHref, ic = icons, rt = renderTick;
+    if (s.api && s.started) startedOnce = true;
+  });
+  $effect(() => {
+    const api = s.api,
+      ready = startedOnce,
+      on = controls,
+      href = playerHref || fullscreenHref,
+      ic = icons,
+      rt = renderTick;
     untrack(() => {
       chrome?.destroy();
       chrome = null;

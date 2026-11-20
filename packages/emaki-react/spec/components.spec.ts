@@ -269,6 +269,15 @@ describe('MotionShow chrome (the standard player chrome)', () => {
     expect(el.querySelector('.emk-cap')).not.toBeNull();
   });
 
+  it('keeps CC on across scenes (no chrome remount on advance)', async () => {
+    await render(h(MotionShow, { film: 'f' }));
+    await click('Captions');
+    const bar = el.querySelector('[role=toolbar]')!;
+    await click('Next scene');
+    expect(el.querySelector('[role=toolbar]')).toBe(bar);
+    expect(button('Captions').getAttribute('aria-pressed')).toBe('true');
+  });
+
   it('pops out to playerHref, falls back to fullscreenHref, and hides the link without either', async () => {
     await render(h(MotionShow, { film: 'f', playerHref: '/show/f' }));
     expect(el.querySelector('.emk-popout')!.getAttribute('href')).toBe('/show/f');

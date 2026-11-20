@@ -62,6 +62,13 @@ try {
 	await page.click('[data-testid="player"] [aria-label="Captions"]').catch(() => fail('no CC button'))
 	await page.waitForFunction(() => !document.querySelector('[data-testid="player"] .emk-cap')?.hidden, null, { timeout: 5000 })
 		.then(async () => ok(`captions show the scene line ("${(await page.textContent('[data-testid="player"] .emk-cap'))?.slice(0, 40)}…")`), () => fail('captions did not appear'))
+	const ccBefore = await page.getAttribute('[data-testid="player"] [aria-label="Captions"]', 'aria-pressed');
+	await page.click('[data-testid="player"] [aria-label="Next scene"]');
+	await page.waitForTimeout(800);
+	const ccAfter = await page.getAttribute('[data-testid="player"] [aria-label="Captions"]', 'aria-pressed');
+	const capAfter = await page.textContent('[data-testid="player"] .emk-cap').catch(() => null);
+	(ccBefore === 'true' && ccAfter === 'true' && capAfter && !capAfter.startsWith('More tokens.'))
+		? ok('CC stays on across scenes with the next line') : fail(`CC persistence: ${ccBefore} → ${ccAfter} ("${capAfter?.slice(0, 30)}")`);
 	await page.screenshot({ path: `${out}/example-en.png`, fullPage: false })
 	const en = await page.textContent('h1')
 	await page.click('nav button:has-text("es")')

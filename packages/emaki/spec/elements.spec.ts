@@ -364,6 +364,17 @@ describe('<motion-show>', () => {
     el.remove();
   });
 
+  it('keeps CC on across scenes (no chrome remount on advance)', async () => {
+    const el = show({ film: 'f' });
+    await vi.waitFor(() => expect(el.querySelector('.emk-bar')).not.toBeNull());
+    (el.querySelector('.emk-cc') as HTMLButtonElement).click();
+    const bar = el.querySelector('.emk-bar')!;
+    (el.querySelector('.emk-next') as HTMLButtonElement).click();
+    expect(el.querySelector('.emk-bar')).toBe(bar);
+    expect((el.querySelector('.emk-cc') as HTMLButtonElement).getAttribute('aria-pressed')).toBe('true');
+    el.remove();
+  });
+
   it('chrome="off" renders the bare stage for custom chrome', async () => {
     const el = show({ film: 'f', chrome: 'off' });
     await vi.waitFor(() => expect(el.controller).toBeTruthy());

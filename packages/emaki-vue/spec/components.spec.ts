@@ -392,6 +392,35 @@ describe('MotionShow standard chrome', () => {
     expect(cap.textContent).toBe('Hello.');
   });
 
+  it('keeps CC on across scenes (no chrome remount on advance)', async () => {
+    useSource({ films: async () => [], css: async () => '', scene: async () => null, voiceText: async () => [{ scene: 's0', text: 'Hello.' }] });
+    await mount(MotionShow, { film: 'f' });
+    await settle();
+    await click('Captions');
+    const bar = el.querySelector('[role=toolbar]')!;
+    await click('Next scene');
+    expect(el.querySelector('[role=toolbar]')).toBe(bar);
+    expect((el.querySelector('.emk-cc') as HTMLButtonElement).getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('remounts chrome on input change, skipping while dropped', async () => {
+    const props = await mount(MotionShow, { film: 'f', playerHref: '/a', controls: true });
+    await settle();
+    expect(el.querySelector('.emk-popout')!.getAttribute('href')).toBe('/a');
+    props.playerHref = '/b';
+    await settle();
+    expect(el.querySelector('.emk-popout')!.getAttribute('href')).toBe('/b');
+    props.controls = false;
+    await settle();
+    expect(el.querySelector('.emk-bar')).toBeNull();
+    props.playerHref = '/c';
+    await settle();
+    expect(el.querySelector('.emk-bar')).toBeNull();
+    props.controls = true;
+    await settle();
+    expect(el.querySelector('.emk-popout')!.getAttribute('href')).toBe('/c');
+  });
+
   it('hides the chrome with controls=false, and brings it back', async () => {
     const props = await mount(MotionShow, { film: 'f', controls: false });
     expect(el.querySelector('.emk-bar')).toBeNull();
