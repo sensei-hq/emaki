@@ -1,8 +1,10 @@
-// The example in real Chromium (CI's browser job): build it, serve it, and check the three things the packages promise.
+// The example in real Chromium (CI's browser job): build it, serve it, and check what the packages promise.
 //   1. the article's figures mount and draw (a scene in each figure's shadow root),
 //   2. the story player mounts, advances and switches language,
 //   3. /show/<film>?capture=1 installs window.__show with a timeline, a cover time, seek() and the score,
-//   4. the narration (content/films/<film>/voice/en/*.m4a, `emaki voice-web`) plays in the player and the figures.
+//   4. the narration (content/films/<film>/voice/en/*.m4a, `emaki voice-web`) plays in the player and the figures,
+//   5. the chrome's VO toggle cuts the voice (V restores it), figures caption their line, and one film-level
+//      state drives the demo player and its figure (screenshots for each).
 // Failures print as GitHub annotations (visible on the run without signing in) and leave screenshots in test-results/.
 import { spawn } from 'node:child_process'
 import { mkdirSync } from 'node:fs'
@@ -69,6 +71,49 @@ try {
 	const capAfter = await page.textContent('[data-testid="player"] .emk-cap').catch(() => null);
 	(ccBefore === 'true' && ccAfter === 'true' && capAfter && !capAfter.startsWith('More tokens.'))
 		? ok('CC stays on across scenes with the next line') : fail(`CC persistence: ${ccBefore} → ${ccAfter} ("${capAfter?.slice(0, 30)}")`);
+	// The VO toggle beside mute: it cuts the narration while the score plays on (V puts it back).
+	await page.waitForSelector('[data-testid="player"] .emk-voice', { timeout: 5000 })
+		.then(() => ok('VO toggle in the player chrome'), () => fail('no VO toggle in the player'))
+	await page.click('[data-testid="player"] .emk-voice')
+	await page.waitForFunction(() => document.querySelector('[data-testid="player"] .emk-voice')?.getAttribute('aria-label') === 'Voice off', null, { timeout: 5000 })
+		.then(() => ok('VO toggle cuts the voice (Voice off)'), () => fail('the VO toggle did not cut'))
+	await page.locator('[data-testid="player"]').screenshot({ path: `${out}/voice-off.png` })
+	await page.focus('[data-testid="player"] .motion-show')
+	await page.keyboard.press('v')
+	await page.waitForFunction(() => document.querySelector('[data-testid="player"] .emk-voice')?.getAttribute('aria-label') === 'Voice on', null, { timeout: 5000 })
+		.then(() => ok('V restores the voice (Voice on)'), () => fail('V did not restore the voice'))
+	// Article figures caption their scene: a CC toggle plus a polite overlay of the voice line.
+	await page.locator(`[data-testid="${figs[0]}"]`).scrollIntoViewIfNeeded()
+	await page.click(`[data-testid="${figs[0]}"] [aria-label="Captions"]`)
+	await page.waitForFunction((t) => {
+		const cap = document.querySelector(`[data-testid="${t}"] .emk-scene-cap`)
+		return !!cap && !cap.hidden && (cap.textContent?.trim().length ?? 0) > 0
+	}, figs[0], { timeout: 5000 })
+		.then(async () => ok(`figure captions its line ("${(await page.textContent(`[data-testid="${figs[0]}"] .emk-scene-cap`))?.slice(0, 40)}…")`), () => fail('figure caption did not appear'))
+	const live = await page.getAttribute(`[data-testid="${figs[0]}"] .emk-scene-cap`, 'aria-live')
+	live === 'polite' ? ok('figure caption is aria-live polite') : fail(`figure caption live region: ${live}`)
+	await page.locator(`[data-testid="${figs[0]}"]`).screenshot({ path: `${out}/figure-captions.png` })
+	// One film-level state drives the demo player and its figure: the app flips, every player follows.
+	await page.waitForSelector('[data-testid="one-state-player"] .emk-cc', { timeout: 10000 })
+		.then(() => ok('one-state demo on the page'), () => fail('no one-state demo'))
+	await page.locator('[data-testid="one-state"]').scrollIntoViewIfNeeded()
+	await page.click('[data-testid="one-state-cc"]')
+	await page.waitForFunction(() => {
+		const a = document.querySelector('[data-testid="one-state-player"] .emk-cap')
+		const b = document.querySelector('[data-testid="one-state-figure"] .emk-scene-cap')
+		return !!a && !a.hidden && !!b && !b.hidden
+	}, null, { timeout: 5000 })
+		.then(() => ok('one state shows captions in the demo player and figure'), () => fail('one-state captions did not reach every player'))
+	await page.click('[data-testid="one-state-player"] [aria-label="Sound on"]')
+	await page.waitForFunction(() => document.querySelector('[data-testid="one-state-sound"]')?.getAttribute('aria-pressed') === 'true', null, { timeout: 5000 })
+		.then(() => ok('a controlled toggle emits and the app bar follows (sound on)'), () => fail('the demo mute press never reached the app'))
+	await page.click('[data-testid="one-state-voice"]')
+	await page.waitForFunction(() => document.querySelector('[data-testid="one-state-player"] .emk-voice')?.getAttribute('aria-label') === 'Voice off', null, { timeout: 5000 })
+		.then(() => ok('one state cuts the voice app-wide (Voice off)'), () => fail('the one-state voice cut did not reach the player'))
+	await page.locator('[data-testid="one-state"]').screenshot({ path: `${out}/one-state.png` })
+	await page.click('[data-testid="one-state-voice"]')
+	await page.click('[data-testid="one-state-cc"]')
+	await page.click('[data-testid="one-state-sound"]')
 	await page.screenshot({ path: `${out}/example-en.png`, fullPage: false })
 	const en = await page.textContent('h1')
 	await page.click('nav button:has-text("es")')
