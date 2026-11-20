@@ -139,12 +139,24 @@ export const MotionShow = defineComponent({
     // once a running show is there, so the callback ref mounts the chrome exactly then — and drops it whenever the
     // host goes: a film/locale/mode change drops it with the show, as do controls off and unmount.
     let chrome: PlayerChrome | null = null;
-    const dropChrome = () => { chrome?.destroy(); chrome = null; };
-    const chromeHost: Exclude<VNodeRef, string | Ref> = (host) => {
+    let chromeEl: HTMLElement | null = null;
+    const dropChrome = () => { chrome?.destroy(); chrome = null; chromeEl = null; };
+    // Vue re-invokes callback refs on re-render: remount only for a new host, or toggles (CC/mute)
+    // would wipe on every scene change. Input changes remount through the watch below instead.
+    const mount = (host: HTMLElement) => {
       dropChrome();
-      if (host) chrome = mountPlayerChrome(host as HTMLElement, show.value!, { film: props.film, locale: props.locale, stage: stage.value!,
+      chromeEl = host;
+      chrome = mountPlayerChrome(host, show.value!, { film: props.film, locale: props.locale, stage: stage.value!,
         playerHref: props.playerHref || props.fullscreenHref || undefined, icons: props.icons, renderTick: props.renderTick });
     };
+    const chromeHost: Exclude<VNodeRef, string | Ref> = (host) => {
+      if (!host) { dropChrome(); return; }
+      if (chromeEl === host) return;
+      mount(host as HTMLElement);
+    };
+    watch([() => props.controls, () => props.playerHref, () => props.fullscreenHref, () => props.icons, () => props.renderTick], () => {
+      if (chromeEl) mount(chromeEl);
+    });
     onBeforeUnmount(() => { ticket++; show.value?.destroy(); dropChrome(); });
     const lines = shallowRef<VoiceLine[] | null>(null), expanded = ref(false);
     let dticket = 0;
