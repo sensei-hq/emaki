@@ -292,13 +292,36 @@ describe('MotionShow poster, cover and progress (as the Svelte player)', () => {
     const props = await mount(MotionShow, { film: 'f', poster: true, title: 'F', length: '1 min', locale: 'en' });
     expect(vi.mocked(createShow).mock.calls[0][2]).toMatchObject({ poster: true });
     expect(button('Play the film: F').textContent).toContain('Play the film · 1 min');
-    expect(button('Next scene')).toBeUndefined();
+    expect(button('Next scene')).not.toBeUndefined();
     await click('Play the film: F');
     expect(shows[0].start).toHaveBeenCalledOnce();
     expect(el.textContent).toContain('1 / 3');
     props.locale = 'es';
     await settle();
     expect(vi.mocked(createShow).mock.calls[1][2]).toMatchObject({ locale: 'es', poster: false });
+  });
+
+  it('shows the standard chrome before the first play in poster mode, the play button over the stage only', async () => {
+    await mount(MotionShow, { film: 'f', poster: true, title: 'F', length: '1 min' });
+    const bar = el.querySelector('.emk-bar')!;
+    expect(bar.getAttribute('role')).toBe('toolbar');
+    expect([...bar.querySelectorAll('button')].map((b) => b.getAttribute('aria-label'))).toEqual([
+      'Previous scene', 'Play', 'Next scene',
+      'Scene 1: Scene 1', 'Scene 2: Scene 2', 'Scene 3: Scene 3',
+      'Sound on', 'Full screen',
+    ]);
+    // The play button covers the stage box, not the bar: the bar survives a notification unchanged.
+    const root = el.querySelector('[role=application]')!;
+    const play = button('Play the film: F');
+    expect(root.children[0].contains(play)).toBe(true);
+    expect(root.children[0].contains(bar)).toBe(false);
+    shows[0].play();
+    await settle();
+    expect(el.querySelector('.emk-bar')).toBe(bar);
+    // Playing from the bar starts the poster show.
+    await click('Pause');
+    expect(shows[0].start).toHaveBeenCalledOnce();
+    expect(shows[0].state.started).toBe(true);
   });
 
   it('with a cover, paints the image and creates nothing until the first click, which plays it with sound on', async () => {
