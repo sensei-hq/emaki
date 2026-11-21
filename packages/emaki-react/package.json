@@ -1,6 +1,6 @@
 {
   "name": "@senseihq/emaki-react",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "description": "React components and hooks for motion stories: article figures, the story player, a controlled scene player and the video capture page.",
   "type": "module",
   "license": "MIT",
