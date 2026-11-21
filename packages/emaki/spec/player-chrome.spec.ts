@@ -173,10 +173,23 @@ describe('player chrome', () => {
     expect(host.querySelector('.emk-toggle .mine')).not.toBeNull();
     expect(host.querySelector('.emk-prev svg')).not.toBeNull();
     expect(Object.keys(DEFAULT_CHROME_ICONS).sort()).toEqual(
-      ['cc', 'fullscreenEnter', 'fullscreenExit', 'next', 'pause', 'play', 'popout', 'prev', 'soundOff', 'soundOn', 'voice'].sort(),
+      ['cc', 'fullscreenEnter', 'fullscreenExit', 'next', 'pause', 'play', 'popout', 'prev', 'soundOff', 'soundOn', 'voice', 'voiceOff'].sort(),
     );
     chrome.destroy();
     show.destroy();
+  });
+
+  it('sounds with the waveform pair and voices with the speaker pair', () => {
+    // Effects read as a waveform (andrsrxn/icons, MIT), VO as a speaker (Material Symbols): the voice
+    // button swaps glyphs like mute does, so each toggle's state shows in its icon.
+    const { soundOn, soundOff, voice, voiceOff } = DEFAULT_CHROME_ICONS;
+    for (const s of [soundOn, soundOff]) expect(s).toContain('stroke="currentColor"');
+    expect(soundOn).toContain('M1.75 15.4V8.6m20.5 6.8V8.6');
+    expect(soundOff).toContain('m2.63 2.63l18.74 18.74');
+    expect(voice).toContain('M3 9v6h4l5 5V4L7 9');
+    expect(voiceOff).toContain('M4.27 3 3 4.27');
+    expect(soundOn).not.toBe(soundOff);
+    expect(voice).not.toBe(voiceOff);
   });
 
   it('renders custom ticks that still seek', async () => {
