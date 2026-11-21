@@ -205,6 +205,7 @@ describe('MotionShow controlled sound, captions and voice', () => {
     await settle();
     const vo = el.querySelector('.emk-voice') as HTMLButtonElement;
     expect(vo).not.toBeNull();
+    await click('Sound on');
     vo.click();
     await settle();
     expect(onvoicechange).toHaveBeenCalledWith(false);

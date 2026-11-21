@@ -202,6 +202,18 @@ describe('<motion-scene>', () => {
 
 describe('<motion-show>', () => {
   type ShowEl = HTMLElement & { controller: { state: { slug?: string; index: number }; timeline: { scenes: unknown[] } } | null };
+  it('leaves mute as the single master control with voicetoggle="off"', async () => {
+    const show = document.createElement('motion-show') as HTMLElement;
+    show.setAttribute('film', 'f');
+    show.setAttribute('voicetoggle', 'off');
+    document.body.appendChild(show);
+    await vi.waitFor(() => expect(show.querySelector('.emk-bar')).not.toBeNull());
+    expect(show.querySelector('.emk-voice')).toBeNull();
+    (show.querySelector('.emk-mute') as HTMLButtonElement).click();
+    expect((show.querySelector('.emk-mute') as HTMLButtonElement).getAttribute('aria-pressed')).toBe('true');
+    show.remove();
+  });
+
   it('starts once it has a film, restarts on a new one, and fits on resize', async () => {
     const el = document.createElement('motion-show') as ShowEl;
     document.body.appendChild(el);

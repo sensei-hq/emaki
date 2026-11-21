@@ -81,6 +81,7 @@ describe('chrome VO toggle', () => {
 
   it('cuts the voice on toggle: Voice off, unpressed, narration cut on the controller', async () => {
     const { host, show, chrome } = await setup();
+    show.setSound(true);
     const vo = host.querySelector('.emk-voice') as HTMLButtonElement;
     expect(vo).not.toBeNull();
     vo.click();
@@ -97,6 +98,7 @@ describe('chrome VO toggle', () => {
 
   it('swaps the voice glyph with the cut: speaker on, speaker-off off', async () => {
     const { host, show, chrome } = await setup();
+    show.setSound(true);
     const dOf = (svg: string) => svg.match(/d="([^"]+)"/)![1];
     const vo = host.querySelector('.emk-voice') as HTMLButtonElement;
     const glyph = () => vo.querySelector('path')!.getAttribute('d');
@@ -109,8 +111,27 @@ describe('chrome VO toggle', () => {
     show.destroy();
   });
 
+  it('dims the VO toggle while sound is off: no cut on click or V, still showing the cut', async () => {
+    const { host, show, chrome } = await setup();
+    const vo = host.querySelector('.emk-voice') as HTMLButtonElement;
+    expect(vo.disabled).toBe(true);
+    expect(vo.getAttribute('aria-label')).toBe('Voice on');
+    expect(vo.getAttribute('aria-pressed')).toBe('true');
+    vo.click();
+    expect(voiceOnOf(show)).toBe(true);
+    host.dispatchEvent(new KeyboardEvent('keydown', { key: 'v', bubbles: true, cancelable: true }));
+    expect(voiceOnOf(show)).toBe(true);
+    show.setSound(true);
+    expect(vo.disabled).toBe(false);
+    vo.click();
+    expect(voiceOnOf(show)).toBe(false);
+    chrome.destroy();
+    show.destroy();
+  });
+
   it('answers the V key', async () => {
     const { host, show, chrome } = await setup();
+    show.setSound(true);
     const press = (key: string) => {
       const e = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
       host.dispatchEvent(e);
@@ -129,6 +150,23 @@ describe('chrome VO toggle', () => {
     expect(host.querySelector('.emk-voice .mine')).not.toBeNull();
     chrome.destroy();
     show.destroy();
+  });
+
+  it('omits the VO toggle with voiceToggle false: one master control, V silent', async () => {
+    const { host, show, chrome } = await setup({ voiceToggle: false });
+    expect(host.querySelector('.emk-voice')).toBeNull();
+    const mute = host.querySelector('.emk-mute') as HTMLButtonElement;
+    mute.click();
+    expect(show.state.sound).toBe(true);
+    host.dispatchEvent(new KeyboardEvent('keydown', { key: 'v', bubbles: true, cancelable: true }));
+    expect(voiceOnOf(show)).toBe(true);
+    chrome.destroy();
+    show.destroy();
+    const bare = await setup({ voiceToggle: false, film: 'g' });
+    expect(bare.host.querySelector('.emk-voice')).toBeNull();
+    expect(bare.host.querySelector('.emk-cc')).toBeNull();
+    bare.chrome.destroy();
+    bare.show.destroy();
   });
 
   it('hides the VO button without voice lines while mute keeps working', async () => {

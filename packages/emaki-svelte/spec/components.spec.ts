@@ -160,6 +160,15 @@ describe('MotionShow', () => {
     expect(shows[0].state.sound).toBe(true);
   });
 
+  it('leaves mute as the single master control with voiceToggle false', async () => {
+    app = mount(pkg.MotionShow, { target: el, props: { film: 'f', voiceToggle: false } });
+    await settle();
+    expect(el.querySelector('.emk-voice')).toBeNull();
+    await click('Sound on');
+    expect(shows[0].setSound).toHaveBeenCalledWith(true);
+    expect(button('Sound off').getAttribute('aria-pressed')).toBe('true');
+  });
+
   it('links the pop-out to playerHref, or to fullscreenHref when playerHref is absent', async () => {
     app = mount(pkg.MotionShow, { target: el, props: { film: 'f', playerHref: '/show/f' } });
     await settle();
