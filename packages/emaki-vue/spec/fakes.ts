@@ -8,7 +8,7 @@ export type ShowState = { index: number; local: number; playing: boolean; sound:
 /** A story player controller with the core's surface; its state moves the way the real one's does. */
 export function fakeShow(scenes = 3, started = true) {
   const listeners = new Set<(s: ShowState) => void>();
-  const st: ShowState = { index: 0, local: 0, playing: true, sound: false, voiceOn: true, layout: 'landscape', started };
+  const st: ShowState = { index: 0, local: 0, playing: started, sound: false, voiceOn: true, layout: 'landscape', started };
   const emit = () => listeners.forEach((l) => l({ ...st }));
   const go = (i: number) => { st.index = (i + scenes) % scenes; st.local = 0; emit(); };
   return {
