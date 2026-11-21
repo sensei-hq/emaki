@@ -10,19 +10,23 @@ import type { VoiceLine } from './types.js';
 
 export type ChromeIconName =
   | 'prev' | 'play' | 'pause' | 'next' | 'cc'
-  | 'soundOn' | 'soundOff' | 'voice' | 'fullscreenEnter' | 'fullscreenExit' | 'popout';
+  | 'soundOn' | 'soundOff' | 'voice' | 'voiceOff' | 'fullscreenEnter' | 'fullscreenExit' | 'popout';
 
-// Material Symbols paths (Apache 2.0, compatible with MIT): complete <svg> strings, one per control.
+// Complete <svg> strings, one per control. The transport, CC and speaker come from Material Symbols
+// (Apache 2.0, compatible with MIT); the sound pair is a waveform from andrsrxn/icons (MIT). Sound reads
+// as effects, VO as a speaker, and each toggle swaps glyphs so its state shows in its icon.
 const svg = (d: string) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
+const wave = (d: string) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="${d}"/></svg>`;
 export const DEFAULT_CHROME_ICONS: Record<ChromeIconName, string> = {
   prev: svg('M6 6h2v12H6zm3.5 6 8.5 6V6z'),
   play: svg('M8 5v14l11-7z'),
   pause: svg('M6 19h4V5H6zm8-14v14h4V5z'),
   next: svg('M6 18l8.5-6L6 6zM16 6v12h2V6z'),
   cc: svg('M19 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2m-8 7H9.5v-.5h-2v3h2V13H11v1a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1zm7 0h-1.5v-.5h-2v3h2V13H18v1a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1z'),
-  soundOn: svg('M3 9v6h4l5 5V4L7 9zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4M14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4-.91 7-4.49 7-8.77s-3-7.86-7-8.77'),
-  soundOff: svg('M16.5 12A4.5 4.5 0 0 0 14 8v2.18l2.45 2.45q.05-.3.05-.63M19 12a7 7 0 0 1-.54 2.7l1.51 1.51A8.8 8.8 0 0 0 21 12c0-4.28-3-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71M4.27 3 3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a9 9 0 0 0 3.69-1.81L19.73 21 21 19.73l-9-9zM12 4 9.91 6.09 12 8.18z'),
-  voice: svg('M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z'),
+  soundOn: wave('M1.75 15.4V8.6m20.5 6.8V8.6m-8.2 6.53V8.87m-4.1 8.45V6.68m-4.1 12.93V4.4m12.3 15.21V4.4'),
+  soundOff: wave('m2.63 2.63l18.74 18.74M1.75 15.4V8.6m20.5 6.8V8.6m-8.2 6.53v-1m0-3.61V8.87m-4.1 8.45V10m-4.1 9.61V6.05m12.3 8.58V4.39m0 15.22V18.4'),
+  voice: svg('M3 9v6h4l5 5V4L7 9zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4M14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4-.91 7-4.49 7-8.77s-3-7.86-7-8.77'),
+  voiceOff: svg('M16.5 12A4.5 4.5 0 0 0 14 8v2.18l2.45 2.45q.05-.3.05-.63M19 12a7 7 0 0 1-.54 2.7l1.51 1.51A8.8 8.8 0 0 0 21 12c0-4.28-3-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71M4.27 3 3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a9 9 0 0 0 3.69-1.81L19.73 21 21 19.73l-9-9zM12 4 9.91 6.09 12 8.18z'),
   fullscreenEnter: svg('M7 14H5v5h5v-2H7zm-2-4h2V7h3V5H5zm12 7h-3v2h5v-5h-2zM14 5v2h3v3h2V5z'),
   fullscreenExit: svg('M5 16h3v3h2v-5H5zm3-8H5v2h5V5H8zm6 11h2v-3h3v-2h-5zm2-11V5h-2v5h5V8z'),
   popout: svg('M14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3m-2 16H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2z'),
@@ -198,6 +202,7 @@ export function mountPlayerChrome(host: HTMLElement, show: Show, opts: PlayerChr
     mute.innerHTML = s.sound ? icons.soundOn : icons.soundOff;
     mute.setAttribute('aria-pressed', String(s.sound));
     mute.setAttribute('aria-label', s.sound ? 'Sound off' : 'Sound on');
+    vo.innerHTML = s.voiceOn ? icons.voice : icons.voiceOff;
     vo.setAttribute('aria-pressed', String(s.voiceOn));
     vo.setAttribute('aria-label', s.voiceOn ? 'Voice on' : 'Voice off');
     cap.textContent = line ?? '';
