@@ -137,6 +137,29 @@ describe('MotionShow', () => {
     unmount(app);
   });
 
+  it('shows the standard chrome before the first play in poster mode, the poster over the stage only', async () => {
+    app = mount(pkg.MotionShow, { target: el, props: { film: 'f', poster: true, title: 'T', length: '0:30' } });
+    await settle();
+    // The bar is there before anything plays: transport, ticks, count, CC, mute, voice, fullscreen.
+    const bar = el.querySelector('.emk-bar')!;
+    expect(bar.getAttribute('role')).toBe('toolbar');
+    expect([...bar.querySelectorAll('button')].map((b) => b.getAttribute('aria-label'))).toEqual([
+      'Previous scene', 'Play', 'Next scene',
+      'Scene 1: Scene 1', 'Scene 2: Scene 2', 'Scene 3: Scene 3',
+      'Captions', 'Sound on', 'Voice on', 'Full screen',
+    ]);
+    // The poster covers the stage, not the bar: the bar stays the same node (and clickable) across a notification.
+    const poster = el.querySelector('.ms-poster') as HTMLButtonElement;
+    expect(el.querySelector('.ms-fit')!.contains(poster)).toBe(true);
+    shows[0].play();
+    await settle();
+    expect(el.querySelector('.emk-bar')).toBe(bar);
+    // Playing from the bar starts the poster show, with sound.
+    await click('Pause');
+    expect(shows[0].start).toHaveBeenCalledOnce();
+    expect(shows[0].state.sound).toBe(true);
+  });
+
   it('links the pop-out to playerHref, or to fullscreenHref when playerHref is absent', async () => {
     app = mount(pkg.MotionShow, { target: el, props: { film: 'f', playerHref: '/show/f' } });
     await settle();
@@ -191,16 +214,15 @@ describe('MotionShow', () => {
     expect(show.toggle).toHaveBeenCalledOnce();
   });
 
-  it('with poster, opens on the cover until played, mounting the chrome with the start', async () => {
+  it('with poster, opens on the cover until played, the chrome already mounted', async () => {
     app = mount(pkg.MotionShow, { target: el, props: { film: 'f', poster: true, title: 'F' } });
     await settle();
     expect(vi.mocked(createShow).mock.calls[0][2]).toMatchObject({ poster: true });
-    expect(el.querySelector('.emk-bar')).toBeNull();
+    expect(el.querySelector('.emk-bar')).not.toBeNull();
     expect(button('Play the film: F')).toBeTruthy();
 
     await click('Play the film: F');
     expect(shows[0].start).toHaveBeenCalledOnce();
-    expect(el.querySelector('.emk-bar')).not.toBeNull();
     expect(el.textContent).toContain('1 / 3');
   });
 
