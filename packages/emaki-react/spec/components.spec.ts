@@ -222,6 +222,14 @@ describe('MotionShow poster, cover and progress (as the Svelte player)', () => {
     expect(vi.mocked(createShow).mock.calls[1][2]).toMatchObject({ locale: 'es', poster: false });
   });
 
+  it('leaves mute as the single master control with voiceToggle false', async () => {
+    await render(h(MotionShow, { film: 'f', voiceToggle: false }));
+    expect(el.querySelector('.emk-voice')).toBeNull();
+    click('Sound on');
+    expect(shows[0].setSound).toHaveBeenCalledWith(true);
+    expect(button('Sound off').getAttribute('aria-pressed')).toBe('true');
+  });
+
   it('with a cover, paints the image and creates nothing until the first click, which plays it with sound on', async () => {
     await render(h(MotionShow, { film: 'f', cover: '/covers/f.jpg', title: 'F', length: '1 min' }));
     expect(createShow).not.toHaveBeenCalled();

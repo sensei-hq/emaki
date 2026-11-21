@@ -213,6 +213,7 @@ describe('MotionShow controlled sound, captions and voice', () => {
     await mount(MotionShow, controlled({ film: 'f', voice: true }), { 'onUpdate:voice': onUpdateVoice });
     const vo = el.querySelector('.emk-voice') as HTMLButtonElement;
     expect(vo).not.toBeNull();
+    await click('Sound on');
     vo.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     await settle();
     expect(onUpdateVoice).toHaveBeenCalledWith(false);

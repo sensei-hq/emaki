@@ -15,13 +15,15 @@
   import { reactiveShow, type ShowHandle } from './player.svelte.js';
 
   let {
-    film, locale = 'en', layout = 'landscape', mode = 'auto', controls = true, slide = 1, loop = false,
+    film, locale = 'en', layout = 'landscape', mode = 'auto', controls = true, voiceToggle = true, slide = 1, loop = false,
     poster = false, cover = '', title = '', length = '', fullscreenHref = '', playerHref = '',
     icons = undefined, renderTick = undefined, description = false, show = $bindable(),
     sound = undefined, cc = undefined, voice = undefined,
     onsoundchange = undefined, onccchange = undefined, onvoicechange = undefined,
   }: {
-    film: string; locale?: string; layout?: Layout; mode?: Mode; controls?: boolean; slide?: number; loop?: boolean;
+    film: string; locale?: string; layout?: Layout; mode?: Mode; controls?: boolean;
+    /** Show the VO toggle (default true); false leaves mute as the single master control. */ voiceToggle?: boolean;
+    slide?: number; loop?: boolean;
     /** Open on the cover with a play button. */ poster?: boolean;
     /** An image (URL) to show with the play button; the show is created on the first click. */ cover?: string;
     /** The film's name and running time, for the poster's label and chip. */ title?: string; length?: string;
@@ -136,12 +138,13 @@
       on = controls,
       href = playerHref || fullscreenHref,
       ic = icons,
-      rt = renderTick;
+      rt = renderTick,
+      vt = voiceToggle;
     untrack(() => {
       chrome?.destroy();
       chrome = null;
       if (!on || !api || !ready) return;
-      chrome = mountPlayerChrome(box, api, { film, locale, stage, playerHref: href || undefined, icons: ic, renderTick: rt });
+      chrome = mountPlayerChrome(box, api, { film, locale, stage, playerHref: href || undefined, icons: ic, renderTick: rt, voiceToggle: vt });
       applyControlled();
     });
   });

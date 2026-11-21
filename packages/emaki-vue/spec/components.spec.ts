@@ -370,6 +370,18 @@ describe('MotionShow standard chrome', () => {
     vi.stubGlobal('cancelAnimationFrame', (id: number) => { frames.delete(id); });
   });
 
+  it('leaves mute as the single master control with voiceToggle false', async () => {
+    useSource({ films: async () => [], css: async () => '', scene: async () => null, voiceText: async () => [{ scene: 's0', text: 'Line.' }] });
+    await mount(MotionShow, { film: 'f', voiceToggle: false });
+    expect(el.querySelector('.emk-voice')).toBeNull();
+    await click('Sound on');
+    expect(shows[0].setSound).toHaveBeenCalledWith(true);
+    expect(button('Sound off').getAttribute('aria-pressed')).toBe('true');
+    unmount();
+    await mount(MotionShow, { film: 'f' });
+    expect(el.querySelector('.emk-voice')).not.toBeNull();
+  });
+
   it('renders the core icon bar with ticks and a count, and no pop-out without a href', async () => {
     await mount(MotionShow, { film: 'f' });
     await settle();

@@ -224,6 +224,7 @@ describe('MotionShow controlled sound, captions and voice', () => {
     await render(h(MotionShow, controlled({ film: 'f', voice: true, onVoiceChange })));
     const vo = el.querySelector('.emk-voice') as HTMLButtonElement;
     expect(vo).not.toBeNull();
+    click('Sound on');
     act(() => { vo.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
     expect(onVoiceChange).toHaveBeenCalledWith(false);
     expect(vo.getAttribute('aria-pressed')).toBe('true');
@@ -233,6 +234,7 @@ describe('MotionShow controlled sound, captions and voice', () => {
     const onVoiceChange = vi.fn();
     await render(h(MotionShow, controlled({ film: 'f', onVoiceChange })));
     const vo = el.querySelector('.emk-voice') as HTMLButtonElement;
+    click('Sound on');
     act(() => { vo.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
     expect(shows[0].setVoice).toHaveBeenCalledWith(false);
     expect(onVoiceChange).toHaveBeenCalledWith(false);
