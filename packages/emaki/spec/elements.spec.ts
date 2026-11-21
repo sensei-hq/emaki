@@ -180,7 +180,7 @@ describe('<motion-scene>', () => {
     expect(FakeAudio.all).toHaveLength(0);
   });
 
-  it('shows the standard speaker SVG, not emoji, keeping the Sound on/off labels', async () => {
+  it('shows the standard sound SVG, not emoji, keeping the Sound on/off labels', async () => {
     const el = scene({ film: 'f', scene: 'a', layout: 'landscape' });
     const btn = el.querySelector('button')!;
     await vi.waitFor(() => expect(btn.hidden).toBe(false));

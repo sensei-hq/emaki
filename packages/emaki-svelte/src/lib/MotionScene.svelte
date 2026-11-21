@@ -6,7 +6,7 @@
   // `onsoundchange`/`onccchange` lift that state to the app: a defined prop drives the figure (the app wins over the
   // toggles) while every toggle still emits; undefined keeps per-instance toggles. <MotionScene film="..." scene="..." />
   import { onMount, untrack } from 'svelte';
-  import { attachScene, figurePlayer, sceneSound, type Layout, type Mode } from '@senseihq/emaki';
+  import { attachScene, DEFAULT_CHROME_ICONS, figurePlayer, sceneSound, type Layout, type Mode } from '@senseihq/emaki';
 
   let { film, scene, layout = 'figure', locale = 'en', mode = 'auto', autoplay = true, t = undefined, hold = 2, label = '', class: cls = '',
     sound = undefined, cc = undefined, voice = undefined, onsoundchange = undefined, onccchange = undefined }:
@@ -95,10 +95,7 @@
   {/if}
   {#if hasSound}
     <button class="ms-snd" onclick={toggleSound} aria-pressed={shownSound} aria-label={shownSound ? 'Turn sound off' : 'Turn sound on'} title={shownSound ? 'Sound on' : 'Sound off'}>
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M4 9h4l5-4v14l-5-4H4z" />
-        {#if shownSound}<path class="w" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" />{:else}<path class="w" d="M17 9l5 6M22 9l-5 6" />{/if}
-      </svg>
+      {@html shownSound ? DEFAULT_CHROME_ICONS.soundOn : DEFAULT_CHROME_ICONS.soundOff}
     </button>
   {/if}
 </div>
@@ -116,8 +113,7 @@
   .emk-scene-cc { right: 52px; font: 700 11px/1 system-ui; letter-spacing: .04em; display: grid; place-items: center; }
   .ms-snd:hover, .ms-snd:focus-visible, .ms-snd[aria-pressed='true'],
   .emk-scene-cc:hover, .emk-scene-cc:focus-visible, .emk-scene-cc[aria-pressed='true'] { opacity: 1; }
-  .ms-snd svg { width: 100%; height: 100%; fill: currentColor; }
-  .ms-snd .w { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+  .ms-snd :global(svg) { width: 100%; height: 100%; fill: currentColor; }
   .emk-scene-cap {
     position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); max-width: 82%; margin: 0;
     padding: .35em .8em; border-radius: .4rem; background: rgb(20 18 15 / 0.78); color: #fff;

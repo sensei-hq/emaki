@@ -95,6 +95,20 @@ describe('chrome VO toggle', () => {
     show.destroy();
   });
 
+  it('swaps the voice glyph with the cut: speaker on, speaker-off off', async () => {
+    const { host, show, chrome } = await setup();
+    const dOf = (svg: string) => svg.match(/d="([^"]+)"/)![1];
+    const vo = host.querySelector('.emk-voice') as HTMLButtonElement;
+    const glyph = () => vo.querySelector('path')!.getAttribute('d');
+    expect(glyph()).toBe(dOf(DEFAULT_CHROME_ICONS.voice));
+    vo.click();
+    expect(glyph()).toBe(dOf(DEFAULT_CHROME_ICONS.voiceOff));
+    vo.click();
+    expect(glyph()).toBe(dOf(DEFAULT_CHROME_ICONS.voice));
+    chrome.destroy();
+    show.destroy();
+  });
+
   it('answers the V key', async () => {
     const { host, show, chrome } = await setup();
     const press = (key: string) => {

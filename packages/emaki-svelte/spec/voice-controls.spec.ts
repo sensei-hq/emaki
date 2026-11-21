@@ -5,7 +5,7 @@
 // cut app-wide from the show's chrome.)
 import { flushSync, mount, unmount } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { attachScene, createShow, sceneSound, useSource, voiceLines, type VoiceLine } from '@senseihq/emaki';
+import { attachScene, createShow, DEFAULT_CHROME_ICONS, sceneSound, useSource, voiceLines, type VoiceLine } from '@senseihq/emaki';
 import * as pkg from '../src/lib/index.js';
 import Harness from './controlled-harness.svelte';
 import { FakeResizeObserver, fakeShow, fakeView, type FakeShow } from './fakes.js';
@@ -228,5 +228,18 @@ describe('MotionShow controlled sound, captions and voice', () => {
     await click('Captions');
     expect(button('Captions').getAttribute('aria-pressed')).toBe('true');
     expect((shows[0].state as unknown as { voiceOn?: boolean }).voiceOn).toBe(true);
+  });
+});
+
+describe('MotionScene speaker icon', () => {
+  const flat = (s: string) => s.replace(/\s+/g, '').replace(/><\/path>/g, '/>');
+  it('uses the chrome speaker glyphs', async () => {
+    app = mount(pkg.MotionScene, { target: el, props: { film: 'f', scene: 'a' } });
+    await settle();
+    const btn = el.querySelector('.ms-snd') as HTMLButtonElement;
+    expect(flat(btn.innerHTML)).toBe(flat(DEFAULT_CHROME_ICONS.soundOff));
+    btn.click();
+    await settle();
+    expect(flat(btn.innerHTML)).toBe(flat(DEFAULT_CHROME_ICONS.soundOn));
   });
 });
