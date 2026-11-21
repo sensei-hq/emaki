@@ -31,11 +31,11 @@
     },
     "packages/emaki": {
       "name": "@senseihq/emaki",
-      "version": "0.7.0",
+      "version": "0.7.1",
     },
     "packages/emaki-cli": {
       "name": "@senseihq/emaki-cli",
-      "version": "0.7.0",
+      "version": "0.7.1",
       "bin": {
         "emaki": "src/index.js",
       },
@@ -53,11 +53,11 @@
     },
     "packages/emaki-posting": {
       "name": "@senseihq/emaki-posting",
-      "version": "0.7.0",
+      "version": "0.7.1",
     },
     "packages/emaki-react": {
       "name": "@senseihq/emaki-react",
-      "version": "0.7.0",
+      "version": "0.7.1",
       "dependencies": {
         "@senseihq/emaki": "workspace:*",
       },
@@ -73,7 +73,7 @@
     },
     "packages/emaki-svelte": {
       "name": "@senseihq/emaki-svelte",
-      "version": "0.7.0",
+      "version": "0.7.1",
       "dependencies": {
         "@senseihq/emaki": "workspace:*",
       },
@@ -88,7 +88,7 @@
     },
     "packages/emaki-vue": {
       "name": "@senseihq/emaki-vue",
-      "version": "0.7.0",
+      "version": "0.7.1",
       "dependencies": {
         "@senseihq/emaki": "workspace:*",
       },
