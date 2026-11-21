@@ -163,6 +163,8 @@ export const MotionShow = defineComponent({
     renderTick: { type: Function as PropType<PlayerChromeOptions['renderTick']>, default: undefined },
     /** A Description button under the player that opens the film's voiceover script; hidden without one. */
     description: { type: Boolean, default: false },
+    /** Show the VO toggle (default true); false leaves mute as the single master control. */
+    voiceToggle: { type: Boolean, default: true },
     /** Controlled sound: a defined value drives mute (the app's state wins over the toggle); undefined stays per-instance. */
     sound: { type: Boolean as PropType<boolean | undefined>, default: undefined },
     /** Controlled captions: a defined value shows or hides the caption overlay; undefined leaves it to the CC toggle. */
@@ -230,16 +232,20 @@ export const MotionShow = defineComponent({
       dropChrome();
       chromeEl = host;
       chrome = mountPlayerChrome(host, show.value!, { film: props.film, locale: props.locale, stage: stage.value!,
-        playerHref: props.playerHref || props.fullscreenHref || undefined, icons: props.icons, renderTick: props.renderTick });
+        playerHref: props.playerHref || props.fullscreenHref || undefined, icons: props.icons, renderTick: props.renderTick,
+        voiceToggle: props.voiceToggle });
       // The chrome's own toggles stay the interaction point, but under a controlled prop a press only
       // emits: the prop, not the press, drives the player. (The buttons always exist right after mount;
       // the chrome only removes CC/VO later, when the film has no voice lines.)
-      const mute = host.querySelector('.emk-mute') as HTMLButtonElement, vo = host.querySelector('.emk-voice') as HTMLButtonElement,
+      const mute = host.querySelector('.emk-mute') as HTMLButtonElement, vo = host.querySelector('.emk-voice') as HTMLButtonElement | null,
         cc = host.querySelector('.emk-cc') as HTMLButtonElement;
-      const origMute = mute.onclick as () => void, origVo = vo.onclick as () => void, origCc = cc.onclick as () => void;
+      const origMute = mute.onclick as () => void, origCc = cc.onclick as () => void;
       ccOrig = origCc;
       mute.onclick = () => controlledToggle(props.sound, !show.value!.state.sound, (on) => emit('update:sound', on), origMute);
-      vo.onclick = () => controlledToggle(props.voice, !show.value!.state.voiceOn, (on) => emit('update:voice', on), origVo);
+      if (vo) {
+        const origVo = vo.onclick as () => void;
+        vo.onclick = () => controlledToggle(props.voice, !show.value!.state.voiceOn, (on) => emit('update:voice', on), origVo);
+      }
       cc.onclick = () => controlledToggle(props.cc, !chromeCc, (on) => emit('update:cc', on), () => { chromeCc = !chromeCc; origCc(); });
       // M reaches straight into the show: emit the request, and under a defined sound keep it from the
       // chrome. (V and C arrive as toggle clicks, which the wrapped handlers above see.)
@@ -258,7 +264,7 @@ export const MotionShow = defineComponent({
       if (chromeEl === host) return;
       mount(host as HTMLElement);
     };
-    watch([() => props.controls, () => props.playerHref, () => props.fullscreenHref, () => props.icons, () => props.renderTick], () => {
+    watch([() => props.controls, () => props.playerHref, () => props.fullscreenHref, () => props.icons, () => props.renderTick, () => props.voiceToggle], () => {
       if (chromeEl) mount(chromeEl);
     });
     onBeforeUnmount(() => { ticket++; show.value?.destroy(); dropChrome(); });

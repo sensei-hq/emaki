@@ -45,6 +45,8 @@ export interface PlayerChromeOptions {
   stage: HTMLElement;
   /** The standalone player page: renders the pop-out link. Hidden when absent. */
   playerHref?: string;
+  /** Show the VO toggle (default true); false leaves mute as the single master control. */
+  voiceToggle?: boolean;
   /** Glyph overrides, merged over DEFAULT_CHROME_ICONS (complete <svg> strings). */
   icons?: Partial<Record<ChromeIconName, string>>;
   /** Custom tick HTML per scene (still seeks on click); void keeps the default progress tick. */
@@ -62,6 +64,7 @@ export const CHROME_CSS = [
   '.emk-bar button,.emk-bar a{display:grid;place-items:center;min-width:34px;height:34px;border-radius:8px;border:0;background:none;color:inherit;cursor:pointer;padding:0 6px;text-decoration:none}',
   '.emk-bar button:hover,.emk-bar a:hover{background:color-mix(in srgb,currentColor 12%,transparent)}',
   '.emk-bar button[aria-pressed="true"]{background:color-mix(in srgb,currentColor 22%,transparent)}',
+  '.emk-bar button:disabled{opacity:.35;cursor:default;background:none}',
   '.emk-bar svg{width:20px;height:20px;fill:currentColor}',
   '.emk-ticks{flex:1;display:flex;gap:4px;min-width:2rem}',
   '.emk-ticks .emk-tick{flex:1;min-width:0;height:18px;padding:7px 0;background:linear-gradient(color-mix(in srgb,currentColor 18%,transparent),color-mix(in srgb,currentColor 18%,transparent)) center/100% 4px no-repeat}',
@@ -109,10 +112,10 @@ export function mountPlayerChrome(host: HTMLElement, show: Show, opts: PlayerChr
   cc.setAttribute('aria-pressed', 'false');
   const mute = btn(doc, 'emk-mute', icons.soundOff, 'Sound on', 'Sound (M)');
   mute.setAttribute('aria-pressed', 'false');
-  const vo = btn(doc, 'emk-voice', icons.voice, 'Voice on', 'Voice (V)');
-  vo.setAttribute('aria-pressed', 'true');
+  const vo = opts.voiceToggle === false ? null : btn(doc, 'emk-voice', icons.voice, 'Voice on', 'Voice (V)');
+  vo?.setAttribute('aria-pressed', 'true');
   const fs = btn(doc, 'emk-fs', icons.fullscreenEnter, 'Full screen', 'Full screen (F)');
-  bar.append(prev, toggle, next, ticksEl, count, cc, mute, vo, fs);
+  bar.append(prev, toggle, next, ticksEl, count, cc, mute, ...(vo ? [vo] : []), fs);
   if (opts.playerHref) {
     const a = doc.createElement('a');
     a.className = 'emk-popout';
@@ -202,9 +205,14 @@ export function mountPlayerChrome(host: HTMLElement, show: Show, opts: PlayerChr
     mute.innerHTML = s.sound ? icons.soundOn : icons.soundOff;
     mute.setAttribute('aria-pressed', String(s.sound));
     mute.setAttribute('aria-label', s.sound ? 'Sound off' : 'Sound on');
-    vo.innerHTML = s.voiceOn ? icons.voice : icons.voiceOff;
-    vo.setAttribute('aria-pressed', String(s.voiceOn));
-    vo.setAttribute('aria-label', s.voiceOn ? 'Voice on' : 'Voice off');
+    if (vo) {
+      vo.innerHTML = s.voiceOn ? icons.voice : icons.voiceOff;
+      vo.setAttribute('aria-pressed', String(s.voiceOn));
+      vo.setAttribute('aria-label', s.voiceOn ? 'Voice on' : 'Voice off');
+      // Mute is the master: the VO toggle dims while sound is off (its cut still shown), so the bar
+      // never claims speech is live that cannot be heard.
+      vo.toggleAttribute('disabled', !s.sound);
+    }
     cap.textContent = line ?? '';
     cap.hidden = !ccOn || !line;
   };
@@ -219,7 +227,7 @@ export function mountPlayerChrome(host: HTMLElement, show: Show, opts: PlayerChr
   next.onclick = () => show.next();
   toggle.onclick = () => (show.state.started ? show.toggle() : show.start());
   mute.onclick = () => show.setSound(!show.state.sound);
-  vo.onclick = () => show.setVoice(!show.state.voiceOn);
+  if (vo) vo.onclick = () => show.setVoice(!show.state.voiceOn);
   cc.onclick = () => {
     ccOn = !ccOn;
     cc.setAttribute('aria-pressed', String(ccOn));
@@ -241,7 +249,7 @@ export function mountPlayerChrome(host: HTMLElement, show: Show, opts: PlayerChr
       arrowright: () => show.next(),
       arrowleft: () => show.prev(),
       m: () => show.setSound(!show.state.sound),
-      v: () => vo.click(),
+      v: () => vo?.click(),
       c: () => cc.click(),
       f: () => fs.click(),
     };
@@ -258,7 +266,7 @@ export function mountPlayerChrome(host: HTMLElement, show: Show, opts: PlayerChr
   void voiceLines(opts.film, locale).then((l) => {
     if (dead) return;
     lines = l;
-    if (!l?.length) { cc.remove(); vo.remove(); }
+    if (!l?.length) { cc.remove(); vo?.remove(); }
     else cc.setAttribute('aria-pressed', String(ccOn));
     render();
   });

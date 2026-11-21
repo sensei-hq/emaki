@@ -133,7 +133,7 @@ class MotionScene extends HTMLElement {
 }
 
 class MotionShow extends HTMLElement {
-  static observedAttributes = ['film', 'locale', 'layout', 'mode', 'description', 'playerhref', 'chrome'];
+  static observedAttributes = ['film', 'locale', 'layout', 'mode', 'description', 'playerhref', 'chrome', 'voicetoggle'];
   #show: Awaited<ReturnType<typeof createShow>> | null = null; #ro?: ResizeObserver;
   #box = document.createElement('div');
   #chrome: PlayerChrome | null = null;
@@ -165,7 +165,7 @@ class MotionShow extends HTMLElement {
   attributeChangedCallback(name: string) {
     if (!this.isConnected) return;
     this.#layoutBox();
-    if (name === 'playerhref' || name === 'chrome') return this.#syncChrome();
+    if (name === 'playerhref' || name === 'chrome' || name === 'voicetoggle') return this.#syncChrome();
     // A layout change re-aspects the live show in place (the O key's path): the same controller, a new ratio.
     if (name === 'layout' && this.#show) {
       this.#show.setLayout((this.getAttribute('layout') as Layout) || 'landscape');
@@ -194,6 +194,7 @@ class MotionShow extends HTMLElement {
       this.#chrome = mountPlayerChrome(this, show, {
         film: show.film.slug, locale: this.getAttribute('locale') || 'en', stage: this.#box,
         playerHref: this.getAttribute('playerhref') || undefined, icons: this.#icons, renderTick: this.#renderTick,
+        voiceToggle: this.getAttribute('voicetoggle') !== 'off',
       });
       if (this.#foot) this.append(this.#foot.el);
     }

@@ -113,6 +113,8 @@ export interface MotionShowProps {
   renderTick?: (tick: ChromeTick, index: number) => string | void;
   /** A Description button under the player that opens the film's voiceover script; hidden without one. */
   description?: boolean;
+  /** Show the VO toggle (default true); false leaves mute as the single master control. */
+  voiceToggle?: boolean;
   /** Controlled sound: a defined value drives mute (per-instance toggle when undefined). */
   sound?: boolean;
   /** Controlled captions: a defined value shows or hides them (per-instance toggle when undefined). */
@@ -149,7 +151,7 @@ function PlayButton({ title, length, cover, onClick }: { title: string; length: 
 /** The story player: a film's scenes as slides, fitted to its box. Keys: ←/→ scene, Space play/pause, M sound,
  *  O orientation, R replay, Home from the top, F fullscreen. `poster` opens on the cover frame; `cover` paints an
  *  image and creates nothing until the first click. */
-export function MotionShow({ film, locale = 'en', layout = 'landscape', mode = 'auto', controls = true, slide = 1, loop = false, poster = false, cover = '', title = '', length = '', fullscreenHref = '', playerHref = '', icons, renderTick, description = false, sound, cc, voice, onSoundChange = noop, onCcChange = noop, onVoiceChange = noop, onReady, className, style }: MotionShowProps) {
+export function MotionShow({ film, locale = 'en', layout = 'landscape', mode = 'auto', controls = true, slide = 1, loop = false, poster = false, cover = '', title = '', length = '', fullscreenHref = '', playerHref = '', icons, renderTick, description = false, voiceToggle = true, sound, cc, voice, onSoundChange = noop, onCcChange = noop, onVoiceChange = noop, onReady, className, style }: MotionShowProps) {
   const stage = useRef<HTMLDivElement>(null);
   const chromeHost = useRef<HTMLDivElement>(null);
   const [fitRef, size] = useSize<HTMLDivElement>();
@@ -193,7 +195,7 @@ export function MotionShow({ film, locale = 'en', layout = 'landscape', mode = '
     if (!show || !controls) return;
     const host = chromeHost.current!;
     const chrome = mountPlayerChrome(host, show, {
-      film, locale, stage: stage.current!, playerHref: playerHref || fullscreenHref || undefined, icons, renderTick,
+      film, locale, stage: stage.current!, playerHref: playerHref || fullscreenHref || undefined, icons, renderTick, voiceToggle,
     });
     // A defined prop wins over the chrome's toggles: the press never reaches the chrome, the app hears it instead.
     const onCapture = (e: Event) => {
@@ -245,7 +247,7 @@ export function MotionShow({ film, locale = 'en', layout = 'landscape', mode = '
       host.removeEventListener('keydown', onKeyCapture, true);
       chrome.destroy();
     };
-  }, [show, controls, film, locale, playerHref, fullscreenHref, icons, renderTick]);
+  }, [show, controls, film, locale, playerHref, fullscreenHref, icons, renderTick, voiceToggle]);
   // Controlled inputs drive the player: sound and voice through the controller, captions by pressing the
   // chrome's own CC toggle while it disagrees with the prop. Runs after the mount above in the same commit.
   useEffect(() => { if (show && sound !== undefined) show.setSound(sound); }, [show, sound]);
