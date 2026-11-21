@@ -78,12 +78,13 @@
     const l = await voiceLines(film, locale);
     if (mine === dticket) lines = l;
   }
-  // The standard chrome over the show, remounted with it and whenever its inputs change; gone without
-  // controls, under a poster (it mounts with the start), or on unmount. Toggles (CC/mute) live in the
-  // chrome, so it must NOT remount on show notifications (scene changes would wipe them): the gate below
-  // flips once, while s.started re-reads on every notification.
+  // The standard chrome over the show, mounted with it (before the first play: a poster still shows its
+  // bar) and remounted with it and whenever its inputs change; gone without controls or on unmount.
+  // Toggles (CC/mute) live in the chrome, so it must NOT remount on show notifications (scene changes
+  // would wipe them): the gate below flips once, s.api re-runs the mount on every restart, and
+  // notifications touch neither.
   let chrome: PlayerChrome | null = null;
-  let startedOnce = $state(false);
+  let attachedOnce = $state(false);
   // Controlled sound/cc/voice: a defined prop drives the player while every toggle still emits, so one app-level
   // state object can hold a film plus its figures. Sound and voice drive the show controller; captions live in
   // the chrome, so the prop flips its toggle for it. Undefined stays uncontrolled.
@@ -127,11 +128,11 @@
     }
   }
   $effect(() => {
-    if (s.api && s.started) startedOnce = true;
+    if (s.api) attachedOnce = true;
   });
   $effect(() => {
     const api = s.api,
-      ready = startedOnce,
+      ready = attachedOnce,
       on = controls,
       href = playerHref || fullscreenHref,
       ic = icons,
@@ -185,21 +186,23 @@
 
 <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
 <div class="motion-show" bind:this={box} tabindex="0" role="application" aria-label="Story player" {onkeydown}>
-  <div class="ms-fit" style={fitStyle} bind:clientWidth={w} bind:clientHeight={h}><div class="ms-stage" bind:this={stage}></div></div>
+  <div class="ms-fit" style={fitStyle} bind:clientWidth={w} bind:clientHeight={h}>
+    <div class="ms-stage" bind:this={stage}></div>
+    {#if waiting}
+      <button class="ms-poster" onclick={open} aria-label="Play the film{title ? `: ${title}` : ''}">
+        <img class="ms-cover" src={cover} alt="" />
+        {@render play()}
+      </button>
+    {:else if s.api && !s.started}
+      <button class="ms-poster" onclick={() => s.api?.start()} aria-label="Play the film{title ? `: ${title}` : ''}">
+        {@render play()}
+      </button>
+    {/if}
+  </div>
   {#snippet play()}
     <span class="ms-play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" /></svg></span>
     <span class="ms-chip">Play the film{length ? ` · ${length}` : ''}</span>
   {/snippet}
-  {#if waiting}
-    <button class="ms-poster" onclick={open} aria-label="Play the film{title ? `: ${title}` : ''}">
-      <img class="ms-cover" src={cover} alt="" />
-      {@render play()}
-    </button>
-  {:else if s.api && !s.started}
-    <button class="ms-poster" onclick={() => s.api?.start()} aria-label="Play the film{title ? `: ${title}` : ''}">
-      {@render play()}
-    </button>
-  {/if}
   {#if description && lines}
     <div class="ms-desc">
       <button onclick={() => (expanded = !expanded)} aria-expanded={expanded}>Description {expanded ? '▾' : '▸'}</button>
