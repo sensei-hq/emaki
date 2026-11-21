@@ -202,9 +202,10 @@ export const MotionShow = defineComponent({
     }
     const open = () => { autoplay = true; waiting.value = false; start(); };
     onMounted(start);
-    // The standard chrome lives in the host div below the stage (its captions pinned over the stage). The host only renders
-    // once a running show is there, so the callback ref mounts the chrome exactly then — and drops it whenever the
-    // host goes: a film/locale/mode change drops it with the show, as do controls off and unmount.
+    // The standard chrome lives in the host div below the stage (its captions pinned over the stage). The host renders
+    // once a show is there — before the first play, beside the poster's play button — so the callback ref mounts
+    // the chrome exactly then, and drops it whenever the host goes: a film/locale/mode change drops it with the
+    // show, as do controls off and unmount.
     let chrome: PlayerChrome | null = null;
     let chromeEl: HTMLElement | null = null;
     // Controlled captions live one level down: the chrome owns the CC toggle state, so this mirrors it
@@ -289,10 +290,13 @@ export const MotionShow = defineComponent({
         : `position:relative;aspect-ratio:${W}/${H};width:100%;max-height:100%;margin:auto;display:grid;place-items:center;overflow:hidden`;
       return h('div', { tabindex: 0, role: 'application', 'aria-label': 'Story player', onKeydown,
         style: 'position:relative;width:100%;height:100%;display:flex;flex-direction:column;outline:none' }, [
-        h('div', { ref: fit, style: fitStyle }, [h('div', { ref: stage, style: 'position:relative' })]),
-        waiting.value ? playButton(props.title, props.length, open, props.cover)
-          : s && x && !x.started ? playButton(props.title, props.length, () => s.start())
-          : props.controls && s && x ? h('div', { ref: chromeHost }) : null,
+        h('div', { ref: fit, style: fitStyle }, [
+          h('div', { ref: stage, style: 'position:relative' }),
+          waiting.value ? playButton(props.title, props.length, open, props.cover)
+            : s && x && !x.started ? playButton(props.title, props.length, () => s.start())
+            : null,
+        ]),
+        !waiting.value && props.controls && s && x ? h('div', { ref: chromeHost }) : null,
         props.description && lines.value
           ? h('div', { style: 'padding:6px 12px 12px;font:14px/1.55 system-ui' }, [
             h('button', { onClick: () => (expanded.value = !expanded.value), 'aria-expanded': expanded.value, style: 'background:none;border:0;padding:6px 0;cursor:pointer;font:inherit;color:inherit;opacity:.75;text-decoration:underline' }, `Description ${expanded.value ? '▾' : '▸'}`),
