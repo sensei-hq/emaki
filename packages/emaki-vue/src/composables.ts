@@ -19,6 +19,13 @@ export function useScenePlayer(held: ScenePlayerState) {
 export type Show = Awaited<ReturnType<typeof createShow>>;
 export interface ShowState { index: number; local: number; playing: boolean; sound: boolean; voiceOn: boolean; layout: Layout; started: boolean }
 
+/** One controlled toggle: every press emits the requested value, but only an uncontrolled player acts on it —
+ *  under a defined prop the app's state wins over the press. Shared by both components' toggles. */
+export function controlledToggle(prop: boolean | undefined, requested: boolean, emitChange: (on: boolean) => void, apply: () => void) {
+  emitChange(requested);
+  if (prop === undefined) apply();
+}
+
 /** Reactive state of a story player controller (from <MotionShow @ready>), following the playhead (read once a
  *  frame; it moves without notifications). `started` is false on a poster. */
 export function useShowState(show: Ref<Show | null>) {

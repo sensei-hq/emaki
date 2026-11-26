@@ -1,8 +1,10 @@
 // React components over @senseihq/emaki. All are client components (they need the DOM); in Next.js import them
 // from a file marked 'use client'. Call setupMotion({ source, site, logos }) once on the client first.
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { SIZES, attachScene, createShow, installCapture, mountPlayerChrome, sceneSound, showKey, voiceLines, type AttachedScene, type ChromeIconName, type ChromeTick, type Layout, type Mode, type ScenePlayerState, type VoiceLine } from '@senseihq/emaki';
-import { usePlayerFor, useScenePlayer, useShowState, useSize, useWidth, type Show } from './hooks.js';
+import { SIZES, attachScene, installCapture, sceneSound, showKey, type AttachedScene, type ChromeIconName, type ChromeTick, type Layout, type Mode, type ScenePlayerState } from '@senseihq/emaki';
+import { usePlayerFor, useScenePlayer, useSize, useWidth, type Show } from './hooks.js';
+import { useControlledPlayback, usePlayerChrome } from './show-chrome.js';
+import { useShowInstance, useVoiceLines } from './show-lifecycle.js';
 
 /** The default change handler: uncontrolled players without one simply toggle per instance. */
 const noop = () => {};
@@ -155,19 +157,18 @@ export function MotionShow({ film, locale = 'en', layout = 'landscape', mode = '
   const stage = useRef<HTMLDivElement>(null);
   const chromeHost = useRef<HTMLDivElement>(null);
   const [fitRef, size] = useSize<HTMLDivElement>();
-  const [show, setShow] = useState<Show | null>(null);
+  const { show, st, waiting, open } = useShowInstance(stage, { film, locale, layout, mode, slide, loop, poster }, cover, onReady);
   // The chrome's listeners outlive each render, so they read the controlled inputs through this mirror.
   const ctl = useRef({ sound, cc, voice, onSoundChange, onCcChange, onVoiceChange });
   ctl.current = { sound, cc, voice, onSoundChange, onCcChange, onVoiceChange };
-  // True while the wrapper itself presses the chrome's CC toggle to follow a controlled `cc` (not a user toggle).
-  const syncing = useRef(false);
-  const [lines, setLines] = useState<VoiceLine[] | null>(null);
   const [expanded, setExpanded] = useState(false);
-  // With a cover nothing is created until the reader clicks; that click then starts the show (sound on). The poster
-  // shows only until the reader first plays: a language or mode change after that restarts without it.
-  const [waiting, setWaiting] = useState(() => !!cover);
-  const autoplay = useRef(false), begun = useRef(false);
-  const st = useShowState(show);
+  // The standard chrome lives with the show: mounted when it is created, destroyed with it (and when controls
+  // flip off). The chrome stops the keys it handles (Space, arrows, M, C, F), so they never reach showKey below.
+  const syncing = usePlayerChrome(chromeHost, stage, show, { controls, film, locale, playerHref, fullscreenHref, icons, renderTick, voiceToggle }, ctl);
+  // Controlled inputs drive the player: sound and voice through the controller, captions by pressing the
+  // chrome's own CC toggle while it disagrees with the prop. Runs after the mount above in the same commit.
+  useControlledPlayback(show, controls, chromeHost, { sound, voice, cc }, syncing);
+  const lines = useVoiceLines(film, locale, description);
   // The fit box keeps the content aspect ratio for the current layout (the show's own once it reports one, so
   // the O key re-aspects too): width-driven, except portrait, which is height-driven. No flex growth — it would
   // stretch the box off-ratio; the max cap degrades to contain in a capped shell.
@@ -176,102 +177,10 @@ export function MotionShow({ film, locale = 'en', layout = 'landscape', mode = '
   const fitStyle: CSSProperties = current === 'portrait'
     ? { position: 'relative', aspectRatio: `${W} / ${H}`, height: '100%', maxWidth: '100%', margin: 'auto', display: 'grid', placeItems: 'center', overflow: 'hidden' }
     : { position: 'relative', aspectRatio: `${W} / ${H}`, width: '100%', maxHeight: '100%', margin: 'auto', display: 'grid', placeItems: 'center', overflow: 'hidden' };
-  useEffect(() => { if (st?.started && show) begun.current = true; }, [st?.started, show]);
-  useEffect(() => {
-    if (waiting) return;
-    let alive = true, made: Show | null = null;
-    const play = autoplay.current;
-    autoplay.current = false;
-    createShow(stage.current!, film, { locale, layout, mode, slide, loop, poster: (poster || play) && !begun.current }).then(async (s) => {
-      if (!alive) return s.destroy();
-      made = s; setShow(s); onReady?.(s);
-      if (play) await s.start();
-    });
-    return () => { alive = false; made?.destroy(); setShow(null); };
-  }, [film, locale, mode, waiting]); // eslint-disable-line react-hooks/exhaustive-deps
-  // The standard chrome lives with the show: mounted when it is created, destroyed with it (and when controls
-  // flip off). The chrome stops the keys it handles (Space, arrows, M, C, F), so they never reach showKey below.
-  useEffect(() => {
-    if (!show || !controls) return;
-    const host = chromeHost.current!;
-    const chrome = mountPlayerChrome(host, show, {
-      film, locale, stage: stage.current!, playerHref: playerHref || fullscreenHref || undefined, icons, renderTick, voiceToggle,
-    });
-    // A defined prop wins over the chrome's toggles: the press never reaches the chrome, the app hears it instead.
-    const onCapture = (e: Event) => {
-      if (syncing.current) return;
-      const t = (e.target as HTMLElement).closest('.emk-mute,.emk-cc,.emk-voice');
-      if (!t) return;
-      const c = ctl.current;
-      if (t.classList.contains('emk-mute')) {
-        if (c.sound === undefined) return;
-        e.stopPropagation();
-        c.onSoundChange(!c.sound);
-      } else if (t.classList.contains('emk-cc')) {
-        if (c.cc === undefined) return;
-        e.stopPropagation();
-        c.onCcChange(!c.cc);
-      } else {
-        if (c.voice === undefined) return;
-        e.stopPropagation();
-        c.onVoiceChange(!c.voice);
-      }
-    };
-    // An undefined prop leaves the toggle per instance; the wrapper reports what the press did.
-    const onBubble = (e: Event) => {
-      if (syncing.current) return;
-      const t = (e.target as HTMLElement).closest('.emk-mute,.emk-cc,.emk-voice');
-      if (!t) return;
-      const c = ctl.current;
-      const pressed = (t as HTMLButtonElement).getAttribute('aria-pressed') === 'true';
-      if (t.classList.contains('emk-mute')) c.onSoundChange(pressed);
-      else if (t.classList.contains('emk-cc')) c.onCcChange(pressed);
-      else c.onVoiceChange(pressed);
-    };
-    // M reaches straight into the show: emit the request, and under a defined sound keep it from the
-    // chrome. (V and C arrive as toggle clicks, which the capture above sees.)
-    const onKeyCapture = (e: Event) => {
-      if ((e as KeyboardEvent).key.toLowerCase() !== 'm') return;
-      const c = ctl.current;
-      c.onSoundChange(!(c.sound ?? show.state.sound));
-      if (c.sound === undefined) return;
-      e.stopImmediatePropagation();
-      e.preventDefault();
-    };
-    host.addEventListener('click', onCapture, true);
-    host.addEventListener('click', onBubble);
-    host.addEventListener('keydown', onKeyCapture, true);
-    return () => {
-      host.removeEventListener('click', onCapture, true);
-      host.removeEventListener('click', onBubble);
-      host.removeEventListener('keydown', onKeyCapture, true);
-      chrome.destroy();
-    };
-  }, [show, controls, film, locale, playerHref, fullscreenHref, icons, renderTick, voiceToggle]);
-  // Controlled inputs drive the player: sound and voice through the controller, captions by pressing the
-  // chrome's own CC toggle while it disagrees with the prop. Runs after the mount above in the same commit.
-  useEffect(() => { if (show && sound !== undefined) show.setSound(sound); }, [show, sound]);
-  useEffect(() => { if (show && voice !== undefined) show.setVoice(voice); }, [show, voice]);
-  useEffect(() => {
-    if (!show || !controls || cc === undefined) return;
-    const btn = chromeHost.current!.querySelector('.emk-cc') as HTMLButtonElement | null;
-    if (!btn) return;
-    if ((btn.getAttribute('aria-pressed') === 'true') === cc) return;
-    syncing.current = true;
-    btn.click();
-    syncing.current = false;
-  }, [show, controls, cc]);
-  useEffect(() => {
-    if (!description) { setLines(null); return; }
-    let alive = true;
-    voiceLines(film, locale).then((l) => { if (alive) setLines(l); });
-    return () => { alive = false; };
-  }, [film, locale, description]);
   useEffect(() => { if (show && show.state.layout !== layout) show.setLayout(layout); }, [show, layout]);
   useEffect(() => { show?.fit(size.w, size.h); }, [show, size, st?.layout]);
   // Every key (←/→, Space, M, O, R, Home, F) from the core, so all players answer the same way.
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => { if (show && showKey(show, e.nativeEvent, e.currentTarget)) e.preventDefault(); };
-  const open = () => { autoplay.current = true; setWaiting(false); };
   return (
     <div tabIndex={0} role="application" aria-label="Story player" onKeyDown={onKeyDown} className={className}
       style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', outline: 'none', ...style }}>

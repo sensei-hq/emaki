@@ -5,8 +5,11 @@
 // all mount it. Icons and ticks are overridable (Rokkit's pattern: caller values merged over
 // DEFAULT_CHROME_ICONS / renderTick).
 import { voiceLines } from './description.js';
-import { ticks, type Show } from './show.js';
+import { buildChromeBar, paintState, paintTicks, placeCaption, syncTickButtons, type ChromeElements, type ChromeState } from './player-chrome-view.js';
+import type { Show } from './show.js';
 import type { VoiceLine } from './types.js';
+
+export { CHROME_CSS } from './player-chrome-view.js';
 
 export type ChromeIconName =
   | 'prev' | 'play' | 'pause' | 'next' | 'cc'
@@ -58,181 +61,22 @@ export interface PlayerChrome {
   destroy: () => void;
 }
 
-/** Structural styles for the chrome (inherits color and font from the page). Injected once per host. */
-export const CHROME_CSS = [
-  '.emk-bar{display:flex;align-items:center;gap:8px;padding:8px;font:13px system-ui}',
-  '.emk-bar button,.emk-bar a{display:grid;place-items:center;min-width:34px;height:34px;border-radius:8px;border:0;background:none;color:inherit;cursor:pointer;padding:0 6px;text-decoration:none}',
-  '.emk-bar button:hover,.emk-bar a:hover{background:color-mix(in srgb,currentColor 12%,transparent)}',
-  '.emk-bar button[aria-pressed="true"]{background:color-mix(in srgb,currentColor 22%,transparent)}',
-  '.emk-bar button:disabled{opacity:.35;cursor:default;background:none}',
-  '.emk-bar svg{width:20px;height:20px;fill:currentColor}',
-  '.emk-ticks{flex:1;display:flex;gap:4px;min-width:2rem}',
-  '.emk-ticks .emk-tick{flex:1;min-width:0;height:18px;padding:7px 0;background:linear-gradient(color-mix(in srgb,currentColor 18%,transparent),color-mix(in srgb,currentColor 18%,transparent)) center/100% 4px no-repeat}',
-  '.emk-ticks .emk-tick span{display:block;height:4px;border-radius:2px;background:var(--emk-accent,currentColor)}',
-  '.emk-count{font-variant-numeric:tabular-nums;opacity:.7;white-space:nowrap}',
-  '.emk-cap{position:absolute;left:50%;bottom:4%;transform:translateX(-50%);max-width:82%;margin:0;padding:.45em .9em;border-radius:.4rem;background:rgb(17 27 42/.82);color:#fff;font:clamp(.85rem,1.6vw,1.25rem)/1.4 system-ui;text-align:center}',
-].join('\n');
-
-const btn = (doc: Document, cls: string, icon: string, label: string, title: string) => {
-  const b = doc.createElement('button');
-  b.type = 'button';
-  b.className = cls;
-  b.innerHTML = icon;
-  b.setAttribute('aria-label', label);
-  b.title = title;
-  return b;
-};
-
-/** Mounts the standard toolbar into `host` (caption overlay into `opts.stage`), driven by `show`. */
-export function mountPlayerChrome(host: HTMLElement, show: Show, opts: PlayerChromeOptions): PlayerChrome {
-  const doc = host.ownerDocument;
-  const icons = { ...DEFAULT_CHROME_ICONS, ...opts.icons };
-  const locale = opts.locale ?? 'en';
-  const style = doc.createElement('style');
-  style.setAttribute('data-emk-chrome', '');
-  style.textContent = CHROME_CSS;
-  const bar = doc.createElement('div');
-  bar.className = 'emk-bar';
-  bar.setAttribute('role', 'toolbar');
-  bar.setAttribute('aria-label', 'Player controls');
-  const cap = doc.createElement('p');
-  cap.className = 'emk-cap';
-  cap.setAttribute('aria-live', 'polite');
-  cap.hidden = true;
-  const prev = btn(doc, 'emk-prev', icons.prev, 'Previous scene', 'Previous scene (←)');
-  const toggle = btn(doc, 'emk-toggle', icons.play, 'Play', 'Play or pause (Space)');
-  const next = btn(doc, 'emk-next', icons.next, 'Next scene', 'Next scene (→)');
-  const ticksEl = doc.createElement('div');
-  ticksEl.className = 'emk-ticks';
-  ticksEl.setAttribute('role', 'group');
-  ticksEl.setAttribute('aria-label', 'Scenes');
-  const count = doc.createElement('span');
-  count.className = 'emk-count';
-  const cc = btn(doc, 'emk-cc', icons.cc, 'Captions', 'Captions (C)');
-  cc.setAttribute('aria-pressed', 'false');
-  const mute = btn(doc, 'emk-mute', icons.soundOff, 'Sound on', 'Sound (M)');
-  mute.setAttribute('aria-pressed', 'false');
-  const vo = opts.voiceToggle === false ? null : btn(doc, 'emk-voice', icons.voice, 'Voice on', 'Voice (V)');
-  vo?.setAttribute('aria-pressed', 'true');
-  const fs = btn(doc, 'emk-fs', icons.fullscreenEnter, 'Full screen', 'Full screen (F)');
-  bar.append(prev, toggle, next, ticksEl, count, cc, mute, ...(vo ? [vo] : []), fs);
-  if (opts.playerHref) {
-    const a = doc.createElement('a');
-    a.className = 'emk-popout';
-    a.href = opts.playerHref;
-    a.innerHTML = icons.popout;
-    a.setAttribute('aria-label', 'Open the player on its own page');
-    a.title = 'Open the player on its own page';
-    bar.append(a);
-  }
-  // The caption anchors to the host (light DOM always paints; stage hosts carry shadow roots
-  // that would swallow it) and is geometrically pinned over the stage below.
-  const pos = host.style.position || getComputedStyle(host).position;
-  if (!pos || pos === 'static') host.style.position = 'relative';
-  host.append(style, bar, cap);
-
-  let lines: VoiceLine[] | null = null;
-  let ccOn = false;
-  let dead = false;
-  let raf = 0;
-  let last = '';
-  let geoKey = '';
-  const byScene = () => new Map((lines ?? []).map((l) => [l.scene, l.text]));
-
-  // Pins the overlay caption over the stage (centered, 4% above its bottom edge). Geometry is
-  // re-read only when the host size moves, never per frame.
-  const placeCaption = () => {
-    const key = `${host.clientWidth}x${host.clientHeight}`;
-    if (key === geoKey) return;
-    geoKey = key;
-    const hr = host.getBoundingClientRect();
-    const sr = opts.stage.getBoundingClientRect();
-    cap.style.left = `${sr.left - hr.left + sr.width / 2}px`;
-    cap.style.bottom = `${hr.bottom - sr.bottom + sr.height * 0.04}px`;
-    cap.style.maxWidth = `${sr.width * 0.82}px`;
-  };
-
-  const render = () => {
-    if (dead) return;
-    placeCaption();
-    const s = show.state;
-    const scenes = show.timeline.scenes;
-    const current = ticks(show);
-    if (ticksEl.children.length !== scenes.length) {
-      ticksEl.replaceChildren(
-        ...scenes.map((sc, i) => {
-          const b = doc.createElement('button');
-          b.type = 'button';
-          b.className = 'emk-tick';
-          b.title = sc.name;
-          b.setAttribute('aria-label', `Scene ${i + 1}: ${sc.name}`);
-          b.onclick = () => show.go(i);
-          return b;
-        }),
-      );
-    }
-    [...ticksEl.children].forEach((el, i) => {
-      const t = current[i];
-      const tick: ChromeTick = { id: t.id, name: t.name, dur: t.dur, fill: t.fill, done: i < s.index, current: i === s.index };
-      const custom = opts.renderTick?.(tick, i);
-      if (custom !== undefined) {
-        if ((el as HTMLElement).dataset.custom !== custom) {
-          el.innerHTML = custom;
-          (el as HTMLElement).dataset.custom = custom;
-        }
-      } else {
-        delete (el as HTMLElement).dataset.custom;
-        let span = el.querySelector('span');
-        if (!span) {
-          el.innerHTML = '';
-          span = doc.createElement('span');
-          el.append(span);
-        }
-        span.style.width = `${Math.round(t.fill * 100)}%`;
-      }
-      el.classList.toggle('done', tick.done);
-      el.toggleAttribute('aria-current', tick.current);
-    });
-    // The rest only moves on state changes, not every frame.
-    // (show.state.index is always valid: go() wraps it, place() clamps it.)
-    const line = byScene().get(scenes[s.index].id);
-    const key = `${s.playing}|${s.sound}|${s.voiceOn}|${s.index}|${ccOn}|${line ?? ''}`;
-    if (key === last) return;
-    last = key;
-    count.textContent = `${s.index + 1} / ${scenes.length}`;
-    toggle.innerHTML = s.playing ? icons.pause : icons.play;
-    toggle.setAttribute('aria-label', s.playing ? 'Pause' : 'Play');
-    mute.innerHTML = s.sound ? icons.soundOn : icons.soundOff;
-    mute.setAttribute('aria-pressed', String(s.sound));
-    mute.setAttribute('aria-label', s.sound ? 'Sound off' : 'Sound on');
-    if (vo) {
-      vo.innerHTML = s.voiceOn ? icons.voice : icons.voiceOff;
-      vo.setAttribute('aria-pressed', String(s.voiceOn));
-      vo.setAttribute('aria-label', s.voiceOn ? 'Voice on' : 'Voice off');
-      // Mute is the master: the VO toggle dims while sound is off (its cut still shown), so the bar
-      // never claims speech is live that cannot be heard.
-      vo.toggleAttribute('disabled', !s.sound);
-    }
-    cap.textContent = line ?? '';
-    cap.hidden = !ccOn || !line;
-  };
-  // Tick fills follow the playhead every frame; state changes notify through the show.
-  const loop = () => {
-    if (dead) return;
-    render();
-    raf = requestAnimationFrame(loop);
-  };
-
-  prev.onclick = () => show.prev();
-  next.onclick = () => show.next();
-  toggle.onclick = () => (show.state.started ? show.toggle() : show.start());
-  mute.onclick = () => show.setSound(!show.state.sound);
-  if (vo) vo.onclick = () => show.setVoice(!show.state.voiceOn);
-  cc.onclick = () => {
-    ccOn = !ccOn;
-    cc.setAttribute('aria-pressed', String(ccOn));
+/** Wires the transport, toggles and captions buttons to the show (repaints through `render`). */
+function wireTransport(els: ChromeElements, show: Show, state: ChromeState, render: () => void): void {
+  els.prev.onclick = () => show.prev();
+  els.next.onclick = () => show.next();
+  els.toggle.onclick = () => (show.state.started ? show.toggle() : show.start());
+  els.mute.onclick = () => show.setSound(!show.state.sound);
+  if (els.vo) els.vo.onclick = () => show.setVoice(!show.state.voiceOn);
+  els.cc.onclick = () => {
+    state.ccOn = !state.ccOn;
+    els.cc.setAttribute('aria-pressed', String(state.ccOn));
     render();
   };
+}
+
+/** Wires the fullscreen toggle (glyph follows the host); returns the listener cleanup. */
+function wireFullscreen(doc: Document, host: HTMLElement, fs: HTMLButtonElement, icons: Record<ChromeIconName, string>): () => void {
   const syncFs = () => {
     fs.innerHTML = doc.fullscreenElement === host ? icons.fullscreenExit : icons.fullscreenEnter;
   };
@@ -242,46 +86,85 @@ export function mountPlayerChrome(host: HTMLElement, show: Show, opts: PlayerChr
   };
   const onFs = () => syncFs();
   doc.addEventListener('fullscreenchange', onFs);
-  const onKey = (e: KeyboardEvent) => {
-    const k = e.key.toLowerCase();
-    const acts: Record<string, () => void> = {
-      ' ': () => (show.state.started ? show.toggle() : show.start()),
-      arrowright: () => show.next(),
-      arrowleft: () => show.prev(),
-      m: () => show.setSound(!show.state.sound),
-      v: () => vo?.click(),
-      c: () => cc.click(),
-      f: () => fs.click(),
-    };
-    if (!Object.hasOwn(acts, k)) return;
-    e.preventDefault();
-    e.stopPropagation();
-    acts[k]();
+  return () => doc.removeEventListener('fullscreenchange', onFs);
+}
+
+/** One key on the chrome (Space, arrows, M, V, C, F); anything else is left for the page. */
+function handleChromeKey(e: KeyboardEvent, show: Show, vo: HTMLButtonElement | null, cc: HTMLButtonElement, fs: HTMLButtonElement): void {
+  const k = e.key.toLowerCase();
+  const acts: Record<string, () => void> = {
+    ' ': () => (show.state.started ? show.toggle() : show.start()),
+    arrowright: () => show.next(),
+    arrowleft: () => show.prev(),
+    m: () => show.setSound(!show.state.sound),
+    v: () => vo?.click(),
+    c: () => cc.click(),
+    f: () => fs.click(),
   };
+  if (!Object.hasOwn(acts, k)) return;
+  e.preventDefault();
+  e.stopPropagation();
+  acts[k]();
+}
+
+/** The film's voice lines, once loaded: no lines drops the CC and VO toggles (nothing to caption). */
+function applyVoiceLines(els: ChromeElements, state: ChromeState, lines: VoiceLine[] | null, render: () => void): void {
+  if (state.dead) return;
+  state.lines = lines;
+  if (!lines?.length) { els.cc.remove(); els.vo?.remove(); }
+  else els.cc.setAttribute('aria-pressed', String(state.ccOn));
+  render();
+}
+
+/** Mounts the standard toolbar into `host` (caption overlay into `opts.stage`), driven by `show`. */
+export function mountPlayerChrome(host: HTMLElement, show: Show, opts: PlayerChromeOptions): PlayerChrome {
+  const doc = host.ownerDocument;
+  const icons = { ...DEFAULT_CHROME_ICONS, ...opts.icons };
+  const locale = opts.locale ?? 'en';
+  const els = buildChromeBar(doc, icons, opts);
+  // The caption anchors to the host (light DOM always paints; stage hosts carry shadow roots
+  // that would swallow it) and is geometrically pinned over the stage below.
+  const pos = host.style.position || getComputedStyle(host).position;
+  if (!pos || pos === 'static') host.style.position = 'relative';
+  host.append(els.style, els.bar, els.cap);
+
+  const state: ChromeState = { lines: null, ccOn: false, dead: false, last: '', geoKey: '' };
+  let raf = 0;
+  const render = () => {
+    if (state.dead) return;
+    placeCaption(host, opts.stage, els.cap, state);
+    syncTickButtons(doc, els.ticksEl, show);
+    paintTicks(doc, els.ticksEl, show, opts.renderTick);
+    paintState(els, show, icons, state);
+  };
+  // Tick fills follow the playhead every frame; state changes notify through the show.
+  const loop = () => {
+    if (state.dead) return;
+    render();
+    raf = requestAnimationFrame(loop);
+  };
+
+  wireTransport(els, show, state, render);
+  const dropFs = wireFullscreen(doc, host, els.fs, icons);
+  const onKey = (e: KeyboardEvent) => handleChromeKey(e, show, els.vo, els.cc, els.fs);
   host.addEventListener('keydown', onKey);
 
   const off = show.on(() => render());
   render();
   raf = requestAnimationFrame(loop);
-  void voiceLines(opts.film, locale).then((l) => {
-    if (dead) return;
-    lines = l;
-    if (!l?.length) { cc.remove(); vo?.remove(); }
-    else cc.setAttribute('aria-pressed', String(ccOn));
-    render();
-  });
+  void voiceLines(opts.film, locale).then((l) => applyVoiceLines(els, state, l, render));
 
   return {
-    el: bar,
+    el: els.bar,
     destroy() {
-      dead = true;
+      state.dead = true;
       off();
       cancelAnimationFrame(raf);
       host.removeEventListener('keydown', onKey);
-      doc.removeEventListener('fullscreenchange', onFs);
-      style.remove();
-      bar.remove();
-      cap.remove();
+      dropFs();
+      els.style.remove();
+      els.bar.remove();
+      els.cap.remove();
     },
   };
 }
