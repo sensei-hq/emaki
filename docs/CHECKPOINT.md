@@ -1,20 +1,16 @@
 # Checkpoint
 
-**Slice:** none open — v0.3.0 shipped
+**Slice:** qlty-smells refactor (maintainability A)
 
 **Done**
 
-- v0.3.0 on npm (all six packages) and as a GitHub release (PR #20, tag v0.3.0).
-- Breaking: `emaki build` burns captions only with `--captions` (`--no-captions` removed).
-- Optional VO-script description under the story player (core + element + Svelte/React/Vue props),
-  off by default everywhere.
-- OpenSpec adopted (`openspec/`, `AGENTS.md`, commands, CLAUDE.md wiring); #19 fixed through
-  change `fix-overlapping-element-mounts`.
-- Issues #8 (verified resolved) and #19 (fixed) closed. Coverage 100%, CI green incl. Chromium + site.
+- `4a1e754` refactor: split complex modules to clear qlty smells (14 files).
+- `qlty smells --all`: 11 issues -> 0 (function/file complexity, returns); no new duplication.
+- Full gate green: build, types, 885/885 tests, coverage 100% everywhere.
 
-**Remaining:** nothing.
+**Remaining:** bump patch, push (branch + tag).
 
-**Next command:** none pending; start the next slice from an issue or an openspec change.
+**Next command:** `bunx bumpp patch --yes --configFilePath config/bump.config.js && git push --follow-tags origin main`
 
 **Open questions:** none.
 
