@@ -1,16 +1,16 @@
 # Checkpoint
 
-**Slice:** qlty-smells refactor (maintainability A)
+**Slice:** none open — v0.8.1 shipped
 
 **Done**
 
-- `4a1e754` refactor: split complex modules to clear qlty smells (14 files).
-- `qlty smells --all`: 11 issues -> 0 (function/file complexity, returns); no new duplication.
-- Full gate green: build, types, 885/885 tests, coverage 100% everywhere.
+- v0.8.1 tagged and pushed (`9b58f38` chore: release v0.8.1, tag v0.8.1).
+- Pushed: qlty-smells refactor (`4a1e754`), checkpoint (`e27f16f`), release (`9b58f38`).
+- `qlty smells --all`: 11 issues -> 0. Full gate green: build, types, 885/885 tests, coverage 100%.
 
-**Remaining:** bump patch, push (branch + tag).
+**Remaining:** confirm CI green on main.
 
-**Next command:** `bunx bumpp patch --yes --configFilePath config/bump.config.js && git push --follow-tags origin main`
+**Next command:** `gh run list --branch main --limit 3` (or open the repo actions page).
 
 **Open questions:** none.
 
